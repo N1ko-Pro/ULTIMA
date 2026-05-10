@@ -122,7 +122,7 @@ function ghRequestOnce({ method, pathUrl, token, owner, repo, body }, _redirects
       headers,
       timeout: 15000,
     }, (res) => {
-      if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location && _redirects < 3) {
+      if ((res.statusCode === 301 || res.statusCode === 302 || res.statusCode === 307 || res.statusCode === 308) && res.headers.location && _redirects < 3) {
         res.resume();
         const location = res.headers.location;
         const newPath = location.startsWith('http') ? new URL(location).pathname : location;
