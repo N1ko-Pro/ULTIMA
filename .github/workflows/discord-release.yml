@@ -21,8 +21,8 @@ jobs:
           RELEASE_DATE: ${{ github.event.release.published_at }}
         run: |
           PAYLOAD=$(jq -n \
-            --arg title "🚀 Новый релиз BG3 ULTIMA — $RELEASE_TAG" \
-            --arg thread "🚀 BG3 ULTIMA $RELEASE_TAG" \
+            --arg title "🚀 Новый релиз ULTIMA — $RELEASE_TAG" \
+            --arg thread "🚀 ULTIMA $RELEASE_TAG" \
             --arg url "$RELEASE_URL" \
             --arg desc "$RELEASE_BODY" \
             --arg tag "$RELEASE_TAG" \
@@ -39,7 +39,7 @@ jobs:
                   { name: "👤 Автор",   value: "ANICKON",                           inline: true },
                   { name: "🔗 Скачать", value: ("[Скачать](" + $url + ")"), inline: true }
                 ],
-                footer: { text: "BG3 ULTIMA • GitHub Releases" },
+                footer: { text: "ULTIMA • GitHub Releases" },
                 timestamp: $ts
               }]
             }')
@@ -57,7 +57,7 @@ jobs:
             --arg tag "$RELEASE_TAG" \
             --arg channel "$RELEASES_CHANNEL" \
             '{
-              content: ("@everyone\n\n🚀 **Вышла новая версия BG3 ULTIMA " + $tag + "!**\nСкачать можно в канале релизов: " + $channel)
+              content: ("@everyone\n\n🚀 **Вышла новая версия ULTIMA " + $tag + "!**\nСкачать можно в канале релизов: " + $channel)
             }')
           RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "$DISCORD_ANNOUNCE_WEBHOOK" \
             -H "Content-Type: application/json" \

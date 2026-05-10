@@ -2,7 +2,7 @@
   "name": "bg3-ultima",
   "private": true,
   "version": "1.0.0",
-  "description": "BG3 ULTIMA — a desktop toolkit for Baldur's Gate 3 mod localization and translation.",
+  "description": "ULTIMA — a desktop toolkit for Baldur's Gate 3 mod localization and translation.",
   "author": {
     "name": "ANICKON",
     "url": "https://github.com/N1ko-Pro"
@@ -52,7 +52,7 @@
   },
   "build": {
     "appId": "com.anickon.bg3ultima",
-    "productName": "BG3 ULTIMA",
+    "productName": "ULTIMA",
     "copyright": "Copyright © 2026 ANICKON",
     "directories": {
       "output": "release",
@@ -98,7 +98,7 @@
         }
       ],
       "icon": "build/icon.ico",
-      "artifactName": "BG3-ULTIMA-Setup-${version}.${ext}"
+      "artifactName": "ULTIMA-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
@@ -107,7 +107,7 @@
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": "always",
       "createStartMenuShortcut": true,
-      "shortcutName": "BG3 ULTIMA",
+      "shortcutName": "ULTIMA",
       "runAfterFinish": true,
       "deleteAppDataOnUninstall": false,
       "differentialPackage": true,
@@ -118,7 +118,7 @@
       ],
       "language": "1049",
       "include": "build/installer.nsh",
-      "uninstallDisplayName": "BG3 ULTIMA",
+      "uninstallDisplayName": "ULTIMA",
       "menuCategory": false
     },
     "publish": {

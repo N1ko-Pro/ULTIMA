@@ -93,7 +93,7 @@ export default function AuthPage({ onNavigateToProjects, isOverlay = false, isFi
   }, [isProfileExpanded]);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden relative">
+    <div className="flex-1 flex flex-col overflow-hidden relative select-none">
       {/* Background layers */}
       <div className="absolute inset-0 bg-surface-0" />
       <div className="absolute inset-0 dot-grid opacity-20 pointer-events-none" />
@@ -111,11 +111,11 @@ export default function AuthPage({ onNavigateToProjects, isOverlay = false, isFi
       <div className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden">
         <div className="flex flex-col items-center px-6 pt-8 pb-4 w-full max-w-[600px] mx-auto">
           <div className="flex flex-col items-center text-center mb-5 mt-12 app-slide-up" style={{ animationDelay: '50ms' }}>
-            <div className="relative mb-2 flex items-center gap-3">
+            <div className="relative mb-2 flex items-center gap-0">
               <div className="absolute inset-0 blur-[60px] bg-white/[0.04] rounded-full scale-[2.5]" />
-              <img src={logoSrc} alt="BG3 Ultima" className="relative w-24 h-24 object-contain drop-shadow-[0_0_24px_rgba(139,92,246,0.2)] shrink-0" />
+              <img src={logoSrc} alt="ULTIMA" className="relative w-24 h-24 object-contain drop-shadow-[0_0_24px_rgba(139,92,246,0.2)] shrink-0" />
               <h1 className="relative text-4xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-zinc-300 to-zinc-600">
-                BG3 ULTIMA
+                ULTIMA
               </h1>
             </div>
             <p className="text-zinc-500 text-[14px] font-medium max-w-sm leading-relaxed">

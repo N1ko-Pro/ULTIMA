@@ -11,9 +11,9 @@ const authManager = require('./auth/authManager');
 const firstRunManager = require('./manager/firstRunManager');
 const updateManager = require('./manager/updateManager');
 
-// Force userData to live under %APPDATA%\BG3 ULTIMA in all builds
+// Force userData to live under %APPDATA%\ULTIMA in all builds
 // (dev + packaged), so we always know the on-disk location.
-app.setName('BG3 ULTIMA');
+app.setName('ULTIMA');
 
 // Suppress security warnings for local dev server (Content-Security-Policy)
 process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true';

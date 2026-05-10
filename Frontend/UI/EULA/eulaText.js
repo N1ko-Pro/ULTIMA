@@ -6,13 +6,13 @@
 
 const EULA_RU = {
   title: 'Лицензионное соглашение',
-  subtitle: 'BG3 ULTIMA — пользовательское соглашение',
+  subtitle: 'ULTIMA — пользовательское соглашение',
   intro:
     'Пожалуйста, внимательно ознакомьтесь с условиями ниже. Прокрутите текст до конца, после чего станет доступен чекбокс принятия. Продолжая использование программы, вы подтверждаете своё согласие.',
   sections: [
     {
       heading: '1. Принятие условий',
-      body: 'Устанавливая и используя BG3 ULTIMA («Программа»), вы соглашаетесь с условиями настоящего Соглашения. Если вы не согласны — не запускайте Программу и удалите её со своего устройства.',
+      body: 'Устанавливая и используя ULTIMA («Программа»), вы соглашаетесь с условиями настоящего Соглашения. Если вы не согласны — не запускайте Программу и удалите её со своего устройства.',
     },
     {
       heading: '2. Лицензия',
@@ -20,7 +20,7 @@ const EULA_RU = {
     },
     {
       heading: '3. Интеллектуальная собственность',
-      body: 'Программа, её исходный код, интерфейс, словарь D&D и сопутствующие ресурсы принадлежат ANICKON и защищены законом об авторском праве. Baldur\'s Gate 3 — товарный знак Larian Studios. BG3 ULTIMA является независимым фанатским проектом и не аффилирован с Larian Studios.',
+      body: 'Программа, её исходный код, интерфейс, словарь D&D и сопутствующие ресурсы принадлежат ANICKON и защищены законом об авторском праве. Baldur\'s Gate 3 — товарный знак Larian Studios. ULTIMA является независимым фанатским проектом и не аффилирован с Larian Studios.',
     },
     {
       heading: '4. Что можно делать',
@@ -36,7 +36,7 @@ const EULA_RU = {
     },
     {
       heading: '7. Пользовательские данные',
-      body: 'Все ваши настройки, словари и проекты хранятся локально в папке %APPDATA%\\BG3 ULTIMA. Никакие персональные данные не передаются разработчику без вашего явного действия (например, входа через Discord). Резервное копирование ваших файлов — ваша ответственность.',
+      body: 'Все ваши настройки, словари и проекты хранятся локально в папке %APPDATA%\\ULTIMA. Никакие персональные данные не передаются разработчику без вашего явного действия (например, входа через Discord). Резервное копирование ваших файлов — ваша ответственность.',
     },
     {
       heading: '8. Обновления',
@@ -63,13 +63,13 @@ const EULA_RU = {
 
 const EULA_EN = {
   title: 'End User License Agreement',
-  subtitle: 'BG3 ULTIMA — terms of use',
+  subtitle: 'ULTIMA — terms of use',
   intro:
     'Please read the terms below carefully. Scroll to the bottom to enable the acceptance checkbox. By continuing to use the Software you confirm your agreement.',
   sections: [
     {
       heading: '1. Acceptance of terms',
-      body: 'By installing or using BG3 ULTIMA (the "Software") you agree to these terms. If you do not agree, do not run the Software and remove it from your device.',
+      body: 'By installing or using ULTIMA (the "Software") you agree to these terms. If you do not agree, do not run the Software and remove it from your device.',
     },
     {
       heading: '2. License grant',
@@ -77,7 +77,7 @@ const EULA_EN = {
     },
     {
       heading: '3. Intellectual property',
-      body: 'The Software, including its source code, user interface, D&D dictionary and associated assets, is owned by ANICKON and protected by copyright. Baldur\'s Gate 3 is a trademark of Larian Studios. BG3 ULTIMA is an independent fan project and is not affiliated with Larian Studios.',
+      body: 'The Software, including its source code, user interface, D&D dictionary and associated assets, is owned by ANICKON and protected by copyright. Baldur\'s Gate 3 is a trademark of Larian Studios. ULTIMA is an independent fan project and is not affiliated with Larian Studios.',
     },
     {
       heading: '4. Permitted use',
@@ -93,7 +93,7 @@ const EULA_EN = {
     },
     {
       heading: '7. User data',
-      body: 'Your settings, glossary and projects are stored locally under %APPDATA%\\BG3 ULTIMA. No personal data is sent to the developer without your explicit action (for example signing in via Discord). Backing up your project files is your own responsibility.',
+      body: 'Your settings, glossary and projects are stored locally under %APPDATA%\\ULTIMA. No personal data is sent to the developer without your explicit action (for example signing in via Discord). Backing up your project files is your own responsibility.',
     },
     {
       heading: '8. Updates',

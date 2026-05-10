@@ -46,7 +46,7 @@ export default {
 
   // ─── Tutorial: Welcome screen (first launch) ──────────────────────────────
   tutorialWelcome: {
-    stepWelcome:  { title: 'Welcome to BG3 ULTIMA', desc: 'Your all-in-one tool for translating and managing Baldur\'s Gate 3 mod localizations. Let us give you a quick tour.' },
+    stepWelcome:  { title: 'Welcome to ULTIMA', desc: 'Your all-in-one tool for translating and managing Baldur\'s Gate 3 mod localizations. Let us give you a quick tour.' },
     stepFeatures: { title: 'Features & Sign In',    desc: 'Explore Smart Translation, the AI engine, D&D Dictionary, and XML support. Sign in via Discord to verify your community membership and access extended tools.' },
     stepSocial:   { title: 'Our Community',          desc: 'Find us on Discord, Boosty, Nexus Mods, and GitHub — get the latest updates, explore ready-made translations, and support the project.' },
     stepGuest:    { title: 'No Account? No Problem.', desc: 'You can jump right in as a guest — all core tools are available without signing in. You can always connect your Discord later.' },
@@ -559,7 +559,7 @@ export default {
       availableTitle: 'A new update is available',
       readyTitle:     'Update ready',
       subtitle:       (from, to) => `v${from} → v${to}`,
-      availableBody:  'A new version of BG3 ULTIMA is available. Download it now to get the latest improvements and fixes.',
+      availableBody:  'A new version of ULTIMA is available. Download it now to get the latest improvements and fixes.',
       readyBody:      'The update has been downloaded. Restart the app to apply the changes.',
       later:          'Later',
     },
@@ -575,7 +575,7 @@ export default {
 
   // ─── EULA (supplementary UI strings) ───────────────────────────────────────
   eula: {
-    appName: 'BG3 ULTIMA',
+    appName: 'ULTIMA',
   },
 
   // ─── .NET Runtime Installation Modal ───────────────────────────────────────

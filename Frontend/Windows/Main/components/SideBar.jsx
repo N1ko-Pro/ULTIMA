@@ -69,10 +69,10 @@ function SideBar({
 
         <div className="relative flex items-center gap-1 flex-1 min-w-0">
           <div className="w-16 h-16 rounded-xl overflow-hidden shrink-0">
-            <img src={logoSrc} alt="BG3 Ultima" className="w-full h-full object-contain" />
+            <img src={logoSrc} alt="ULTIMA" className="w-full h-full object-contain" />
           </div>
           <div className={`flex flex-col justify-center whitespace-nowrap transition-opacity duration-300 ${isCompact ? 'opacity-0' : 'opacity-100'}`}>
-            <h1 className="text-[15px] font-bold text-zinc-100 leading-tight tracking-tight">BG3 Ultima</h1>
+            <h1 className="text-[15px] font-bold text-zinc-100 leading-tight tracking-tight">ULTIMA</h1>
             <p className="text-[10px] text-zinc-600 font-bold tracking-widest uppercase">Translation Tool</p>
           </div>
         </div>
