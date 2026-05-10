@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { ChevronRight, ArrowUp } from 'lucide-react';
 import { WindowControls } from '@Core/TitleBar/helpers/TitleBarButtons';
+import logoSrc from '@Assets/logo.png';
 import NotifyCenter from '@Shared/notifications/notifyCenter';
 import UnsavedChangesModal from '@UI/Modal/UnsavedChangesModal';
 import { useLocale } from '@Locales/LocaleProvider';
@@ -29,6 +30,7 @@ function TitleBarCore({
   showUpdaterUI,
   onShowUpdateModal,
   onAtpModalClick,
+  showBranding = true,
 }) {
   const t = useLocale();
   const [confirmModal, setConfirmModal] = useState(INITIAL_CONFIRM);
@@ -107,6 +109,13 @@ function TitleBarCore({
       </div>
 
       <div className="flex-1" />
+
+      {showBranding && (
+        <div className="absolute left-1/2 -translate-x-1/2 flex items-center gap-1.5 pointer-events-none">
+          <img src={logoSrc} alt="ULTIMA" className="w-10 h-10 object-contain opacity-100" />
+          <span className="text-[14px] font-bold text-zinc-300 tracking-widest uppercase leading-none">ULTIMA</span>
+        </div>
+      )}
 
       <div className="flex items-center gap-2 shrink-0 justify-end" style={{ WebkitAppRegion: 'no-drag' }}>
         {updaterState?.status === 'download-progress' && (

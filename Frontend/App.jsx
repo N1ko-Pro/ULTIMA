@@ -195,6 +195,7 @@ export default function App() {
           showUpdaterUI={showUpdaterUI}
           onShowUpdateModal={() => appState.setUpdateModalOpen(true)}
           onAtpModalClick={() => setIsAtpModalOpen(true)}
+          showBranding={!appState.isHomeOverlayOpen}
         />
 
         <OfflineBanner />
