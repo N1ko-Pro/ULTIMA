@@ -33,11 +33,11 @@ jobs:
                 title: $title,
                 url: $url,
                 color: 5793266,
+                description: ("**📋 Что нового:**\n" + (if ($desc | length) == 0 then "_Нет описания._" elif ($desc | length) > 4075 then $desc[:4075] + "..." else $desc end)),
                 fields: [
-                  { name: "📦 Версия", value: $tag, inline: true },
-                  { name: "👤 Автор",  value: "ANICKON", inline: true },
-                  { name: "🔗 Скачать", value: ("[GitHub Releases](" + $url + ")"), inline: true },
-                  { name: "📋 Что нового", value: (if ($desc | length) > 1020 then $desc[:1020] + "..." else (if ($desc | length) == 0 then "_Нет описания._" else $desc end) end) }
+                  { name: "📦 Версия",  value: $tag,                                inline: true },
+                  { name: "👤 Автор",   value: "ANICKON",                           inline: true },
+                  { name: "🔗 Скачать", value: ("[Скачать](" + $url + ")"), inline: true }
                 ],
                 footer: { text: "BG3 ULTIMA • GitHub Releases" },
                 timestamp: $ts
