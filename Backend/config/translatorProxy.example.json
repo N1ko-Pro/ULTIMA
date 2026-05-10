@@ -1,0 +1,8 @@
+{
+  "protocol": "http",
+  "host": "pool.proxy.market",
+  "username": "your_username",
+  "password": "your_password",
+  "portStart": 10000,
+  "portEnd": 10999
+}

@@ -1,0 +1,53 @@
+# ── Dependencies ────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Build output & release artifacts ────────────────────────────────────────
+dist/
+dist-ssr/
+dist-electron/
+release/
+build/
+
+# ── Local secrets & environment ──────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Runtime config (secrets & user state) ───────────────────────────────────
+Backend/config/auth.config.json
+Backend/config/translatorProxy.json
+Backend/config/onboarding.json
+
+# ── User-generated data ──────────────────────────────────────────────────────
+Glossary/glossary_user.json
+
+# ── C# build artifacts ───────────────────────────────────────────────────────
+Backend/bin/
+Backend/DllParser/bin/
+Backend/DllParser/obj/
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ── IDE & editor artifacts ───────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.local
+
+# ── Internal / private ───────────────────────────────────────────────────────
+workspace/
+.windsurf/
+1.txt

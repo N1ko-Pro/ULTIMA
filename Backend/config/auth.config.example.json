@@ -1,0 +1,12 @@
+{
+  "discord": {
+    "clientId": "← из Discord Developer Portal",
+    "guildId": "← ID твоего сервера",
+    "proRoleId": "← ID роли PRO",
+    "devRoleId": "← ID роли Разработчика"
+  },
+  "supabase": {
+    "url": "https://ВАШ_PROJECT_ID.supabase.co",
+    "anonKey": "← Publishable key со страницы Settings → API Keys"
+  }
+}

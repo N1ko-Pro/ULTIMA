@@ -1,0 +1,135 @@
+{
+  "name": "bg3-ultima",
+  "private": true,
+  "version": "1.0.0",
+  "description": "BG3 ULTIMA — a desktop toolkit for Baldur's Gate 3 mod localization and translation.",
+  "author": {
+    "name": "ANICKON",
+    "url": "https://github.com/N1ko-Pro"
+  },
+  "main": "dist-electron/main.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "test": "node Backend/tests/markup.test.js",
+    "test:llm": "node Backend/tests/llm_live.js",
+    "dist": "vite build && electron-builder --win --x64",
+    "dist:dir": "vite build && electron-builder --win --x64 --dir",
+    "release": "node scripts/release.js"
+  },
+  "dependencies": {
+    "@vitalets/google-translate-api": "^9.2.1",
+    "adm-zip": "^0.5.17",
+    "electron-updater": "^6.8.3",
+    "google-translate-api-x": "^10.7.2",
+    "lucide-react": "^1.7.0",
+    "node-unrar-js": "^2.0.2",
+    "proxy-agent": "^8.0.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "react-virtuoso": "^4.18.4",
+    "xml2js": "^0.6.2"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.4",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "autoprefixer": "^10.4.27",
+    "electron": "^41.1.1",
+    "electron-builder": "^26.8.1",
+    "esbuild": "^0.27.7",
+    "eslint": "^9.39.4",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.5.2",
+    "globals": "^17.4.0",
+    "postcss": "^8.5.8",
+    "tailwindcss": "^3.4.19",
+    "vite": "^8.0.4",
+    "vite-plugin-electron": "^0.29.1"
+  },
+  "build": {
+    "appId": "com.anickon.bg3ultima",
+    "productName": "BG3 ULTIMA",
+    "copyright": "Copyright © 2026 ANICKON",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "Backend/config/**/*",
+      "tools/**/*",
+      "package.json",
+      "!node_modules/**/{test,__tests__,tests,example,examples,docs}/**",
+      "!**/*.{md,map,ts,tsx}",
+      "!**/{.DS_Store,.git,.gitignore,.eslintrc,.prettierrc}"
+    ],
+    "extraResources": [
+      {
+        "from": "Backend/config",
+        "to": "config",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "Glossary",
+        "to": "glossary",
+        "filter": [
+          "glossary_default.json"
+        ]
+      }
+    ],
+    "asar": true,
+    "asarUnpack": [
+      "tools/**/*"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "artifactName": "BG3-ULTIMA-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": true,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "BG3 ULTIMA",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "differentialPackage": true,
+      "multiLanguageInstaller": true,
+      "installerLanguages": [
+        "en_US",
+        "ru_RU"
+      ],
+      "language": "1049",
+      "include": "build/installer.nsh",
+      "uninstallDisplayName": "BG3 ULTIMA",
+      "menuCategory": false
+    },
+    "publish": {
+      "provider": "github",
+      "owner": "N1ko-Pro",
+      "repo": "BG3-ULTIMA",
+      "releaseType": "release",
+      "publishAutoUpdate": true
+    },
+    "releaseInfo": {
+      "releaseNotesFile": "build/release-notes.md"
+    }
+  }
+}

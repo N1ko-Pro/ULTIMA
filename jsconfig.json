@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "forceConsistentCasingInFileNames": false,
+    "baseUrl": ".",
+    "paths": {
+      "@Frontend/*":     ["Frontend/*"],
+      "@API/*":          ["Frontend/API/*"],
+      "@Core/*":         ["Frontend/Core/*"],
+      "@UI/*":           ["Frontend/UI/*"],
+      "@Windows/*":      ["Frontend/Windows/*"],
+      "@Shared/*":       ["Frontend/Shared/*"],
+      "@Utils/*":        ["Frontend/Utils/*"],
+      "@Config/*":       ["Frontend/Config/*"],
+      "@Locales/*":      ["Frontend/Locales/*"],
+      "@Assets/*":       ["Frontend/Assets/*"],
+      "@Optimization/*": ["Frontend/Optimization/*"]
+    }
+  },
+  "include": ["Frontend"],
+  "exclude": ["node_modules", "dist", "dist-electron"]
+}

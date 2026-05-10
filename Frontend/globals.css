@@ -1,0 +1,238 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   BG3 ULTIMA — Global Styles
+   Black glass UI system. Every surface is a dark semi-transparent pane with
+   subtle blur, soft white borders and deep shadows. Aim: obsidian glass that
+   feels solid yet translucent.
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+@layer base {
+  body {
+    @apply bg-surface-0 text-zinc-300 subpixel-antialiased selection:bg-white/20 font-sans;
+    text-rendering: optimizeLegibility;
+    margin: 0;
+  }
+
+  /* ── Scrollbar ──────────────────────────────────────────────────────────── */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-white/[0.18] rounded-full hover:bg-white/[0.32];
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    transition: background-color 0.15s ease;
+  }
+}
+
+@layer components {
+
+  /* ── Glass surface system ───────────────────────────────────────────────── */
+  .glass-panel {
+    @apply bg-surface-2/80 backdrop-blur-2xl border border-white/[0.07]
+           shadow-[0_2px_16px_rgba(0,0,0,0.35),inset_0_1px_0_rgba(255,255,255,0.04)];
+  }
+
+  .glass-panel-hover {
+    @apply hover:bg-surface-3/80 hover:border-white/[0.12]
+           hover:shadow-[0_4px_24px_rgba(0,0,0,0.45),inset_0_1px_0_rgba(255,255,255,0.06)];
+  }
+
+  .glass-panel-deep {
+    @apply bg-surface-1/[0.92] backdrop-blur-3xl border border-white/[0.06]
+           shadow-[0_24px_64px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.03)];
+  }
+
+  /* ── Input system ───────────────────────────────────────────────────────── */
+  .input-modern {
+    @apply w-full bg-surface-3 border border-white/[0.08] rounded-xl
+           px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 outline-none
+           transition-[border-color,background-color,box-shadow] duration-200
+           focus:border-white/[0.4] focus:ring-2 focus:ring-white/[0.12]
+           focus:shadow-[0_0_0_3px_rgba(255,255,255,0.04)] focus:bg-surface-4;
+  }
+
+  .input-modern:hover:not(:focus) {
+    @apply border-white/[0.14];
+  }
+
+  /* ── Animations (class-driven) ──────────────────────────────────────────── */
+  .start-fade-in {
+    animation: startFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .start-card-appear {
+    animation: startCardAppear 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .dropzone-glow {
+    animation: dropzoneGlow 1.6s ease-in-out infinite;
+  }
+
+  .app-fade-in {
+    animation: appFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .app-slide-up {
+    animation: appSlideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /* ── Decorative ─────────────────────────────────────────────────────────── */
+  .dot-grid {
+    background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+
+  .noise-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0.08;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+  }
+
+  /* ── Inner glow for depth ───────────────────────────────────────────────── */
+  .inner-glow {
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.04), 0 1px 3px rgba(0,0,0,0.3);
+  }
+
+  /* ── Top shimmer line (reusable on any glass panel) ─────────────────────── */
+  .glass-shimmer-top {
+    position: relative;
+  }
+  .glass-shimmer-top::before {
+    content: '';
+    position: absolute;
+    inset: 0 0 auto 0;
+    height: 1px;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent);
+    border-radius: inherit;
+    pointer-events: none;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Keyframes
+   ══════════════════════════════════════════════════════════════════════════════ */
+
+@keyframes shimmer {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes borderPulse {
+  0%, 100% { border-color: rgba(139, 92, 246, 0.3); box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+  50%      { border-color: rgba(139, 92, 246, 0.5); box-shadow: 0 0 12px 0 rgba(139, 92, 246, 0.2); }
+}
+
+@keyframes slideInFromTop {
+  0%   { opacity: 0; transform: translateY(-16px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes autoTranslateShake {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(-5px); }
+  40%  { transform: translateX(5px); }
+  60%  { transform: translateX(-3px); }
+  80%  { transform: translateX(3px); }
+  100% { transform: translateX(0); }
+}
+
+@keyframes fadeIn {
+  0%   { opacity: 0; transform: translateY(8px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes startFadeIn {
+  0%   { opacity: 0; transform: translateY(14px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes dropzoneGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(255,255,255,0),
+                inset 0 0 0 0 rgba(255,255,255,0);
+  }
+  50% {
+    box-shadow: 0 0 28px 4px rgba(255,255,255,0.07),
+                inset 0 0 20px 0 rgba(255,255,255,0.03);
+  }
+}
+
+@keyframes startCardAppear {
+  0%   { opacity: 0; transform: translateY(18px) scale(0.98); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes appFadeIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes appSlideUp {
+  0%   { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes modalOverlayIn {
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes modalPanelIn {
+  0%   { opacity: 0; transform: translateY(12px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
+}
+
+@keyframes refreshSpin {
+  0%   { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes refreshDone {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes bg3_pendingSlide {
+  0%   { left: -33%; }
+  100% { left: 100%; }
+}
+
+@keyframes bg3_installShimmer {
+  0%   { background-position: 0% 0%; }
+  100% { background-position: 200% 0%; }
+}
+
+@keyframes notify-center-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+
+@keyframes notify-toast-enter {
+  from { opacity: 0; transform: translateX(24px) scale(0.96); }
+  to   { opacity: 1; transform: translateX(0)    scale(1);    }
+}
+
+@keyframes notify-toast-exit {
+  from { opacity: 1; transform: translateX(0)    scale(1);    max-height: 200px; margin-bottom: 0;     }
+  to   { opacity: 0; transform: translateX(28px) scale(0.94); max-height: 0;     margin-bottom: -12px; }
+}
