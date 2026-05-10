@@ -1,29 +1,20 @@
 <div align="center">
- 
-# ULTIMA
- 
+
 <img src="public/Promo.png" width="100%" alt="ULTIMA — BG3 Localization Tool" />
- 
- 
+
+**ULTIMA** — современный визуальный редактор и автоматический переводчик модификаций для Baldur's Gate 3.
+
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/N1ko-Pro/BG3-ULTIMA/releases)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](https://github.com/N1ko-Pro/BG3-ULTIMA?tab=License-1-ov-file)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/N1ko-Pro/BG3-ULTIMA)
 [![Electron](https://img.shields.io/badge/Electron-41.0-blue.svg)](https://www.electronjs.org/)
 [![React](https://img.shields.io/badge/React-19.2-cyan.svg)](https://react.dev/)
- 
----
- 
-**ULTIMA** — современный визуальный редактор и автоматический переводчик модификаций для Baldur's Gate 3...
- 
-</div>
 
 ---
-
-<div align="center">
 
 ## 📥 Скачать
 
-[![Скачать последний релиз](https://img.shields.io/github/v/release/N1ko-Pro/BG3-ULTIMA?style=for-the-badge&label=%E2%AC%87%EF%B8%8F%20%20%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C%20BG3%20ULTIMA&color=238636&logoColor=white)](https://github.com/N1ko-Pro/BG3-ULTIMA/releases/latest)
+[![Скачать последний релиз](https://img.shields.io/github/v/release/N1ko-Pro/BG3-ULTIMA?style=for-the-badge&label=%E2%AC%87%EF%B8%8F%20%20%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C%20ULTIMA&color=238636&logoColor=white)](https://github.com/N1ko-Pro/BG3-ULTIMA/releases/latest)
 
 *Установщик для Windows · Поддерживает автообновления*
 
@@ -163,7 +154,7 @@
 
 ## 📬 Обратная связь
 
-Если вы нашли баг или хотите предложить улучшение — обращайтесь в [Discrod](https://discord.gg/nxFghu8pWp) или создайте [Issue](https://github.com/N1ko-Pro/BG3-ULTIMA/issues).
+Если вы нашли баг или хотите предложить улучшение — обращайтесь в [Discord](https://discord.gg/nxFghu8pWp) или создайте [Issue](https://github.com/N1ko-Pro/BG3-ULTIMA/issues).
 
 ---
 
@@ -171,7 +162,7 @@
 
 **Важно: Этот проект НЕ является open-source.**
 
-BG3 ULTIMA распространяется под проприетарной лицензией. Код программы предоставляется для ознакомления, но его использование ограничено:
+ULTIMA распространяется под проприетарной лицензией. Код программы предоставляется для ознакомления, но его использование ограничено:
 
 **✅ Разрешено:**
 - Использовать программу для личной некоммерческой работы над переводами
@@ -192,6 +183,6 @@ BG3 ULTIMA распространяется под проприетарной л
 
 **Сделано с ❤️ для сообщества BG3**
 
-[⬆ Вернуться к началу](#bg3-ultima)
+[⬆ Вернуться к началу](#ultima)
 
 </div>
