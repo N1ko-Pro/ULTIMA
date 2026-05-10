@@ -102,7 +102,7 @@ async function ghRequest(opts) {
   throw lastErr;
 }
 
-function ghRequestOnce({ method, pathUrl, token, owner, repo, body }) {
+function ghRequestOnce({ method, pathUrl, token, owner, repo, body }, _redirects = 0) {
   return new Promise((resolve, reject) => {
     const payload = body ? JSON.stringify(body) : null;
     const headers = {
@@ -122,6 +122,13 @@ function ghRequestOnce({ method, pathUrl, token, owner, repo, body }) {
       headers,
       timeout: 15000,
     }, (res) => {
+      if ((res.statusCode === 301 || res.statusCode === 302) && res.headers.location && _redirects < 3) {
+        res.resume();
+        const location = res.headers.location;
+        const newPath = location.startsWith('http') ? new URL(location).pathname : location;
+        resolve(ghRequestOnce({ method, pathUrl: newPath, token, owner, repo, body }, _redirects + 1));
+        return;
+      }
       let resBody = '';
       res.on('data', (c) => { resBody += c; });
       res.on('end', () => resolve({ status: res.statusCode, body: resBody }));
