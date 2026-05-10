@@ -4,13 +4,6 @@
  
 <img src="public/Promo.png" width="100%" alt="ULTIMA — BG3 Localization Tool" />
  
- 
-[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/N1ko-Pro/BG3-ULTIMA/releases)
-[![License](https://img.shields.io/badge/license-Proprietary-red.svg)](https://github.com/N1ko-Pro/BG3-ULTIMA?tab=License-1-ov-file)
-[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/N1ko-Pro/BG3-ULTIMA)
-[![Electron](https://img.shields.io/badge/Electron-41.0-blue.svg)](https://www.electronjs.org/)
-[![React](https://img.shields.io/badge/React-19.2-cyan.svg)](https://react.dev/)
- 
 ---
  
 **ULTIMA** — современный визуальный редактор и автоматический переводчик модификаций для Baldur's Gate 3...
@@ -22,7 +15,11 @@
 <div align="center">
 
 ## 📥 Скачать
-
+[![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/N1ko-Pro/BG3-ULTIMA/releases)
+[![License](https://img.shields.io/badge/license-Proprietary-red.svg)](https://github.com/N1ko-Pro/BG3-ULTIMA?tab=License-1-ov-file)
+[![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/N1ko-Pro/BG3-ULTIMA)
+[![Electron](https://img.shields.io/badge/Electron-41.0-blue.svg)](https://www.electronjs.org/)
+[![React](https://img.shields.io/badge/React-19.2-cyan.svg)](https://react.dev/)
 [![Скачать последний релиз](https://img.shields.io/github/v/release/N1ko-Pro/BG3-ULTIMA?style=for-the-badge&label=%E2%AC%87%EF%B8%8F%20%20%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C%20BG3%20ULTIMA&color=238636&logoColor=white)](https://github.com/N1ko-Pro/BG3-ULTIMA/releases/latest)
 
 *Установщик для Windows · Поддерживает автообновления*
