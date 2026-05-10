@@ -18,6 +18,18 @@
 
 ---
 
+<div align="center">
+
+## 📥 Скачать
+
+[![Скачать последний релиз](https://img.shields.io/github/v/release/N1ko-Pro/BG3-ULTIMA?style=for-the-badge&label=%E2%AC%87%EF%B8%8F%20%20%D0%A1%D0%BA%D0%B0%D1%87%D0%B0%D1%82%D1%8C%20BG3%20ULTIMA&color=238636&logoColor=white)](https://github.com/N1ko-Pro/BG3-ULTIMA/releases/latest)
+
+*Установщик для Windows · Поддерживает автообновления*
+
+</div>
+
+---
+
 ## ✨ Возможности
 
 | Feature | Description |
@@ -31,39 +43,6 @@
 | 🎨 **Современный интерфейс** | Тёмная тема, плавные анимации, кастомный titlebar, адаптивный дизайн |
 | 🛠️ **Горячие клавиши** | Поддержка Ctrl+S (сохранить), Ctrl+X (вырезать), Ctrl+Z (вернуть), Ctrl+F (поиск) |
 | 🗂️ **История проектов** | Быстрый доступ к последним переводам, автосохранение |
-
----
-
-## 🚀 Быстрый старт
-
-### Установка
-
-1. **Клонируйте репозиторий:**
-
-```bash
-git clone https://github.com/N1ko-Pro/BG3-ULTIMA.git
-cd BG3-ULTIMA
-```
-
-2. **Установите зависимости:**
-
-```bash
-npm install
-```
-
-3. **Запустите приложение:**
-
-```bash
-npm run dev
-```
-
-### Сборка
-
-Для создания установщика Windows:
-
-```bash
-npm run dist
-```
 
 ---
 
