@@ -1,19 +1,21 @@
 <div align="center">
-
-# BG3 ULTIMA
-
+ 
+# ULTIMA
+ 
+<img src="public/banner.png" width="100%" alt="ULTIMA — BG3 Mod Localization Toolkit" />
+ 
 **Modern desktop toolkit for Baldur's Gate 3 mod localization and translation**
-
+ 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/N1ko-Pro/BG3-ULTIMA/releases)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](https://github.com/N1ko-Pro/BG3-ULTIMA?tab=License-1-ov-file)
 [![Platform](https://img.shields.io/badge/platform-Windows-lightgrey.svg)](https://github.com/N1ko-Pro/BG3-ULTIMA)
 [![Electron](https://img.shields.io/badge/Electron-41.0-blue.svg)](https://www.electronjs.org/)
 [![React](https://img.shields.io/badge/React-19.2-cyan.svg)](https://react.dev/)
-
+ 
 ---
-
-**BG3 ULTIMA** — современный визуальный редактор и автоматический переводчик модификаций для Baldur's Gate 3. Проект создан для удобного локализаторского и моддерского опыта: вы можете быстро импортировать .pak-файлы, видеть все строки в красивой таблице, мгновенно переводить их с помощью ИИ, а затем экспортировать обратно в формат игры.
-
+ 
+**ULTIMA** — современный визуальный редактор и автоматический переводчик модификаций для Baldur's Gate 3...
+ 
 </div>
 
 ---
