@@ -2,9 +2,8 @@
  
 # ULTIMA
  
-<img src="public/banner.png" width="100%" alt="ULTIMA — BG3 Mod Localization Toolkit" />
+<img src="public/Promo.png" width="100%" alt="ULTIMA — BG3 Localization Tool" />
  
-**Modern desktop toolkit for Baldur's Gate 3 mod localization and translation**
  
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/N1ko-Pro/BG3-ULTIMA/releases)
 [![License](https://img.shields.io/badge/license-Proprietary-red.svg)](https://github.com/N1ko-Pro/BG3-ULTIMA?tab=License-1-ov-file)
