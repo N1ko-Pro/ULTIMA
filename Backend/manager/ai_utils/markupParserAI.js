@@ -238,6 +238,20 @@ function restoreTagsFromMarkers(text, markerMap) {
     }
   }
 
+  // Pass 4: Positional fallback — assign remaining unmatched output markers to
+  // remaining markerMap entries in order. Handles AI renumbering AND cross-language
+  // mismatch (English entry word vs Russian AI output) where passes 1-3 all fail.
+  const unusedEntries = markerMap.filter(e => !usedEntries.has(e.index));
+  let unusedIdx = 0;
+  for (let i = 0; i < outputMarkers.length; i++) {
+    if (assignments[i]) continue;
+    if (unusedIdx < unusedEntries.length) {
+      assignments[i] = unusedEntries[unusedIdx];
+      usedEntries.add(unusedEntries[unusedIdx].index);
+      unusedIdx++;
+    }
+  }
+
   // Phase 3: Replace markers with LSTags.
   // Use AI output (inflected form) only if it stem-matches the glossary entry.
   // If AI replaced the glossary word with a synonym, fall back to the glossary word.
