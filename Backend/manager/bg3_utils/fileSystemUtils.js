@@ -15,7 +15,11 @@ function findModFiles(dir) {
         traverse(fullPath);
       } else {
         if (file.toLowerCase().endsWith('.loca')) {
-          targetLocaPath = fullPath;
+          if (!file.startsWith('__')) {
+            targetLocaPath = fullPath;
+          } else if (!targetLocaPath) {
+            targetLocaPath = fullPath;
+          }
         }
         if (file.toLowerCase().endsWith('.xml') && fullPath.toLowerCase().includes('localization') && !file.startsWith('__')) {
           targetXmlPath = fullPath;
