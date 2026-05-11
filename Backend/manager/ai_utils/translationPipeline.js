@@ -40,8 +40,25 @@ function phasePreProcess(dataEntries, glossaryPairs, options = {}) {
     const markerMap = [];
     let idx = 0;
     const lsTagRe = /<LSTag\b([^>]*)>([\s\S]*?)<\/LSTag>/gi;
-    const markerText = text.replace(lsTagRe, (_, attrs, content) => {
+
+    // Pass 1 — collect every tag and resolve against glossary.
+    const tagInfos = [];
+    text.replace(lsTagRe, (_, attrs, content) => {
       const original = (content || "").trim();
+      const resolved = original ? resolveTagTranslation(original, attrs, glossaryLookup) : original;
+      tagInfos.push({ attrs, original, resolved, glossaryResolved: resolved !== original });
+    });
+
+    // For non-Gemma: only use markers for non-resolved tags when the text already
+    // has at least one glossary-resolved tag (mixed format → AI invents phantom markers).
+    // If there are no glossary tags at all, keep raw XML (AI preserves it reliably).
+    const hasGlossaryTag = tagInfos.some(t => t.glossaryResolved);
+    const convertNonResolved = isGemma || hasGlossaryTag;
+
+    // Pass 2 — build markerText with the decided strategy.
+    let tagIdx = 0;
+    const markerText = text.replace(lsTagRe, () => {
+      const { attrs, original, resolved, glossaryResolved } = tagInfos[tagIdx++];
 
       if (isGemma && !original) {
         idx++;
@@ -49,52 +66,25 @@ function phasePreProcess(dataEntries, glossaryPairs, options = {}) {
         return `[T${idx}]`;
       }
 
-      const resolved = resolveTagTranslation(original, attrs, glossaryLookup);
-      const glossaryResolved = resolved !== original;
-
       if (glossaryResolved) {
         idx++;
         const shortWord = resolved.toLowerCase();
         const firstChar = original[0] || "";
-        const originalCase =
-          firstChar === firstChar.toUpperCase() &&
-          firstChar !== firstChar.toLowerCase()
-            ? "upper"
-            : "lower";
-        markerMap.push({
-          index: idx,
-          attrs,
-          word: resolved,
-          originalWord: original,
-          shortWord,
-          glossaryResolved,
-          originalCase,
-        });
+        const originalCase = firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase() ? "upper" : "lower";
+        markerMap.push({ index: idx, attrs, word: resolved, originalWord: original, shortWord, glossaryResolved: true, originalCase });
         return `[T${idx}:${shortWord}]`;
       }
 
-      if (original) {
+      if (convertNonResolved && original) {
         idx++;
         const shortWord = original.toLowerCase();
         const firstChar = original[0] || "";
-        const originalCase =
-          firstChar === firstChar.toUpperCase() &&
-          firstChar !== firstChar.toLowerCase()
-            ? "upper"
-            : "lower";
-        markerMap.push({
-          index: idx,
-          attrs,
-          word: original,
-          originalWord: original,
-          shortWord,
-          glossaryResolved: false,
-          originalCase,
-        });
+        const originalCase = firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase() ? "upper" : "lower";
+        markerMap.push({ index: idx, attrs, word: original, originalWord: original, shortWord, glossaryResolved: false, originalCase });
         return `[T${idx}:${shortWord}]`;
       }
 
-      return `<LSTag${attrs}></LSTag>`;
+      return original ? `<LSTag${attrs}>${original}</LSTag>` : `<LSTag${attrs}></LSTag>`;
     });
 
     markerMaps[uid] = markerMap;
