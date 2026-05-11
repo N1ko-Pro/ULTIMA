@@ -138,7 +138,25 @@ function phaseUnitStripping(text) {
     .replace(/уроню(?!\p{L})/giu, "урону")
     .replace(/уронению(?!\p{L})/giu, "урону")
     .replace(/уронение(?!\p{L})/giu, "урон");
+
+  // Fix split dice notation: "1 урона (1d4)" → "1d4 урона", "2 урон (2d6)" → "2d6 урон"
+  // AI sometimes splits "1d4 damage" into "1 damage (1d4)" during translation.
+  result = result.replace(
+    /(\d+)\s+([\p{L}]+(?:\s+[\p{L}]+){0,2})\s+\((\1d\d+(?:[+-]\d+)?)\)/giu,
+    (_, _num, words, dice) => `${dice} ${words}`
+  );
+
   return result;
+}
+
+// ─── Hallucinated bracket removal ─────────────────────────────────────────────
+// AI wraps D&D terms in [brackets] like [Харизме], [преимущество], [плашмя].
+// Legitimate patterns: [1], [#1] (numeric), [T1:word] (markers, already restored).
+// Anything else with Cyrillic content is hallucinated — strip brackets, keep word.
+
+function stripHallucinatedBrackets(text) {
+  // Match [word] where word starts with a Cyrillic letter (not T+digit, not a number)
+  return text.replace(/\[([а-яёА-ЯЁ][\p{L}\s]*?)\]/gu, '$1');
 }
 
 // ─── BR normalization ──────────────────────────────────────────────────────────
@@ -285,6 +303,7 @@ async function runTranslationPipeline(dataToTranslate, callbacks, glossaryPairs)
     let finalText = normalizeBrTags(withTags);
     finalText = sanitizeAiXmlOutput(finalText);
     finalText = phaseUnitStripping(finalText);
+    finalText = stripHallucinatedBrackets(finalText);
     translated[uid] = normalizeGameMarkupSpacing(finalText);
   }
 

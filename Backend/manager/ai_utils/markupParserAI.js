@@ -125,7 +125,10 @@ const TAG_MARKER_REGEX = /\[T(\d+)(?::([\s\S]*?))?\]/g;
  * Falls back to Unicode-aware stem matching for any markers dropped by the AI.
  */
 function restoreTagsFromMarkers(text, markerMap) {
-  if (!markerMap || markerMap.length === 0) return text;
+  if (!markerMap || markerMap.length === 0) {
+    // No markers expected — strip any hallucinated [Tn:word] to just the word
+    return (text || "").replace(/\[T\d+(?::([\s\S]*?))?\]/g, (_, w) => (w || "").trim());
+  }
 
   const safeText = toSafeString(text);
 
