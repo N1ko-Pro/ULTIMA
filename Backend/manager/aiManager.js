@@ -377,8 +377,7 @@ class AiManager {
     return runTranslationPipeline(
       dataToTranslate,
       { translateFn },
-      runtimeOptions.glossaryPairs,
-      { model: runtimeOptions.model }
+      runtimeOptions.glossaryPairs
     );
   }
 }

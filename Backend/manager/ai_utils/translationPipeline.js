@@ -22,9 +22,7 @@ const RUSSIAN_UNIT_STRIP_RE =
 // Strip English unit words after [n] tokens.
 // Direct glossary match for short standalone texts.
 
-function phasePreProcess(dataEntries, glossaryPairs, options = {}) {
-  const modelId = (options.model || '').toLowerCase();
-  const isGemma = modelId.includes('gemma');
+function phasePreProcess(dataEntries, glossaryPairs) {
   const glossaryLookup = buildGlossaryLookup(glossaryPairs);
   const translated = {};
   const toTranslate = {};
@@ -41,50 +39,24 @@ function phasePreProcess(dataEntries, glossaryPairs, options = {}) {
     let idx = 0;
     const lsTagRe = /<LSTag\b([^>]*)>([\s\S]*?)<\/LSTag>/gi;
 
-    // Pass 1 — collect every tag and resolve against glossary.
-    const tagInfos = [];
-    text.replace(lsTagRe, (_, attrs, content) => {
+    // Convert EVERY LSTag to a [Tn:word] marker — uniform format for the AI.
+    // Glossary-resolved tags get the Russian word; unresolved keep the English word.
+    // The AI sees only markers (no raw XML), which prevents mixed-format confusion.
+    const markerText = text.replace(lsTagRe, (_, attrs, content) => {
       const original = (content || "").trim();
       const resolved = original ? resolveTagTranslation(original, attrs, glossaryLookup) : original;
-      tagInfos.push({ attrs, original, resolved, glossaryResolved: resolved !== original });
-    });
+      const glossaryResolved = resolved !== original;
 
-    // For non-Gemma: only use markers for non-resolved tags when the text already
-    // has at least one glossary-resolved tag (mixed format → AI invents phantom markers).
-    // If there are no glossary tags at all, keep raw XML (AI preserves it reliably).
-    const hasGlossaryTag = tagInfos.some(t => t.glossaryResolved);
-    const convertNonResolved = isGemma || hasGlossaryTag;
+      idx++;
+      const word = glossaryResolved ? resolved : original;
+      const shortWord = (word || "").toLowerCase();
+      const firstChar = (original || "")[0] || "";
+      const originalCase = firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase() ? "upper" : "lower";
 
-    // Pass 2 — build markerText with the decided strategy.
-    let tagIdx = 0;
-    const markerText = text.replace(lsTagRe, () => {
-      const { attrs, original, resolved, glossaryResolved } = tagInfos[tagIdx++];
+      markerMap.push({ index: idx, attrs, word: word || '', originalWord: original || '', shortWord, glossaryResolved, originalCase });
 
-      if (isGemma && !original) {
-        idx++;
-        markerMap.push({ index: idx, attrs, word: '', originalWord: '', shortWord: '', glossaryResolved: false, originalCase: 'lower' });
-        return `[T${idx}]`;
-      }
-
-      if (glossaryResolved) {
-        idx++;
-        const shortWord = resolved.toLowerCase();
-        const firstChar = original[0] || "";
-        const originalCase = firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase() ? "upper" : "lower";
-        markerMap.push({ index: idx, attrs, word: resolved, originalWord: original, shortWord, glossaryResolved: true, originalCase });
-        return `[T${idx}:${shortWord}]`;
-      }
-
-      if (convertNonResolved && original) {
-        idx++;
-        const shortWord = original.toLowerCase();
-        const firstChar = original[0] || "";
-        const originalCase = firstChar === firstChar.toUpperCase() && firstChar !== firstChar.toLowerCase() ? "upper" : "lower";
-        markerMap.push({ index: idx, attrs, word: original, originalWord: original, shortWord, glossaryResolved: false, originalCase });
-        return `[T${idx}:${shortWord}]`;
-      }
-
-      return original ? `<LSTag${attrs}>${original}</LSTag>` : `<LSTag${attrs}></LSTag>`;
+      if (!word) return `[T${idx}]`;
+      return `[T${idx}:${shortWord}]`;
     });
 
     markerMaps[uid] = markerMap;
@@ -121,16 +93,34 @@ async function phaseStructuralValidation(text, markerText, mMap, translateFn, ui
   let result = sanitizeAiXmlOutput(text);
 
   if (mMap.length > 0) {
-    const actualMarkers = (result.match(/\[T\d+[:\]]/g) || []).length;
+    const countMarkers = (t) => (t.match(/\[T\d+[:\]]/g) || []).length;
+    let actualMarkers = countMarkers(result);
+
+    // Retry 1: same input, different temperature (handled by translateFn internals)
     if (actualMarkers < mMap.length) {
       try {
         const retried = await translateFn({ [uid]: markerText });
         const retriedText = sanitizeAiXmlOutput(retried[uid] || result);
-        const retriedMarkers = (retriedText.match(/\[T\d+[:\]]/g) || []).length;
-        if (retriedMarkers > actualMarkers) result = retriedText;
-      } catch {
-        /* stem-match fallback in tag restoration handles remaining drops */
-      }
+        const retriedCount = countMarkers(retriedText);
+        if (retriedCount > actualMarkers) {
+          result = retriedText;
+          actualMarkers = retriedCount;
+        }
+      } catch { /* fallback handles remaining drops */ }
+    }
+
+    // Retry 2: append marker reminder to input if still missing markers
+    if (actualMarkers < mMap.length) {
+      try {
+        const markerList = mMap.map(e => `[T${e.index}:${e.shortWord || ''}]`).join(', ');
+        const reinforced = markerText + `\n\n(Сохрани все маркеры: ${markerList})`;
+        const retried2 = await translateFn({ [uid]: reinforced });
+        const retried2Text = sanitizeAiXmlOutput(retried2[uid] || result);
+        const retried2Count = countMarkers(retried2Text);
+        if (retried2Count > actualMarkers) {
+          result = retried2Text;
+        }
+      } catch { /* positional fallback in restoreTagsFromMarkers handles remaining */ }
     }
   }
 
@@ -249,7 +239,7 @@ function phaseSegmentDedup(translated, dataToTranslate, allEntries) {
 //  Phase 5 — Tag Restoration:      [Tn:word] → <LSTag>
 //  Phase 6 — Final Cleanup:        normalize + segment dedup
 
-async function runTranslationPipeline(dataToTranslate, callbacks, glossaryPairs, options = {}) {
+async function runTranslationPipeline(dataToTranslate, callbacks, glossaryPairs) {
   const { translateFn } = callbacks;
   const entries = Object.entries(dataToTranslate || {});
   if (entries.length === 0) return {};
@@ -257,8 +247,7 @@ async function runTranslationPipeline(dataToTranslate, callbacks, glossaryPairs,
   // ── Phase 1: Pre-processing ──────────────────────────────────────────────────
   const { translated, toTranslate, markerMaps } = phasePreProcess(
     entries,
-    glossaryPairs,
-    options
+    glossaryPairs
   );
 
   if (Object.keys(toTranslate).length === 0) return translated;
