@@ -1,5 +1,6 @@
 const path = require("path");
 const fs = require("fs");
+const os = require("os");
 const xml2js = require("xml2js");
 const smartManager = require("./smartManager");
 const aiManager = require("./aiManager");
@@ -198,9 +199,9 @@ class Bg3Manager {
   async saveAndRepack(updatedData, outputPath) {
     if (!this.cachedData.xmlStructure) throw new Error("No XML structure loaded.");
 
-    const parsed = this.cachedData.xmlStructure;
-
-    applyUpdatedStringsToParsedContent(parsed, updatedData);
+    // Deep-clone so we never mutate cachedData.xmlStructure (holds the originals).
+    const parsedCopy = JSON.parse(JSON.stringify(this.cachedData.xmlStructure));
+    applyUpdatedStringsToParsedContent(parsedCopy, updatedData);
 
     // Save original mod info BEFORE renaming (for dependency + info.json)
     const originalModInfo = { ...this.cachedData.modInfo };
@@ -214,62 +215,56 @@ class Bg3Manager {
     const origLocaName = path.basename(this.cachedData.locaPath);
     const origXmlName = origLocaName.replace(/\.loca$/i, '.xml');
 
-    // Derive the Russian loca directory from the (possibly renamed) mod folder,
-    // not from the now-stale cachedData.locaPath.
-    const translationModDir = path.dirname(translationMetaPath); // Mods/<folderName>/
-    const ruLocaDir = path.join(translationModDir, "Localization", "Russian");
-    if (!fs.existsSync(ruLocaDir)) fs.mkdirSync(ruLocaDir, { recursive: true });
+    // Write translated XML/loca to an OS temp directory so the workspace files
+    // (which hold the original English strings) are never overwritten.
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bg3-translate-'));
+    try {
+      const tmpXmlPath  = path.join(tmpDir, origXmlName);
+      const tmpLocaPath = path.join(tmpDir, origLocaName);
 
-    const ruXmlPath = path.join(ruLocaDir, origXmlName);
-    const ruLocaPath = path.join(ruLocaDir, origLocaName);
+      const builder = new xml2js.Builder({ xmldec: { version: "1.0", encoding: "utf-8" }});
+      fs.writeFileSync(tmpXmlPath, builder.buildObject(parsedCopy), "utf8");
+      await this.divineCliUtils.convertXmlToLoca(tmpXmlPath, tmpLocaPath);
 
-    const builder = new xml2js.Builder({ xmldec: { version: "1.0", encoding: "utf-8" }});
-    const newXml = builder.buildObject(parsed);
-    fs.writeFileSync(ruXmlPath, newXml, "utf8");
+      // Add original mod as dependency in the translation patch's meta.lsx
+      addDependencyToMetaLsx(translationMetaPath, originalModInfo);
 
-    await this.divineCliUtils.convertXmlToLoca(ruXmlPath, ruLocaPath);
+      // Prepare a temp staging directory matching BG3 translation mod structure:
+      //   Mods/<folder>/meta.lsx
+      //   Localization/Russian/<name>.loca  (root — BG3 reads from here)
+      const stagingDir = path.join(this.cachedData.modWorkspaceDir, "_pak_staging");
+      if (fs.existsSync(stagingDir)) fs.rmSync(stagingDir, { recursive: true, force: true });
 
-    // Add original mod as dependency in the translation patch's meta.lsx
-    addDependencyToMetaLsx(translationMetaPath, originalModInfo);
+      const finalModInfo = await extractModInfo(translationMetaPath);
 
-    // Prepare a temp staging directory matching BG3 translation mod structure:
-    //   Mods/<folder>/meta.lsx
-    //   Mods/<folder>/Localization/Russian/<name>.loca
-    const stagingDir = path.join(this.cachedData.modWorkspaceDir, "_pak_staging");
-    if (fs.existsSync(stagingDir)) fs.rmSync(stagingDir, { recursive: true, force: true });
+      const stagingMetaDir = path.join(stagingDir, "Mods", folderName);
+      fs.mkdirSync(stagingMetaDir, { recursive: true });
+      fs.copyFileSync(translationMetaPath, path.join(stagingMetaDir, "meta.lsx"));
 
-    const finalModInfo = await extractModInfo(translationMetaPath);
+      const stagingLocaDir = path.join(stagingDir, "Localization", "Russian");
+      fs.mkdirSync(stagingLocaDir, { recursive: true });
+      fs.copyFileSync(tmpLocaPath, path.join(stagingLocaDir, origLocaName));
 
-    // Copy meta.lsx (text format is fine — BG3 and BG3MM both accept it)
-    const stagingMetaDir = path.join(stagingDir, "Mods", folderName);
-    fs.mkdirSync(stagingMetaDir, { recursive: true });
-    fs.copyFileSync(translationMetaPath, path.join(stagingMetaDir, "meta.lsx"));
+      // Build .pak from staging. Use folderName (already sanitized and contains _RU)
+      // so the .pak name matches the Mods/<folder> name expected by BG3MM.
+      const pakFileName = folderName + ".pak";
+      const tempPakPath = path.join(path.dirname(outputPath), pakFileName);
 
-    // Copy Russian .loca inside Mods/<folder>/Localization/Russian/
-    const stagingLocaDir = path.join(stagingMetaDir, "Localization", "Russian");
-    fs.mkdirSync(stagingLocaDir, { recursive: true });
-    fs.copyFileSync(ruLocaPath, path.join(stagingLocaDir, origLocaName));
+      await this.divineCliUtils.createPackage(stagingDir, tempPakPath);
 
-    // Build .pak from staging
-    const baseName = path.basename(outputPath).replace(/\.(zip|pak)$/i, "");
-    const pakFileName = baseName + ".pak";
-    const tempPakPath = path.join(path.dirname(outputPath), pakFileName);
+      fs.rmSync(stagingDir, { recursive: true, force: true });
 
-    await this.divineCliUtils.createPackage(stagingDir, tempPakPath);
+      const infoJson = buildInfoJson(finalModInfo, originalModInfo);
 
-    // Cleanup staging directory
-    fs.rmSync(stagingDir, { recursive: true, force: true });
+      const zip = new AdmZip();
+      zip.addLocalFile(tempPakPath);
+      zip.addFile("info.json", Buffer.from(JSON.stringify(infoJson, null, 2), "utf8"));
+      zip.writeZip(outputPath);
 
-    const infoJson = buildInfoJson(finalModInfo, originalModInfo);
-
-    // Create .zip archive with .pak + info.json
-    const zip = new AdmZip();
-    zip.addLocalFile(tempPakPath);
-    zip.addFile("info.json", Buffer.from(JSON.stringify(infoJson, null, 2), "utf8"));
-    zip.writeZip(outputPath);
-
-    // Cleanup temp .pak
-    try { fs.unlinkSync(tempPakPath); } catch { /* ignore */ }
+      try { fs.unlinkSync(tempPakPath); } catch { /* ignore */ }
+    } finally {
+      try { fs.rmSync(tmpDir, { recursive: true, force: true }); } catch { /* ignore */ }
+    }
   }
 }
 

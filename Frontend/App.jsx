@@ -75,6 +75,10 @@ export default function App() {
   // ── Update dismiss tracking (in-memory, resets on restart) ──────────────
   const dismissedUpdateVersionRef = useRef(null);
 
+  // Ref so the interval callback always has the latest updater state/check.
+  const updaterRef = useRef(updater);
+  useEffect(() => { updaterRef.current = updater; }, [updater]);
+
   // ── Effects ─────────────────────────────────────────────────────────────
   // Apply a deferred EULA language choice once settings are available.
   useEffect(() => {
@@ -106,6 +110,20 @@ export default function App() {
     appState.handleResetValidation();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project.projectLoadCounter]);
+
+  // Periodic silent update check every 60 s.
+  // Runs only when autoUpdateEnabled is true and no check/download is in progress.
+  useEffect(() => {
+    const enabled = translationSettings?.general?.autoUpdateEnabled ?? true;
+    if (!enabled) return;
+    const id = setInterval(() => {
+      const { status } = updaterRef.current.state;
+      if (status === 'idle' || status === 'error') {
+        updaterRef.current.check(true);
+      }
+    }, 60_000);
+    return () => clearInterval(id);
+  }, [translationSettings?.general?.autoUpdateEnabled]);
 
   // Auto-download as soon as a new version is detected (mirrors VS Code / Windsurf).
   // The user is only prompted once the package is fully downloaded.

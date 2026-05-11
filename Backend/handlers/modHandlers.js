@@ -112,9 +112,10 @@ function registerModHandlers(mainWindow, { bg3Manager }) {
   }));
 
   ipcMain.handle(CH.MOD_REPACK, wrapHandler(async (_, { updatedData, modName }) => {
-    const safeName = modName
-      ? modName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'Translated_Mod_RU'
-      : 'Translated_Mod_RU';
+    const rawName = modName
+      ? modName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'Translated_Mod'
+      : 'Translated_Mod';
+    const safeName = /_RU$/i.test(rawName) ? rawName : rawName + '_RU';
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
       title: 'Сохранить переведённый мод (.zip)',
       filters: [{ name: 'BG3 Mod Archive', extensions: ['zip'] }],
