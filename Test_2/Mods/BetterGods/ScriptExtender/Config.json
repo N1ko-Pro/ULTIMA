@@ -1,5 +1,0 @@
-{
-  "FeatureFlags": ["Lua"],
-  "ModTable": "BetterGods",
-  "RequiredVersion": 9
-}
