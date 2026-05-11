@@ -73,7 +73,7 @@ function phasePreProcess(dataEntries, glossaryPairs, options = {}) {
         return `[T${idx}:${shortWord}]`;
       }
 
-      if (isGemma && original) {
+      if (original) {
         idx++;
         const shortWord = original.toLowerCase();
         const firstChar = original[0] || "";
@@ -94,7 +94,7 @@ function phasePreProcess(dataEntries, glossaryPairs, options = {}) {
         return `[T${idx}:${shortWord}]`;
       }
 
-      return `<LSTag${attrs}>${original}</LSTag>`;
+      return `<LSTag${attrs}></LSTag>`;
     });
 
     markerMaps[uid] = markerMap;

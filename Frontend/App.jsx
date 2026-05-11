@@ -118,7 +118,7 @@ export default function App() {
     if (!enabled) return;
     const id = setInterval(() => {
       const { status } = updaterRef.current.state;
-      if (status === 'idle' || status === 'error') {
+      if (status === 'idle' || status === 'not-available' || status === 'error') {
         updaterRef.current.check(true);
       }
     }, 60_000);
