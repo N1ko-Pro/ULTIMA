@@ -14,10 +14,10 @@ function findModFiles(dir) {
       if (fs.statSync(fullPath).isDirectory()) {
         traverse(fullPath);
       } else {
-        if (file.toLowerCase().endsWith('.loca')) {
+        if (file.toLowerCase().endsWith('.loca') && !file.startsWith('__')) {
           targetLocaPath = fullPath;
         }
-        if (file.toLowerCase().endsWith('.xml') && fullPath.toLowerCase().includes('localization')) {
+        if (file.toLowerCase().endsWith('.xml') && fullPath.toLowerCase().includes('localization') && !file.startsWith('__')) {
           targetXmlPath = fullPath;
         }
         if (file.toLowerCase() === 'meta.lsx') {

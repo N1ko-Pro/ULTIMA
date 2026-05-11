@@ -249,13 +249,13 @@ export function useProjectManager() {
 
   const handleSavePak = useCallback(async () => {
     if (!isAvailable()) return;
-    const result = await pakApi.repack(translations);
+    const result = await pakApi.repack(translations, modInfo?.name);
     if (result?.success) {
       notify.success(t.projects.packed, t.projects.packedDesc(result.filePath));
     } else if (result?.error) {
       notify.error(t.projects.packError, result.error);
     }
-  }, [translations, t.projects]);
+  }, [translations, modInfo?.name, t.projects]);
 
   // Global Ctrl+S — save current project.
   useKeyboardShortcuts({ onSave: handleSaveProject });

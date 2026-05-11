@@ -1,12 +1,10 @@
 import React from 'react';
-import { useLocale } from '@Locales/LocaleProvider';
-import { TIER_STYLES, ICON_COLORS, BORDER_COLORS, GLOW_COLORS } from '../utils/constants';
+import { ICON_COLORS, BORDER_COLORS, GLOW_COLORS } from '../utils/constants';
 
 // ─── Feature card ───────────────────────────────────────────────────────────
 // Single card in the welcome-screen feature grid.
 
-export function FeatureCard({ icon: Icon, title, desc, tier, color, index }) {
-  const t = useLocale();
+export function FeatureCard({ icon: Icon, title, desc, color, index }) {
   return (
     <div
       className={`relative rounded-2xl border ${BORDER_COLORS[color]} bg-white/[0.03] p-5 app-slide-up h-full flex flex-col`}
@@ -26,9 +24,6 @@ export function FeatureCard({ icon: Icon, title, desc, tier, color, index }) {
         <div className="flex-1 min-w-0 flex flex-col">
           <h3 className="text-[13px] font-semibold text-zinc-200 mb-1">{title}</h3>
           <p className="text-[12px] text-zinc-500 leading-relaxed flex-1">{desc}</p>
-          <span className={`inline-block mt-2 self-start text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border ${TIER_STYLES[tier]}`}>
-            {t.tiers[tier] || tier}
-          </span>
         </div>
       </div>
     </div>

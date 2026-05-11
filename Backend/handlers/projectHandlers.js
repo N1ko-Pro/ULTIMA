@@ -3,19 +3,20 @@ const path = require('path');
 const fs = require('fs');
 const { wrapHandler } = require('./handlerUtils');
 const { extractPakFromZip, extractPakFromRar } = require('./archiveUtils');
+const CH = require('../ipcChannels');
 
 function registerProjectHandlers(getUserDataPath, { projectManager, bg3Manager }) {
-  ipcMain.handle('save-project', wrapHandler(async (_, projectData) => {
+  ipcMain.handle(CH.PROJECT_SAVE, wrapHandler(async (_, projectData) => {
     const savedProject = projectManager.saveProject(getUserDataPath(), projectData);
     return { success: true, project: savedProject };
   }));
 
-  ipcMain.handle('load-projects', wrapHandler(async () => {
+  ipcMain.handle(CH.PROJECT_LOAD_ALL, wrapHandler(async () => {
     const projects = projectManager.loadProjectSummaries(getUserDataPath());
     return { success: true, projects };
   }));
 
-  ipcMain.handle('delete-project', wrapHandler(async (_, id) => {
+  ipcMain.handle(CH.PROJECT_DELETE, wrapHandler(async (_, id) => {
     const workspaceRoot = bg3Manager.workspaceDir;
     if (workspaceRoot) {
       bg3Manager.clearCachedDataForWorkspace(workspaceRoot);
@@ -24,7 +25,7 @@ function registerProjectHandlers(getUserDataPath, { projectManager, bg3Manager }
     return { success: true };
   }));
 
-  ipcMain.handle('load-project', wrapHandler(async (_, projectId) => {
+  ipcMain.handle(CH.PROJECT_LOAD, wrapHandler(async (_, projectId) => {
     const projectRecord = projectManager.getProjectById(getUserDataPath(), projectId);
     if (!projectRecord) {
       return { success: false, error: 'Проект не найден или повреждён.' };

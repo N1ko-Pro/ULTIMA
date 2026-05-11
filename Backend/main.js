@@ -116,6 +116,7 @@ app.whenReady().then(() => {
   try { dictionaryManager.initialize(getAppRootPath(), getDefaultGlossaryPath()); } catch (e) { console.error('[dictionaryManager]', e); }
   try { authManager.initialize(getUserDataPath(), app.getAppPath()); } catch (e) { console.error('[authManager]', e); }
   try { bg3Manager.initialize(getUserDataPath(), app.getAppPath()); } catch (e) { console.error('[bg3Manager]', e); }
+  try { ollamaManager.initialize(getUserDataPath()); } catch (e) { console.error('[ollamaManager]', e); }
   try { projectManager.initialize(getUserDataPath(), app.isPackaged ? getAppRootPath() : null); } catch (e) { console.error('[projectManager]', e); }
 
   createWindow();

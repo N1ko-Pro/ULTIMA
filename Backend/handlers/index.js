@@ -1,4 +1,5 @@
 const { ipcMain, BrowserWindow } = require('electron');
+const CH = require('../ipcChannels');
 const { registerModHandlers } = require('./modHandlers');
 const { registerProjectHandlers } = require('./projectHandlers');
 const { registerTranslatorHandlers } = require('./translatorHandlers');
@@ -11,16 +12,16 @@ const { registerUpdateHandlers } = require('./updateHandlers');
 const { registerDotNetHandlers } = require('./dotnetHandlers');
 
 function registerWindowHandlers(mainWindow, app) {
-  ipcMain.on('window-min', () => mainWindow?.minimize());
-  ipcMain.on('window-max', () => {
+  ipcMain.on(CH.WIN_MIN, () => mainWindow?.minimize());
+  ipcMain.on(CH.WIN_MAX, () => {
     mainWindow?.isMaximized() ? mainWindow.unmaximize() : mainWindow.maximize();
   });
-  ipcMain.on('window-close', () => {
+  ipcMain.on(CH.WIN_CLOSE, () => {
     app.isQuitting = true;
     app.quit();
   });
 
-  ipcMain.handle('open-external', (_event, url) => {
+  ipcMain.handle(CH.WIN_OPEN_EXTERNAL, (_event, url) => {
     const win = new BrowserWindow({
       width: 1200,
       height: 820,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Crown, Clock, Shield, Star, User, Code2, ChevronDown, Edit2 } from 'lucide-react';
+import { Shield, User, Code2, ChevronDown, Edit2 } from 'lucide-react';
 import { useLocale } from '@Locales/LocaleProvider';
 import { TIER, TIER_COLORS } from '@Config/tiers.constants';
 import CopyChip from '@Frontend/Core/Profile/CopyChip';
@@ -10,14 +10,11 @@ import CopyChip from '@Frontend/Core/Profile/CopyChip';
 
 const TIER_ICON = {
   [TIER.GUEST]:     User,
-  [TIER.TRIAL]:     Clock,
   [TIER.FREE]:      Shield,
-  [TIER.PREMIUM]:   Crown,
-  [TIER.ULTRA]:     Star,
   [TIER.DEVELOPER]: Code2,
 };
 
-export function UserStatusCard({ user, tier, trialDaysLeft, isExpanded, onToggle, profileView, onEditName }) {
+export function UserStatusCard({ user, tier, isExpanded, onToggle, profileView, onEditName }) {
   const t = useLocale();
   const colors = TIER_COLORS[tier] || TIER_COLORS[TIER.GUEST];
   const TierIcon = TIER_ICON[tier] || User;
@@ -59,9 +56,6 @@ export function UserStatusCard({ user, tier, trialDaysLeft, isExpanded, onToggle
                 <TierIcon className="w-2.5 h-2.5" />
                 {t.tiers[tier] || tier}
               </span>
-              {tier === TIER.TRIAL && (
-                <span className="text-[11px] text-amber-300/60">{t.welcome.trialDaysLeft(trialDaysLeft)}</span>
-              )}
             </div>
             {/* Username + ID — visible when expanded */}
             <div

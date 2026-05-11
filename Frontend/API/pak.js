@@ -7,6 +7,7 @@ import { invoke } from './client';
 
 /**
  * @param {Record<string, string>} translations
+ * @param {string} [modName]
  * @returns {Promise<{ success: boolean, filePath?: string, error?: string } | null>}
  */
-export const repack = (translations) => invoke('repackMod', translations);
+export const repack = (translations, modName) => invoke('repackMod', translations, modName);

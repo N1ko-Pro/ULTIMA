@@ -1,13 +1,12 @@
-import React, { useState } from 'react';
-import { Shield, Bot, Zap, Crown, Gift, LogOut, WifiOff } from 'lucide-react';
+import React from 'react';
+import { Shield, Bot, Zap, Heart, LogOut, WifiOff, ExternalLink } from 'lucide-react';
 import { useLocale } from '@Locales/LocaleProvider';
 import { useAuth } from '@Core/Services/AuthService';
-import { TIER } from '@Config/tiers.constants';
-import { notify } from '@Shared/notifications/notifyCore';
+import { MEDIA_LINKS } from '@Config/media.config';
 import { DiscordIcon } from '@UI/Social/SocialIcons';
 import { useDiscordLogin } from '@Shared/hooks/useDiscordLogin';
-import AtpAccessModal from '@UI/Modal/AtpAccessModal';
 import BadgeTier from '@UI/Badge/BadgeTier';
+import * as appWindow from '@API/appWindow';
 
 // ─── FeatureRow ─────────────────────────────────────────────────────────────
 // Single feature row in the features card: icon + label + active/inactive badge.
@@ -32,38 +31,23 @@ function FeatureRow({ icon: Icon, label, active, activeText, noText }) {
 }
 
 // ─── Expanded profile content ───────────────────────────────────────────────
-// Body of the expanded profile drawer — subscription status, feature access
-// card, and action buttons. Shared across Auth, Start and Editor profile panels.
+// Body of the expanded profile drawer — access status, feature list,
+// support button, and auth actions. Shared across Auth, Start and Editor panels.
 
 export function ExpandedProfileContent({ isVisible }) {
   const t = useLocale();
   const {
-    isLoggedIn, tier, trialDaysLeft, subscriptionDaysLeft, canUseAI, canUseAutoTranslate, isInGuild,
-    isLoading, logout, startTrial, isDeveloper, refreshFailed, isOffline,
+    isLoggedIn, tier, canUseAI, canUseAutoTranslate, isInGuild,
+    isLoading, logout, isDeveloper, refreshFailed, isOffline,
   } = useAuth();
   const { isLoggingIn: loggingIn, handleLogin } = useDiscordLogin();
-
-  const [isLoggingOut,    setIsLoggingOut]    = useState(false);
-  const [isStartingTrial, setIsStartingTrial] = useState(false);
-  const [isSubModalOpen,  setIsSubModalOpen]  = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = React.useState(false);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
     await logout();
     setIsLoggingOut(false);
   };
-
-  const handleStartTrial = async () => {
-    setIsStartingTrial(true);
-    const res = await startTrial();
-    setIsStartingTrial(false);
-    if (res?.success) notify.success(t.auth.trialActivated, t.auth.trialActivatedDesc);
-    else               notify.error(t.common.error, res?.error || t.auth.trialErrorActivate);
-  };
-
-  const canStartTrial  = isLoggedIn && tier === TIER.FREE && trialDaysLeft > 0;
-  const showSubscribeBtn = isLoggedIn && !canUseAI && trialDaysLeft === 0;
-  const isUpgrade      = tier === TIER.PREMIUM;
 
   return (
     <div
@@ -74,18 +58,16 @@ export function ExpandedProfileContent({ isVisible }) {
         willChange: 'opacity',
       }}
     >
-      {/* ── Subscription status card ──────────────────────────────────────── */}
-      {isLoggedIn && tier !== TIER.GUEST && (
+      {/* ── Account status card ───────────────────────────────────────────── */}
+      {isLoggedIn && (
         <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 space-y-2">
           <p className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
-            {t.auth.subscriptionSection}
+            {t.auth.accountSection}
           </p>
           <div className="flex items-center justify-between">
             <BadgeTier tier={tier} />
-            {(subscriptionDaysLeft !== null || tier === TIER.TRIAL || isDeveloper) && (
-              <span className={`text-[11px] font-medium ${isDeveloper ? 'text-emerald-400' : 'text-zinc-400'}`}>
-                {isDeveloper ? '∞' : t.auth.subscriptionDaysLeft(tier === TIER.TRIAL ? trialDaysLeft : subscriptionDaysLeft)}
-              </span>
+            {isDeveloper && (
+              <span className="text-[11px] font-medium text-emerald-400">∞</span>
             )}
           </div>
           {(refreshFailed || isOffline) && (
@@ -111,34 +93,23 @@ export function ExpandedProfileContent({ isVisible }) {
           </p>
           <FeatureRow icon={Zap} label={t.auth.atpPremiumFeature} active={canUseAutoTranslate} activeText={t.auth.available} noText={t.auth.notAvailable} />
           <div className="h-px bg-white/[0.04]" />
-          <FeatureRow icon={Bot} label={t.auth.atpAiFeature}      active={canUseAI} activeText={t.auth.available} noText={t.auth.notAvailable} />
+          <FeatureRow icon={Bot} label={t.auth.atpAiFeature} active={canUseAI} activeText={t.auth.available} noText={t.auth.notAvailable} />
         </div>
       )}
 
       {/* ── Action buttons ────────────────────────────────────────────────── */}
       <div className="space-y-2 pt-1">
-        {canStartTrial && (
+        {isLoggedIn && (
           <button
             type="button"
-            onClick={handleStartTrial}
-            disabled={isStartingTrial}
-            className="w-full flex items-center justify-center gap-2.5 h-10 rounded-xl border border-amber-500/20 bg-amber-500/[0.06] text-amber-300 text-[13px] font-medium hover:bg-amber-500/[0.1] hover:border-amber-500/30 transition-all duration-200 disabled:opacity-40"
+            onClick={() => appWindow.openExternal(MEDIA_LINKS.boosty)}
+            className="w-full flex items-center justify-center gap-2.5 h-10 rounded-xl border border-rose-500/20 bg-rose-500/[0.06] text-rose-300 text-[13px] font-medium hover:bg-rose-500/[0.1] hover:border-rose-500/30 transition-all duration-200"
           >
-            <Gift className="w-3.5 h-3.5" />
-            {isStartingTrial ? t.auth.activating : t.auth.trialActivateBtn(trialDaysLeft)}
+            <Heart className="w-3.5 h-3.5" />
+            <span>{t.auth.supportUs}</span>
+            <ExternalLink className="w-3 h-3 opacity-50" />
           </button>
         )}
-        {showSubscribeBtn && (
-          <button
-            type="button"
-            onClick={() => setIsSubModalOpen(true)}
-            className="w-full flex items-center justify-center gap-2.5 h-10 rounded-xl border border-[#f1c40f]/20 bg-[#f1c40f]/[0.06] text-[#f1c40f] text-[13px] font-medium hover:bg-[#f1c40f]/[0.1] hover:border-[#f1c40f]/30 transition-all duration-200"
-          >
-            <Crown className="w-3.5 h-3.5" />
-            <span>{isUpgrade ? t.auth.upgradeToUltra : t.auth.getSubscription}</span>
-          </button>
-        )}
-        <AtpAccessModal isOpen={isSubModalOpen} onClose={() => setIsSubModalOpen(false)} />
         {isLoggedIn && (
           <button
             type="button"

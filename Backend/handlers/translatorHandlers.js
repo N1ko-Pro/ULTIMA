@@ -1,13 +1,14 @@
 const { ipcMain } = require('electron');
 const { wrapHandler } = require('./handlerUtils');
+const CH = require('../ipcChannels');
 
 function registerTranslatorHandlers({ smartManager, aiManager }) {
-  ipcMain.handle('set-translation-method', wrapHandler(async (_, method) => {
+  ipcMain.handle(CH.SETTINGS_SET_METHOD, wrapHandler(async (_, method) => {
     smartManager.setMethod(method);
     return { success: true, settings: { ...smartManager.getSettings(), ...aiManager.getSettings() } };
   }));
 
-  ipcMain.handle('set-translation-settings', wrapHandler(async (_, settingsPatch) => {
+  ipcMain.handle(CH.SETTINGS_SET_SETTINGS, wrapHandler(async (_, settingsPatch) => {
     // Route AI-related settings to aiManager
     if (settingsPatch?.ollama?.model !== undefined || settingsPatch?.local?.useDictionary !== undefined) {
       aiManager.updateSettings(settingsPatch);
@@ -20,22 +21,22 @@ function registerTranslatorHandlers({ smartManager, aiManager }) {
     return { success: true, settings };
   }));
 
-  ipcMain.handle('set-translation-proxy-pool', wrapHandler(async (_, proxyPool) => {
+  ipcMain.handle(CH.SETTINGS_SET_PROXY_POOL, wrapHandler(async (_, proxyPool) => {
     const settings = smartManager.setProxyPool(proxyPool);
     return { success: true, settings: { ...settings, ...aiManager.getSettings() } };
   }));
 
-  ipcMain.handle('set-translation-proxy-config', wrapHandler(async (_, proxyConfig) => {
+  ipcMain.handle(CH.SETTINGS_SET_PROXY_CONFIG, wrapHandler(async (_, proxyConfig) => {
     const settings = smartManager.setProxyConfig(proxyConfig);
     return { success: true, settings: { ...settings, ...aiManager.getSettings() } };
   }));
 
-  ipcMain.handle('clear-translation-proxy-pool', wrapHandler(async () => {
+  ipcMain.handle(CH.SETTINGS_CLEAR_PROXY_POOL, wrapHandler(async () => {
     const settings = smartManager.clearProxyPool();
     return { success: true, settings: { ...settings, ...aiManager.getSettings() } };
   }));
 
-  ipcMain.handle('get-translation-settings', wrapHandler(async () => {
+  ipcMain.handle(CH.SETTINGS_GET, wrapHandler(async () => {
     const settings = { ...smartManager.getSettings(), ...aiManager.getSettings() };
     return { success: true, settings };
   }));

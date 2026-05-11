@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Clock, Shield, Crown, Star, Code2 } from 'lucide-react';
+import { User, Shield, Code2 } from 'lucide-react';
 import { TIER, TIER_COLORS } from '@Config/tiers.constants';
 import { useLocale } from '@Locales/LocaleProvider';
 
@@ -9,10 +9,7 @@ import { useLocale } from '@Locales/LocaleProvider';
 
 const TIER_ICONS = {
   [TIER.GUEST]:     User,
-  [TIER.TRIAL]:     Clock,
   [TIER.FREE]:      Shield,
-  [TIER.PREMIUM]:   Crown,
-  [TIER.ULTRA]:     Star,
   [TIER.DEVELOPER]: Code2,
 };
 

@@ -72,6 +72,9 @@ export default function App() {
   });
   const updater = useUpdater();
 
+  // ── Update dismiss tracking (in-memory, resets on restart) ──────────────
+  const dismissedUpdateVersionRef = useRef(null);
+
   // ── Effects ─────────────────────────────────────────────────────────────
   // Apply a deferred EULA language choice once settings are available.
   useEffect(() => {
@@ -113,7 +116,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updater.state.status, updater.download]);
 
-  // When download finishes, push a persistent notification to the bell center.
+  // When download finishes: push bell notification + auto-open modal.
   useEffect(() => {
     if (updater.state.status === 'downloaded' && updater.state.version) {
       const locale = translationSettings?.general?.appLanguage === 'en' ? en : ru;
@@ -124,6 +127,10 @@ export default function App() {
         message: locale.updates.notif.readyMsg(updater.state.version),
         action: 'update-pill',
       });
+      // Auto-open modal if the user hasn't dismissed this version yet.
+      if (dismissedUpdateVersionRef.current !== updater.state.version) {
+        appState.setUpdateModalOpen(true);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updater.state.status, updater.state.version]);
@@ -258,7 +265,10 @@ export default function App() {
         />
         <UpdateAvailableModal
           isOpen={appState.updateModalOpen && canShowModal}
-          onDismiss={() => appState.setUpdateModalOpen(false)}
+          onDismiss={() => {
+            dismissedUpdateVersionRef.current = updater.state.version;
+            appState.setUpdateModalOpen(false);
+          }}
         />
         <InstallingUpdateModal suppressWhenModalOpen={appState.updateModalOpen} />
         <DotNetMissingModal

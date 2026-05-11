@@ -4,7 +4,7 @@ const xml2js = require("xml2js");
 const smartManager = require("./smartManager");
 const aiManager = require("./aiManager");
 
-const { findModFiles, findLocalizationRoot } = require("./bg3_utils/fileSystemUtils");
+const { findModFiles } = require("./bg3_utils/fileSystemUtils");
 const { sanitizeWorkspaceTag, createSessionWorkspaceTag, resolveWorkspaceDirectory } = require("./bg3_utils/workspaceUtils");
 const DivineCliUtils = require("./bg3_utils/divineCliUtils");
 const { extractModInfo, buildTranslationMetaLsx, addDependencyToMetaLsx, buildInfoJson } = require("./bg3_utils/metaInfoUtils");
@@ -202,14 +202,22 @@ class Bg3Manager {
 
     applyUpdatedStringsToParsedContent(parsed, updatedData);
 
-    const locaDir = path.dirname(this.cachedData.locaPath);
-    const locRoot = findLocalizationRoot(locaDir, this.workspaceDir);
+    // Save original mod info BEFORE renaming (for dependency + info.json)
+    const originalModInfo = { ...this.cachedData.modInfo };
 
-    // Use the original loca filename for Russian version (BG3 matches by filename)
+    // Rename/create the translation mod folder FIRST so all subsequent paths
+    // are derived from the final folder location. This prevents stale-path
+    // ENOENT errors when the Mods subfolder is renamed (e.g. already ends with _RU).
+    const { metaLsxPath: translationMetaPath, folderName } = buildTranslationMetaLsx(this.cachedData, updatedData);
+
+    // Use the original loca filename (BG3 matches localisation by filename).
     const origLocaName = path.basename(this.cachedData.locaPath);
     const origXmlName = origLocaName.replace(/\.loca$/i, '.xml');
 
-    const ruLocaDir = path.join(locRoot, "Russian");
+    // Derive the Russian loca directory from the (possibly renamed) mod folder,
+    // not from the now-stale cachedData.locaPath.
+    const translationModDir = path.dirname(translationMetaPath); // Mods/<folderName>/
+    const ruLocaDir = path.join(translationModDir, "Localization", "Russian");
     if (!fs.existsSync(ruLocaDir)) fs.mkdirSync(ruLocaDir, { recursive: true });
 
     const ruXmlPath = path.join(ruLocaDir, origXmlName);
@@ -220,11 +228,6 @@ class Bg3Manager {
     fs.writeFileSync(ruXmlPath, newXml, "utf8");
 
     await this.divineCliUtils.convertXmlToLoca(ruXmlPath, ruLocaPath);
-
-    // Save original mod info BEFORE renaming (for dependency + info.json)
-    const originalModInfo = { ...this.cachedData.modInfo };
-
-    const { metaLsxPath: translationMetaPath, folderName } = buildTranslationMetaLsx(this.cachedData, updatedData);
 
     // Add original mod as dependency in the translation patch's meta.lsx
     addDependencyToMetaLsx(translationMetaPath, originalModInfo);

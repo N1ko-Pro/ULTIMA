@@ -8,7 +8,7 @@ import { invoke } from './client';
 /**
  * @typedef {Object} AuthEnvelope
  * @property {boolean} success
- * @property {{ isLoggedIn: boolean, tier: string, user?: any, trialDaysLeft?: number, isInGuild?: boolean, isConfigured?: boolean, serverLocalName?: string }} [state]
+ * @property {{ isLoggedIn: boolean, tier: string, user?: any, isInGuild?: boolean, isConfigured?: boolean, serverLocalName?: string }} [state]
  * @property {string} [error]
  */
 
@@ -21,10 +21,7 @@ export const login = () => invoke('authLogin');
 /** End the local session (server-side stays valid until token expiry). */
 export const logout = () => invoke('authLogout');
 
-/** Activate the time-limited trial tier for first-time users. */
-export const startTrial = () => invoke('authStartTrial');
-
-/** Re-fetch tier / trial info from the server. */
+/** Re-fetch tier info from the server. */
 export const refresh = () => invoke('authRefresh');
 
 /**

@@ -18,7 +18,6 @@ const INITIAL_STATE = {
   isLoggedIn: false,
   tier: TIER.GUEST,
   user: null,
-  trialDaysLeft: 0,
   isInGuild: false,
   isLoading: true,
   isConfigured: false,
@@ -99,17 +98,6 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const startTrial = useCallback(async () => {
-    try {
-      const res = await authApi.startTrial();
-      if (!res) return { success: false, error: 'API недоступен' };
-      if (res.success) setState((prev) => ({ ...prev, ...res.state }));
-      return res;
-    } catch (err) {
-      return { success: false, error: err?.message || 'Ошибка активации' };
-    }
-  }, []);
-
   const refresh = useCallback(async () => {
     if (!navigator.onLine) return;
     try {
@@ -121,12 +109,12 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // Effective tier: cached tier is always used — features stay available offline.
-  // The OfflineBanner and profile card inform the user when the server is unreachable.
+  // Access is binary: logged in (FREE/DEVELOPER) = full access, guest = no access.
   const effectiveTier = state.tier;
-  const canUseAI            = effectiveTier === TIER.ULTRA   || effectiveTier === TIER.TRIAL || effectiveTier === TIER.DEVELOPER;
-  const canUseAutoTranslate = effectiveTier === TIER.PREMIUM || effectiveTier === TIER.ULTRA || effectiveTier === TIER.TRIAL || effectiveTier === TIER.DEVELOPER;
-  const canUseDictionary    = effectiveTier !== TIER.GUEST;
+  const isAuthorized        = effectiveTier !== TIER.GUEST;
+  const canUseAI            = isAuthorized;
+  const canUseAutoTranslate = isAuthorized;
+  const canUseDictionary    = isAuthorized;
   const isDeveloper         = effectiveTier === TIER.DEVELOPER;
 
   // Local author name — persisted in localStorage, mirrored to Supabase.
@@ -195,7 +183,6 @@ export function AuthProvider({ children }) {
       ...state,
       login,
       logout,
-      startTrial,
       refresh,
       canUseAI,
       canUseAutoTranslate,
@@ -206,7 +193,7 @@ export function AuthProvider({ children }) {
       isOffline,
       refreshFailed,
     }),
-    [state, login, logout, startTrial, refresh, canUseAI, canUseAutoTranslate, canUseDictionary, isDeveloper, localName, setLocalName, isOffline, refreshFailed],
+    [state, login, logout, refresh, canUseAI, canUseAutoTranslate, canUseDictionary, isDeveloper, localName, setLocalName, isOffline, refreshFailed],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

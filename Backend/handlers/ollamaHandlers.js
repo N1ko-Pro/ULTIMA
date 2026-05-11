@@ -1,10 +1,11 @@
 const { ipcMain } = require("electron");
 const { wrapHandler } = require("./handlerUtils");
 const ollamaManager = require("../manager/ollamaManager");
+const CH = require('../ipcChannels');
 
 function registerOllamaHandlers({ mainWindow }) {
   ipcMain.handle(
-    "ollama-get-status",
+    CH.OLLAMA_GET_STATUS,
     wrapHandler(async () => {
       const status = await ollamaManager.getStatus();
       // If server is not running, also scan disk for installed models
@@ -17,13 +18,13 @@ function registerOllamaHandlers({ mainWindow }) {
   );
 
   ipcMain.handle(
-    "ollama-pull-model",
+    CH.OLLAMA_PULL_MODEL,
     wrapHandler(async (_, modelName) => {
       try {
         await ollamaManager.pullModel(modelName, {
           onProgress: (progress) => {
             if (mainWindow && !mainWindow.isDestroyed()) {
-              mainWindow.webContents.send("ollama-pull-progress", {
+              mainWindow.webContents.send(CH.OLLAMA_PULL_PROGRESS, {
                 model: modelName,
                 ...progress,
               });
@@ -37,14 +38,14 @@ function registerOllamaHandlers({ mainWindow }) {
 
       const status = await ollamaManager.getStatus();
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("ollama-status-changed", status);
+        mainWindow.webContents.send(CH.OLLAMA_STATUS_CHANGED, status);
       }
       return { success: true, status };
     })
   );
 
   ipcMain.handle(
-    "ollama-cancel-pull-model",
+    CH.OLLAMA_CANCEL_PULL,
     wrapHandler(async (_, modelName) => {
       // 1. Signal cancellation and destroy the HTTP stream
       ollamaManager.cancelPull();
@@ -61,7 +62,7 @@ function registerOllamaHandlers({ mainWindow }) {
   );
 
   ipcMain.handle(
-    "ollama-delete-model",
+    CH.OLLAMA_DELETE_MODEL,
     wrapHandler(async (_, modelName) => {
       await ollamaManager.deleteModel(modelName);
       const status = await ollamaManager.getStatus();
@@ -70,26 +71,26 @@ function registerOllamaHandlers({ mainWindow }) {
   );
 
   ipcMain.handle(
-    "ollama-install",
+    CH.OLLAMA_INSTALL,
     wrapHandler(async () => {
       const result = await ollamaManager.installOllama({
         onProgress: (progress) => {
           if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.webContents.send("ollama-install-progress", progress);
+            mainWindow.webContents.send(CH.OLLAMA_INSTALL_PROGRESS, progress);
           }
         },
       });
       if (result?.cancelled) return { success: true, cancelled: true };
       // Force immediate status refresh in all windows
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send("ollama-status-changed", result);
+        mainWindow.webContents.send(CH.OLLAMA_STATUS_CHANGED, result);
       }
       return { success: true, status: result };
     })
   );
 
   ipcMain.handle(
-    "ollama-start-server",
+    CH.OLLAMA_START_SERVER,
     wrapHandler(async () => {
       const status = await ollamaManager.startServer();
       return { success: true, status };
@@ -97,7 +98,7 @@ function registerOllamaHandlers({ mainWindow }) {
   );
 
   ipcMain.handle(
-    "ollama-uninstall",
+    CH.OLLAMA_UNINSTALL,
     wrapHandler(async () => {
       const status = await ollamaManager.uninstallOllama();
       return { success: true, status };
@@ -105,7 +106,7 @@ function registerOllamaHandlers({ mainWindow }) {
   );
 
   ipcMain.handle(
-    "ollama-cancel-install",
+    CH.OLLAMA_CANCEL_INSTALL,
     wrapHandler(async () => {
       ollamaManager.cancelInstall();
       return { success: true };
@@ -113,7 +114,7 @@ function registerOllamaHandlers({ mainWindow }) {
   );
 
   ipcMain.handle(
-    "ollama-stop-server",
+    CH.OLLAMA_STOP_SERVER,
     wrapHandler(async () => {
       await ollamaManager.stopServer();
       return { success: true };
@@ -121,7 +122,7 @@ function registerOllamaHandlers({ mainWindow }) {
   );
 
   ipcMain.handle(
-    "ollama-reset-context",
+    CH.OLLAMA_RESET_CONTEXT,
     wrapHandler(async (_, modelName) => {
       const result = await ollamaManager.resetContext(modelName);
       return { success: result };
@@ -129,7 +130,7 @@ function registerOllamaHandlers({ mainWindow }) {
   );
 
   ipcMain.handle(
-    "ollama-ensure-running",
+    CH.OLLAMA_ENSURE_RUNNING,
     wrapHandler(async () => {
       const status = await ollamaManager.ensureHealthy();
       return { success: true, status };

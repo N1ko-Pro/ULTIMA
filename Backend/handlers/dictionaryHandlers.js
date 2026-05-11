@@ -2,28 +2,29 @@ const { ipcMain, dialog } = require('electron');
 const path = require('path');
 const { wrapHandler } = require('./handlerUtils');
 const dictionaryManager = require('../manager/dictionaryManager');
+const CH = require('../ipcChannels');
 
 function registerDictionaryHandlers() {
-  ipcMain.handle('dictionary-get-all', wrapHandler(async () => {
+  ipcMain.handle(CH.DICT_GET_ALL, wrapHandler(async () => {
     return { success: true, data: dictionaryManager.getAll() };
   }));
 
-  ipcMain.handle('dictionary-add', wrapHandler(async (_, { source, target, tag }) => {
+  ipcMain.handle(CH.DICT_ADD, wrapHandler(async (_, { source, target, tag }) => {
     const entry = dictionaryManager.addEntry(source, target, tag);
     return { success: true, data: entry };
   }));
 
-  ipcMain.handle('dictionary-update', wrapHandler(async (_, { id, source, target, tag }) => {
+  ipcMain.handle(CH.DICT_UPDATE, wrapHandler(async (_, { id, source, target, tag }) => {
     const entry = dictionaryManager.updateEntry(id, source, target, tag);
     return { success: !!entry, data: entry };
   }));
 
-  ipcMain.handle('dictionary-delete', wrapHandler(async (_, id) => {
+  ipcMain.handle(CH.DICT_DELETE, wrapHandler(async (_, id) => {
     const ok = dictionaryManager.deleteEntry(id);
     return { success: ok };
   }));
 
-  ipcMain.handle('dictionary-export', wrapHandler(async (event) => {
+  ipcMain.handle(CH.DICT_EXPORT, wrapHandler(async (event) => {
     const win = require('electron').BrowserWindow.fromWebContents(event.sender);
     const storageDir = dictionaryManager.getStorageDirectory();
     const { canceled, filePath } = await dialog.showSaveDialog(win, {
@@ -36,7 +37,7 @@ function registerDictionaryHandlers() {
     return { success: ok };
   }));
 
-  ipcMain.handle('dictionary-import', wrapHandler(async (event) => {
+  ipcMain.handle(CH.DICT_IMPORT, wrapHandler(async (event) => {
     const win = require('electron').BrowserWindow.fromWebContents(event.sender);
     const storageDir = dictionaryManager.getStorageDirectory();
     const dialogOptions = {
@@ -51,7 +52,7 @@ function registerDictionaryHandlers() {
     return data ? { success: true, data } : { success: false };
   }));
 
-  ipcMain.handle('dictionary-reset', wrapHandler(async () => {
+  ipcMain.handle(CH.DICT_RESET, wrapHandler(async () => {
     const data = dictionaryManager.resetToDefaults();
     return data ? { success: true, data } : { success: false };
   }));

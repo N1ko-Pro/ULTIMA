@@ -1,15 +1,13 @@
 const discord = require('./discordOAuth');
 const supabase = require('./supabaseClient');
 const authStore = require('./authStore');
-const { TIER, TRIAL_DURATION_MS, TRIAL_DURATION_DAYS, CACHE_TTL_MS, OFFLINE_TICK_MS, OFFLINE_MAX_DELTA_MS } = require('./constants');
+const { TIER, CACHE_TTL_MS, OFFLINE_TICK_MS, OFFLINE_MAX_DELTA_MS } = require('./constants');
 
 // ─── Embedded Auth Configuration ───────────────────────────────────────────────
 const AUTH_CONFIG = {
   discord: {
     clientId: "1493595583095505069",
     guildId: "1493596798252486678",
-    proRoleId: "1493597140071481496",
-    ultraRoleId: "1498353878952054995",
     devRoleId: "1494627724218728529"
   },
   supabase: {
@@ -77,10 +75,6 @@ class AuthManager {
     return this._config?.discord?.devRoleId || null;
   }
 
-  get _ultraRoleId() {
-    return this._config?.discord?.ultraRoleId || null;
-  }
-
   // ── Public API ──────────────────────────────────────────────────────────────
 
   getState() {
@@ -92,7 +86,7 @@ class AuthManager {
       throw new Error('Авторизация не настроена. Проверьте auth.config.json');
     }
 
-    const { clientId, guildId, proRoleId, ultraRoleId } = this._config.discord;
+    const { clientId, guildId } = this._config.discord;
 
     // 1. Open Discord OAuth window (PKCE) → get authorization code + verifier
     const { code, codeVerifier } = await discord.openOAuthWindow(clientId);
@@ -108,19 +102,13 @@ class AuthManager {
     const member = await discord.fetchGuildMember(access_token, guildId);
     const roles = member?.roles || [];
 
-    // 5. Upsert user in Supabase (creates row on first login)
-    let trialStartedAt = null;
-    let trialEndAt = null;
+    // 5. Upsert user in Supabase (creates row on first login, syncs local_name)
     let serverLocalName = null;
-    let subscriptionEndAt = null;
     if (supabase.isConfigured) {
       try {
         const supaUser = await supabase.upsertUser(user.id, user.username);
-        trialStartedAt    = supaUser?.trial_start || null;
-        trialEndAt        = supaUser?.trial_end   || null;
-        serverLocalName   = supaUser?.local_name  || null;
-        subscriptionEndAt = supaUser?.sub_end     || null;
-        console.log(`AuthManager: Supabase upsert OK — trial_started_at=${trialStartedAt}`);
+        serverLocalName = supaUser?.local_name || null;
+        console.log('AuthManager: Supabase upsert OK');
       } catch (err) {
         console.warn('AuthManager: Supabase upsert failed:', err.message);
       }
@@ -128,23 +116,17 @@ class AuthManager {
       console.warn('AuthManager: Supabase not configured — skipping upsert');
     }
 
-    // 6. Determine subscription tier
-    const tier = this._determineTier(roles, proRoleId, trialStartedAt, this._devRoleId, ultraRoleId, trialEndAt);
-    const trialDaysLeft = this._calcTrialDaysLeft(trialStartedAt, trialEndAt);
-    const subscriptionDaysLeft = await this._syncSubscriptionPeriod(user.id, tier, subscriptionEndAt);
+    // 6. Determine tier
+    const tier = this._determineTier(roles, this._devRoleId);
 
     // 7. Build state
     this._state = {
       isLoggedIn: true,
       tier,
       user: this._buildUserObject(user),
-      trialDaysLeft,
-      trialStartedAt,
-      trialEndAt,
-      subscriptionDaysLeft,
       isInGuild: !!member,
-      serverLocalName, // renderer uses this to restore local name from Supabase
-      roles, // Cache Discord roles for refresh
+      serverLocalName,
+      roles,
     };
 
     // 8. Persist to disk
@@ -167,41 +149,6 @@ class AuthManager {
     await supabase.updateLocalName(this._state.user.id, name || '');
   }
 
-  async startTrial() {
-    if (!this._state.isLoggedIn || !this._state.user?.id) {
-      throw new Error('Необходимо войти в аккаунт');
-    }
-    if (this._state.tier === TIER.PREMIUM) {
-      throw new Error('У вас уже активна Премиум-подписка');
-    }
-    if (!supabase.isConfigured) {
-      throw new Error('Supabase не настроен');
-    }
-
-    const trialEndAt = new Date(Date.now() + TRIAL_DURATION_MS).toISOString();
-    const result = await supabase.startTrial(this._state.user.id, trialEndAt);
-    if (!result) throw new Error('Не удалось активировать пробный период');
-
-    const trialStartedAt = result.trial_start;
-    const resolvedEndAt  = result.trial_end || trialEndAt;
-    const trialDaysLeft = this._calcTrialDaysLeft(trialStartedAt, resolvedEndAt);
-
-    this._state.tier = trialDaysLeft > 0 ? TIER.TRIAL : TIER.FREE;
-    this._state.trialDaysLeft = trialDaysLeft;
-    this._state.trialEndAt = resolvedEndAt;
-
-    // Update cache without re-fetching tokens
-    const cached = authStore.load();
-    if (cached) {
-      cached.authState = this._state;
-      cached.cachedAt = Date.now();
-      authStore.save(cached);
-    }
-
-    console.log(`AuthManager: trial started — ${trialDaysLeft} days left`);
-    return this._state;
-  }
-
   async refreshSession() {
     if (!this.isConfigured) return { state: this._state, refreshed: false };
 
@@ -209,7 +156,7 @@ class AuthManager {
     if (!cached?.tokens?.refresh_token) return { state: this._state, refreshed: false };
 
     const attemptedRefreshToken = cached.tokens.refresh_token;
-    const { clientId, guildId, proRoleId, ultraRoleId } = this._config.discord;
+    const { clientId, guildId } = this._config.discord;
 
     try {
       const tokenData = await discord.refreshAccessToken(
@@ -230,11 +177,8 @@ class AuthManager {
           return this._reverifyWithToken(
             cached.tokens.access_token,
             cached.tokens.refresh_token,
-            // expires_in from now (remaining TTL)
             Math.floor((cached.tokens.expires_at - Date.now()) / 1000),
             guildId,
-            proRoleId,
-            ultraRoleId,
           );
         }
 
@@ -243,7 +187,7 @@ class AuthManager {
       }
 
       const { access_token, refresh_token, expires_in } = tokenData;
-      return this._reverifyWithToken(access_token, refresh_token, expires_in, guildId, proRoleId, ultraRoleId);
+      return this._reverifyWithToken(access_token, refresh_token, expires_in, guildId);
     } catch (err) {
       console.warn('AuthManager: refresh failed:', err.message);
       this._startOfflineTimer();
@@ -251,7 +195,7 @@ class AuthManager {
     }
   }
 
-  async _reverifyWithToken(accessToken, refreshToken, expiresIn, guildId, proRoleId, ultraRoleId) {
+  async _reverifyWithToken(accessToken, refreshToken, expiresIn, guildId) {
     // Re-fetch user using the access token
     const user = await discord.fetchUser(accessToken);
 
@@ -259,38 +203,26 @@ class AuthManager {
     const member = await discord.fetchGuildMember(accessToken, guildId);
     const roles = member?.roles || [];
 
-    // Re-check trial in Supabase
-    let trialStartedAt = null;
-    let trialEndAt = null;
+    // Re-check local_name in Supabase
     let serverLocalName = null;
-    let subscriptionEndAt = null;
     if (supabase.isConfigured) {
       const supaUser = await supabase.getUser(user.id);
       if (!supaUser) {
         console.warn('AuthManager: user not found in Supabase — forcing logout');
         return { state: await this.logout(), refreshed: false };
       }
-      trialStartedAt    = supaUser?.trial_start || null;
-      trialEndAt        = supaUser?.trial_end   || null;
-      serverLocalName   = supaUser?.local_name  || null;
-      subscriptionEndAt = supaUser?.sub_end     || null;
+      serverLocalName = supaUser?.local_name || null;
     }
 
-    const tier = this._determineTier(roles, proRoleId, trialStartedAt, this._devRoleId, ultraRoleId || this._ultraRoleId, trialEndAt);
-    const trialDaysLeft = this._calcTrialDaysLeft(trialStartedAt, trialEndAt);
-    const subscriptionDaysLeft = await this._syncSubscriptionPeriod(user.id, tier, subscriptionEndAt);
+    const tier = this._determineTier(roles, this._devRoleId);
 
     this._state = {
       isLoggedIn: true,
       tier,
       user: this._buildUserObject(user),
-      trialDaysLeft,
-      trialStartedAt,
-      trialEndAt,
-      subscriptionDaysLeft,
       isInGuild: !!member,
       serverLocalName,
-      roles, // Update cached roles
+      roles,
     };
 
     this._stopOfflineTimer();
@@ -305,46 +237,12 @@ class AuthManager {
       isLoggedIn: false,
       tier: TIER.GUEST,
       user: null,
-      trialDaysLeft: 0,
-      subscriptionDaysLeft: null,
       isInGuild: false,
     };
   }
 
-  /**
-   * For PREMIUM/ULTRA users: if subscription_end_at is missing or expired while
-   * the role is still present, the user has renewed — reset to now + 30 days.
-   * Returns days remaining, or null for non-paid tiers.
-   */
-  async _syncSubscriptionPeriod(discordId, tier, subscriptionEndAt) {
-    const isPaid = tier === TIER.PREMIUM || tier === TIER.ULTRA;
-    if (!isPaid || !supabase.isConfigured) return null;
-
-    const now = Date.now();
-    const endTime = subscriptionEndAt ? new Date(subscriptionEndAt).getTime() : 0;
-
-    if (endTime <= now) {
-      // First activation or renewal detected (role present but period expired)
-      const newStart = new Date(now).toISOString();
-      const newEnd   = new Date(now + 30 * 24 * 60 * 60 * 1000).toISOString();
-      await supabase.updateSubscription(discordId, newStart, newEnd);
-      console.log(`AuthManager: subscription period set/renewed — end=${newEnd}`);
-      return 30;
-    }
-
-    return Math.ceil((endTime - now) / (24 * 60 * 60 * 1000));
-  }
-
   _deriveTierFromCache() {
-    const { proRoleId, ultraRoleId } = this._config.discord;
-    return this._determineTier(
-      this._state.roles || [],
-      proRoleId,
-      this._state.trialStartedAt || null,
-      this._devRoleId,
-      ultraRoleId,
-      this._state.trialEndAt || null,
-    );
+    return this._determineTier(this._state.roles || [], this._devRoleId);
   }
 
   _buildUserObject(discordUser) {
@@ -358,35 +256,9 @@ class AuthManager {
     };
   }
 
-  _determineTier(roles, proRoleId, trialStartedAt, devRoleId, ultraRoleId, trialEndAt = null) {
-    // DEVELOPER — highest priority, full access
+  _determineTier(roles, devRoleId) {
     if (devRoleId && roles.includes(devRoleId)) return TIER.DEVELOPER;
-
-    // ULTRA — Smart + AI access (assigned by Boosty bot for higher tier)
-    if (ultraRoleId && roles.includes(ultraRoleId)) return TIER.ULTRA;
-
-    // PREMIUM — Smart access only (assigned by Boosty bot for base tier)
-    if (proRoleId && roles.includes(proRoleId)) return TIER.PREMIUM;
-
-    // TRIAL — trial started and not yet expired (full access like Ultra)
-    if (trialStartedAt) {
-      const endTime = trialEndAt
-        ? new Date(trialEndAt).getTime()
-        : new Date(trialStartedAt).getTime() + TRIAL_DURATION_MS;
-      if (Date.now() < endTime) return TIER.TRIAL;
-    }
-
-    // FREE — authorized but no subscription / trial expired
     return TIER.FREE;
-  }
-
-  _calcTrialDaysLeft(trialStartedAt, trialEndAt = null) {
-    if (!trialStartedAt) return TRIAL_DURATION_DAYS; // full trial available
-    const endTime = trialEndAt
-      ? new Date(trialEndAt).getTime()
-      : new Date(trialStartedAt).getTime() + TRIAL_DURATION_MS;
-    const remaining = endTime - Date.now();
-    return Math.max(0, Math.ceil(remaining / (24 * 60 * 60 * 1000)));
   }
 
   _persistCache(accessToken, refreshToken, expiresIn) {

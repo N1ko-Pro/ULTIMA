@@ -1,17 +1,18 @@
 const { ipcMain } = require('electron');
 const { wrapHandler } = require('./handlerUtils');
 const authManager = require('../auth/authManager');
+const CH = require('../ipcChannels');
 
 function registerAuthHandlers() {
   ipcMain.handle(
-    'auth-get-state',
+    CH.AUTH_GET_STATE,
     wrapHandler(async () => {
       return { success: true, state: authManager.getState() };
     }),
   );
 
   ipcMain.handle(
-    'auth-login',
+    CH.AUTH_LOGIN,
     wrapHandler(async () => {
       const state = await authManager.login();
       return { success: true, state };
@@ -19,7 +20,7 @@ function registerAuthHandlers() {
   );
 
   ipcMain.handle(
-    'auth-logout',
+    CH.AUTH_LOGOUT,
     wrapHandler(async () => {
       const state = await authManager.logout();
       return { success: true, state };
@@ -27,15 +28,7 @@ function registerAuthHandlers() {
   );
 
   ipcMain.handle(
-    'auth-start-trial',
-    wrapHandler(async () => {
-      const state = await authManager.startTrial();
-      return { success: true, state };
-    }),
-  );
-
-  ipcMain.handle(
-    'auth-refresh',
+    CH.AUTH_REFRESH,
     wrapHandler(async () => {
       const result = await authManager.refreshSession();
       return { success: true, state: result.state, refreshed: result.refreshed };
@@ -43,7 +36,7 @@ function registerAuthHandlers() {
   );
 
   ipcMain.handle(
-    'auth-save-local-name',
+    CH.AUTH_SAVE_LOCAL_NAME,
     wrapHandler(async (_, name) => {
       await authManager.saveLocalName(name);
       return { success: true };

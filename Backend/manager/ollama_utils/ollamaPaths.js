@@ -3,9 +3,19 @@ const path = require('path');
 const OLLAMA_CUSTOM_DIR = 'Ollama Core';
 const OLLAMA_CUSTOM_MODELS_DIR = 'models';
 
+let _baseDir = null;
+
+function setBaseDir(userDataPath) {
+  _baseDir = userDataPath;
+}
+
 function getCustomOllamaDir() {
-  const appDir = path.join(__dirname, '..', '..');
-  return path.join(appDir, OLLAMA_CUSTOM_DIR);
+  if (_baseDir) return path.join(_baseDir, OLLAMA_CUSTOM_DIR);
+  // Fallback: use %APPDATA%\ULTIMA to avoid EPERM in C:\Program Files
+  if (process.platform === 'win32' && process.env.APPDATA) {
+    return path.join(process.env.APPDATA, 'ULTIMA', OLLAMA_CUSTOM_DIR);
+  }
+  return path.join(__dirname, '..', '..', OLLAMA_CUSTOM_DIR);
 }
 
 function getCustomOllamaModelsDir() {
@@ -21,6 +31,7 @@ function getCustomOllamaUninstaller() {
 }
 
 module.exports = {
+  setBaseDir,
   getCustomOllamaDir,
   getCustomOllamaModelsDir,
   getCustomOllamaExe,

@@ -65,7 +65,7 @@ export default function SettingsPage({
   defaultTab = null,
 }) {
   const t = useLocale();
-  const { canUseAutoTranslate, canUseAI, isLoggedIn } = useAuth();
+  const { canUseAutoTranslate, canUseAI } = useAuth();
 
   const normalizedCurrent = useMemo(() => normalizeSettings(currentSettings), [currentSettings]);
 
@@ -110,15 +110,7 @@ export default function SettingsPage({
       setActiveTab(tab.id);
       return;
     }
-    if (!isLoggedIn) {
-      notify.warning(t.settings.requiresAuth, t.settings.requiresAuthDesc);
-      return;
-    }
-    if (tab.id === SETTINGS_TABS.OLLAMA.id) {
-      notify.warningAction(t.settings.requiresUltra, t.settings.requiresUltraDesc, 'atp-modal');
-      return;
-    }
-    notify.warningAction(t.settings.requiresPremium, t.settings.requiresPremiumDesc, 'atp-modal');
+    notify.warningAction(t.settings.requiresAuth, t.settings.requiresAuthDesc, 'atp-modal');
   };
 
   return (

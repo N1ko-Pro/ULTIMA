@@ -48,45 +48,6 @@ class SupabaseClient {
     return Array.isArray(res.json) ? res.json[0] : res.json;
   }
 
-  /** Set trial_start to NOW and trial_end to the given end date (only if not already set). */
-  async startTrial(discordId, trialEndAt) {
-    if (!this.isConfigured) return null;
-
-    // First check if trial already exists
-    const existing = await this.getUser(discordId);
-    if (existing?.trial_start) {
-      console.log('Supabase: trial already active, returning existing data');
-      return existing;
-    }
-
-    const now = new Date().toISOString();
-    const res = await httpsRequest(
-      `${this._url}/rest/v1/users?discord_id=eq.${encodeURIComponent(discordId)}`,
-      {
-        method: 'PATCH',
-        headers: this._headers('return=representation'),
-        body: JSON.stringify({ trial_start: now, trial_end: trialEndAt }),
-      },
-    );
-    console.log(`Supabase PATCH startTrial: status=${res.status}, body=${res.body?.slice(0, 300)}`);
-    if (res.status !== 200) return null;
-    return Array.isArray(res.json) ? res.json[0] : res.json;
-  }
-  /** Set sub_start and sub_end for a paid subscriber (premium/ultra). */
-  async updateSubscription(discordId, startAt, endAt) {
-    if (!this.isConfigured) return;
-    try {
-      await httpsRequest(
-        `${this._url}/rest/v1/users?discord_id=eq.${encodeURIComponent(discordId)}`,
-        {
-          method: 'PATCH',
-          headers: this._headers('return=minimal'),
-          body: JSON.stringify({ sub_start: startAt, sub_end: endAt }),
-        },
-      );
-    } catch { /* ignore */ }
-  }
-
   /** Update local_name for a user (fails silently if column doesn’t exist). */
   async updateLocalName(discordId, name) {
     if (!this.isConfigured) return;

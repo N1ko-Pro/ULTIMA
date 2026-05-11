@@ -11,7 +11,7 @@ const { installOllama } = require("./ollama_utils/ollamaInstaller");
 const { uninstallOllama } = require("./ollama_utils/ollamaUninstaller");
 const { startServer, stopServer } = require("./ollama_utils/ollamaServer");
 const { resetOllamaContext } = require("./ollama_utils/ollamaChat");
-const { getCustomOllamaModelsDir, getCustomOllamaExe } = require("./ollama_utils/ollamaPaths");
+const { setBaseDir, getCustomOllamaModelsDir, getCustomOllamaExe } = require("./ollama_utils/ollamaPaths");
 
 class OllamaManager {
   constructor() {
@@ -21,6 +21,10 @@ class OllamaManager {
     this._activePullModel = null;
     this._lastHealthCheck = null;
     this._healthCheckInterval = 5000; // 5 seconds
+  }
+
+  initialize(userDataPath) {
+    setBaseDir(userDataPath);
   }
 
   // ── Cancel ─────────────────────────────────────────────────────────────────

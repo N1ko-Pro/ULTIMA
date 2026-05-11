@@ -50,6 +50,8 @@ function downloadFile(url, destPath, onProgress, cancelCtrl = {}) {
       if (cancelCtrl.cancelled) { reject(new Error('INSTALL_CANCELLED')); return; }
       if (redirectCount > 10) { reject(new Error('TOO_MANY_REDIRECTS')); return; }
 
+      let downloadFinished = false;
+
       const protocol = requestUrl.startsWith('https') ? https : http;
       const request = protocol.get(
         requestUrl,
@@ -112,6 +114,7 @@ function downloadFile(url, destPath, onProgress, cancelCtrl = {}) {
             else reject(ERR);
           });
           fileStream.on('finish', () => {
+            downloadFinished = true;
             if (cancelCtrl.cancelled) {
               cleanupDownloadedFile();
               reject(new Error('INSTALL_CANCELLED'));
@@ -142,6 +145,7 @@ function downloadFile(url, destPath, onProgress, cancelCtrl = {}) {
 
       cancelCtrl.request = request;
       request.on('error', (err) => {
+        if (downloadFinished) return;
         if (cancelCtrl.cancelled) {
           cleanupDownloadedFile();
           reject(new Error('INSTALL_CANCELLED'));

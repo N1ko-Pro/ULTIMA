@@ -10,15 +10,9 @@ const CACHE_TTL_MS         = 24 * 60 * 60 * 1000;            // ← main configu
 const OFFLINE_TICK_MS      = 30 * 1000;            // tick every 30 s
 const OFFLINE_MAX_DELTA_MS = 90 * 1000;            // clamp per tick (allows NTP jitter)
 
-const TRIAL_DURATION_DAYS = 3;
-const TRIAL_DURATION_MS = TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000;
-
 const TIER = {
   GUEST: 'guest',
-  TRIAL: 'trial',
   FREE: 'free',
-  PREMIUM: 'premium',
-  ULTRA: 'ultra',
   DEVELOPER: 'developer',
 };
 
@@ -33,8 +27,6 @@ module.exports = {
   CACHE_TTL_MS,
   OFFLINE_TICK_MS,
   OFFLINE_MAX_DELTA_MS,
-  TRIAL_DURATION_DAYS,
-  TRIAL_DURATION_MS,
   TIER,
   DISCORD_API_BASE,
   DISCORD_AUTHORIZE_URL,

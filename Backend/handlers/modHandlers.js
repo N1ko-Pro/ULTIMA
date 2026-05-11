@@ -1,4 +1,5 @@
 const { ipcMain, dialog, shell } = require('electron');
+const CH = require('../ipcChannels');
 const path = require('path');
 const fs = require('fs');
 const { wrapHandler } = require('./handlerUtils');
@@ -10,7 +11,7 @@ let translationAbortController = null;
 
 function registerModHandlers(mainWindow, { bg3Manager }) {
   // ── File selection (pak / zip / rar) ────────────────────────────────────────
-  ipcMain.handle('select-file', wrapHandler(async () => {
+  ipcMain.handle(CH.MOD_SELECT_FILE, wrapHandler(async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
       title: 'Открыть файл мода BG3',
       filters: [
@@ -28,7 +29,7 @@ function registerModHandlers(mainWindow, { bg3Manager }) {
   }));
 
   // ── Archive unpacking (zip / rar → pak → unpack) ────────────────────────────
-  ipcMain.handle('unpack-archive-file', wrapHandler(async (_, { filePath, ext }) => {
+  ipcMain.handle(CH.MOD_UNPACK_ARCHIVE, wrapHandler(async (_, { filePath, ext }) => {
     let tempDir = null;
     let extractedPakPath = null;
 
@@ -54,7 +55,7 @@ function registerModHandlers(mainWindow, { bg3Manager }) {
   }));
 
   // Step 1 — only shows the native file picker, returns the chosen path
-  ipcMain.handle('select-pak-file', wrapHandler(async () => {
+  ipcMain.handle(CH.MOD_SELECT_PAK, wrapHandler(async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog(mainWindow, {
       title: 'Select BG3 Mod (.pak)',
       filters: [{ name: 'BG3 Pak Files', extensions: ['pak'] }],
@@ -65,14 +66,14 @@ function registerModHandlers(mainWindow, { bg3Manager }) {
   }));
 
   // Step 2 — does the actual heavy unpacking (shown after dialog closes)
-  ipcMain.handle('unpack-pak-file', wrapHandler(async (_, { filePath }) => {
+  ipcMain.handle(CH.MOD_UNPACK_PAK, wrapHandler(async (_, { filePath }) => {
     const result = await bg3Manager.unpackAndLoadStrings(filePath);
     // workspaceDirName is already == path.basename(filePath, '.pak') for direct pak,
     // but including it explicitly keeps the deletion path consistent.
     return { success: true, data: { ...result, originalPakPath: filePath } };
   }));
 
-  ipcMain.handle('translate-strings', wrapHandler(async (_, { dataToTranslate, targetLang, options }) => {
+  ipcMain.handle(CH.TRANSLATE_STRINGS, wrapHandler(async (_, { dataToTranslate, targetLang, options }) => {
     if (translationAbortController) {
       translationAbortController.abort();
     }
@@ -81,7 +82,7 @@ function registerModHandlers(mainWindow, { bg3Manager }) {
     // Per-item progress callback for AI translation (emits IPC to renderer)
     const onItemProgress = (progress) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.webContents.send('translation-item-progress', progress);
+        mainWindow.webContents.send(CH.TRANSLATE_ITEM_PROGRESS, progress);
       }
     };
 
@@ -102,7 +103,7 @@ function registerModHandlers(mainWindow, { bg3Manager }) {
     }
   }));
 
-  ipcMain.handle('abort-translate-strings', wrapHandler(async () => {
+  ipcMain.handle(CH.TRANSLATE_ABORT, wrapHandler(async () => {
     if (translationAbortController) {
       translationAbortController.abort();
       translationAbortController = null;
@@ -110,11 +111,14 @@ function registerModHandlers(mainWindow, { bg3Manager }) {
     return { success: true };
   }));
 
-  ipcMain.handle('repack-mod', wrapHandler(async (_, { updatedData }) => {
+  ipcMain.handle(CH.MOD_REPACK, wrapHandler(async (_, { updatedData, modName }) => {
+    const safeName = modName
+      ? modName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'Translated_Mod_RU'
+      : 'Translated_Mod_RU';
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
       title: 'Сохранить переведённый мод (.zip)',
       filters: [{ name: 'BG3 Mod Archive', extensions: ['zip'] }],
-      defaultPath: 'Translated_Mod_RU.zip',
+      defaultPath: `${safeName}.zip`,
     });
 
     if (canceled || !filePath) return { success: false };
@@ -122,7 +126,7 @@ function registerModHandlers(mainWindow, { bg3Manager }) {
     await bg3Manager.saveAndRepack(updatedData, filePath);
     return { success: true, filePath };
   }));
-  ipcMain.handle('open-mod-folder', wrapHandler(async () => {
+  ipcMain.handle(CH.MOD_OPEN_FOLDER, wrapHandler(async () => {
     const dir = bg3Manager.cachedData?.modWorkspaceDir;
     if (!dir) return { success: false, error: 'No mod loaded' };
     await shell.openPath(dir);

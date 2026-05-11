@@ -5,18 +5,19 @@
 
 const { ipcMain } = require('electron');
 const dotnetManager = require('../manager/dotnetManager');
+const CH = require('../ipcChannels');
 
 function registerDotNetHandlers() {
   // Check if .NET 8.0 Desktop Runtime is installed
-  ipcMain.handle('dotnet-check', async () => {
+  ipcMain.handle(CH.DOTNET_CHECK, async () => {
     return await dotnetManager.checkDotNetRuntime();
   });
 
   // Install .NET 8.0 Desktop Runtime with progress updates
-  ipcMain.handle('dotnet-install', async (event) => {
+  ipcMain.handle(CH.DOTNET_INSTALL, async (event) => {
     return new Promise((resolve, reject) => {
       dotnetManager.installDotNetRuntime((progress) => {
-        event.sender.send('dotnet-install-progress', progress);
+        event.sender.send(CH.DOTNET_INSTALL_PROGRESS, progress);
       })
         .then(() => resolve({ success: true }))
         .catch((error) => reject(error.message));

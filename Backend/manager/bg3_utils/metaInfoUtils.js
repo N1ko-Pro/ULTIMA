@@ -126,7 +126,8 @@ function buildTranslationMetaLsx(cachedData, overrides = {}) {
   if (oldFolderName && oldFolderName !== folderName) {
     const oldModsSubdir = path.join(modsDir, oldFolderName);
     if (fs.existsSync(oldModsSubdir)) {
-      fs.renameSync(oldModsSubdir, newModsSubdir);
+      fs.cpSync(oldModsSubdir, newModsSubdir, { recursive: true });
+      fs.rmSync(oldModsSubdir, { recursive: true, force: true });
     }
   }
 

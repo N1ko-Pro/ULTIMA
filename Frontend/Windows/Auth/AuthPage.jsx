@@ -33,7 +33,7 @@ import { PrimaryActions, SocialLinks } from './AuthPageButtons';
  */
 export default function AuthPage({ onNavigateToProjects, isOverlay = false, isFirstLaunch = false }) {
   const t = useLocale();
-  const { isLoading, isLoggedIn, user, tier, trialDaysLeft, isOffline } = useAuth();
+  const { isLoading, isLoggedIn, user, tier, isOffline } = useAuth();
   const { isLoggingIn, handleLogin } = useDiscordLogin();
 
   const [isProfileExpanded, setIsProfileExpanded] = useState(false);
@@ -131,7 +131,6 @@ export default function AuthPage({ onNavigateToProjects, isOverlay = false, isFi
               <UserStatusCard
                 user={user}
                 tier={tier}
-                trialDaysLeft={trialDaysLeft}
                 isExpanded={isProfileExpanded}
                 onToggle={handleToggleProfile}
                 profileView={profileView}

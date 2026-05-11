@@ -1,15 +1,7 @@
 import { Zap, Bot, BookOpen, FileCode } from 'lucide-react';
-import { TIER, TIER_COLORS } from '@Config/tiers.constants';
 
 // ─── Auth page styling constants ────────────────────────────────────────────
-// Local palette for the welcome screen feature cards. Colour keys here
-// are semantic labels, not tier ids — they happen to map onto tiers only
-// for display purposes.
-
-/** Combined text+bg+border string per tier — derived from TIER_COLORS. */
-export const TIER_STYLES = Object.fromEntries(
-  Object.entries(TIER_COLORS).map(([key, v]) => [key, `${v.text} ${v.bg} ${v.border}`]),
-);
+// Local palette for the welcome screen feature cards.
 
 export const ICON_COLORS = {
   violet:  'text-violet-400',
@@ -47,9 +39,9 @@ export const GLOW_COLORS = {
  */
 export function getFeatures(t) {
   return [
-    { icon: Zap,       title: t.welcome.features.smartTitle,      desc: t.welcome.features.smartDesc,      tier: TIER.PREMIUM, color: 'purple' },
-    { icon: Bot,       title: t.welcome.features.aiTitle,         desc: t.welcome.features.aiDesc,         tier: TIER.ULTRA,   color: 'yellow' },
-    { icon: BookOpen,  title: t.welcome.features.dictionaryTitle, desc: t.welcome.features.dictionaryDesc, tier: TIER.FREE,    color: 'sky'    },
-    { icon: FileCode,  title: t.welcome.features.xmlTitle,        desc: t.welcome.features.xmlDesc,        tier: TIER.GUEST,   color: 'zinc'   },
+    { icon: Zap,       title: t.welcome.features.smartTitle,      desc: t.welcome.features.smartDesc,      color: 'violet' },
+    { icon: Bot,       title: t.welcome.features.aiTitle,         desc: t.welcome.features.aiDesc,         color: 'sky'    },
+    { icon: BookOpen,  title: t.welcome.features.dictionaryTitle, desc: t.welcome.features.dictionaryDesc, color: 'amber'  },
+    { icon: FileCode,  title: t.welcome.features.xmlTitle,        desc: t.welcome.features.xmlDesc,        color: 'zinc'   },
   ];
 }

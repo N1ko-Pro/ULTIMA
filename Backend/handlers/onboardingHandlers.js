@@ -2,6 +2,7 @@ const { ipcMain } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { wrapHandler } = require('./handlerUtils');
+const CH = require('../ipcChannels');
 
 let configPath = null;
 let configCache = null;
@@ -39,11 +40,11 @@ function saveConfig(config) {
 function registerOnboardingHandlers(getUserDataPath) {
   configPath = path.join(getUserDataPath(), 'onboarding.json');
 
-  ipcMain.handle('onboarding-get', wrapHandler(async () => {
+  ipcMain.handle(CH.ONBOARDING_GET, wrapHandler(async () => {
     return { success: true, data: loadConfig() };
   }));
 
-  ipcMain.handle('onboarding-update', wrapHandler(async (_, patch) => {
+  ipcMain.handle(CH.ONBOARDING_UPDATE, wrapHandler(async (_, patch) => {
     const config = loadConfig();
     Object.assign(config, patch);
     saveConfig(config);
