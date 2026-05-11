@@ -8,7 +8,6 @@ import {
   resolvePersistedProjectName,
 } from '@Shared/helpers/projectShape';
 import { buildTranslationsFingerprint } from '@Shared/helpers/fingerprints';
-import { createCache } from '@Optimization/cache';
 import { isAvailable } from '@API/client';
 import * as projectsApi from '@API/projects';
 import * as filesApi from '@API/files';
@@ -21,23 +20,14 @@ import * as pakApi from '@API/pak';
 //   • the project init modal flow (promise-resolver pattern)
 //   • save / load / repack actions
 //
-// Cached: `loadProjects()` results — every "open file" cycle previously
-// fetched the full project list to dedupe names; now we cache for 30s and
-// invalidate explicitly on save/load.
-
-const PROJECT_LIST_KEY = 'all';
-const projectListCache = createCache({ ttl: 30_000 });
-
 const DOTNET_ERROR_MARKERS = ['.NET', 'dotnet', 'hostfxr.dll'];
 const isDotNetError = (errorMessage) =>
   typeof errorMessage === 'string' && DOTNET_ERROR_MARKERS.some((m) => errorMessage.includes(m));
 
 async function fetchProjectNames() {
   try {
-    return await projectListCache.getOrLoad(PROJECT_LIST_KEY, async () => {
-      const res = await projectsApi.loadAll();
-      return (res?.projects || []).map((p) => p.name);
-    });
+    const res = await projectsApi.loadAll();
+    return (res?.projects || []).map((p) => p.name);
   } catch {
     return [];
   }
@@ -179,7 +169,6 @@ export function useProjectManager() {
       if (res?.success) {
         setCurrentProjectId(res.project.id);
         commitSavedSnapshot(initTrans);
-        projectListCache.invalidate(PROJECT_LIST_KEY);
         notify.success(t.projects.created, t.projects.createdDesc(userInput.modName));
       }
     } finally {
@@ -211,7 +200,6 @@ export function useProjectManager() {
     if (res?.success) {
       setCurrentProjectId(res.project.id);
       commitSavedSnapshot(translations);
-      projectListCache.invalidate(PROJECT_LIST_KEY);
       notify.success(t.projects.saved, t.projects.savedDesc);
     } else {
       notify.error(t.common.error, t.projects.saveErrorDesc);
