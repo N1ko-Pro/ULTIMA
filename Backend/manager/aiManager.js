@@ -79,6 +79,31 @@ function validateTranslation(source, translated) {
     return { valid: false, reason: "too_long" };
   }
 
+  // Detect source-language echo: AI outputted both the original and the translation.
+  // Check if the first 28 chars of the source (requires ≥8 Latin letters) appear verbatim
+  // in the translated text — a clear sign the model concatenated source + result.
+  if (src.length >= 28) {
+    const srcSample = src.substring(0, 28);
+    const latinLetters = (srcSample.match(/[a-zA-Z]/g) || []).length;
+    if (latinLetters >= 8 && trl.includes(srcSample)) {
+      return { valid: false, reason: "source_echoed" };
+    }
+  }
+
+  // Detect repeated content: AI doubled the translation output.
+  // Split on sentence terminators and check for repeated segments (≥15 chars each).
+  const trlSentences = trl
+    .split(/[.!?](?:\s|$)/)
+    .map((s) => s.trim().toLowerCase().replace(/\s+/g, " "))
+    .filter((s) => s.length >= 15);
+  if (trlSentences.length >= 2) {
+    const seen = new Set();
+    for (const seg of trlSentences) {
+      if (seen.has(seg)) return { valid: false, reason: "repeated_content" };
+      seen.add(seg);
+    }
+  }
+
   return { valid: true };
 }
 
@@ -370,13 +395,17 @@ class AiManager {
       return this._translateDictionaryWithRetry(dataToTranslate, runtimeOptions, abortSignal, onItemProgress);
     }
 
-    // Phase 2 callback: single-segment AI translation
+    // Phase 2 callback: main translation pass (with progress events)
     const translateFn = (segmentDict) =>
       this._translateDictionaryWithRetry(segmentDict, runtimeOptions, abortSignal, onItemProgress);
 
+    // Phase 3 retries: silent — must not fire onItemProgress or the bar regresses
+    const retryFn = (segmentDict) =>
+      this._translateDictionaryWithRetry(segmentDict, runtimeOptions, abortSignal, null);
+
     return runTranslationPipeline(
       dataToTranslate,
-      { translateFn },
+      { translateFn, retryFn },
       runtimeOptions.glossaryPairs
     );
   }

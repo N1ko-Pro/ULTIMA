@@ -370,6 +370,7 @@ export default {
     translateErrorDesc: 'Произошла ошибка API',
     stageStopping:      'Остановка...',
     stageStopped:       'Остановлено',
+    stageApplying:      'Применение результатов...',
     stageCompleted:     'Завершено!',
     stageProgress:      (mode, done, total) => `${mode}: ${done} / ${total}`,
     etaSec:             (n) => `~${n} сек`,
@@ -383,6 +384,14 @@ export default {
     clearAllTitle:      'Очистить все переводы',
     clearAllConfirm:    (n) => `Вы уверены, что хотите очистить все переводы? Это удалит ${n} переведенных строк.`,
     clearRow:           'Очистить перевод',
+    bookmarkRow:        'Отметить строку',
+    removeBookmark:     'Снять отметку',
+    bookmarksLabel:     'отмечено',
+    filterAll:          'Все',
+    filterOnly:         'Отмечено',
+    filterHide:         'Скрыть',
+    showRows:           'Строк',
+    ofTotal:            'из',
   },
 
   // ─── Сайдбар (данные мода) ──────────────────────────────────────────────────

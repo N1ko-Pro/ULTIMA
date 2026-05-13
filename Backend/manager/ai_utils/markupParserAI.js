@@ -45,6 +45,10 @@ function sanitizeAiXmlOutput(text) {
     "<LSTag $1$2>"
   );
 
+  // Remove hallucinated <img> tags — AI generates these when it sees Type='Image' LSTags.
+  // Self-closing form: <img ... /> or <img ...>  (never valid in BG3 mod XML output).
+  result = result.replace(/<img\b[^>]*\/?>/gi, '');
+
   return result;
 }
 
@@ -298,10 +302,15 @@ function restoreTagsFromMarkers(text, markerMap) {
         }
       }
 
+      // Opaque markers (self-closing LSTags, inline formatting tags) — restore verbatim.
+      if (entry.selfClosingTag) {
+        return entry.selfClosingTag;
+      }
+
       // Enforce case from the original English word
-      if (entry.originalCase === "upper" && tagContent[0] !== tagContent[0].toUpperCase()) {
+      if (tagContent && entry.originalCase === "upper" && tagContent[0] !== tagContent[0].toUpperCase()) {
         tagContent = tagContent[0].toUpperCase() + tagContent.slice(1);
-      } else if (entry.originalCase === "lower" && tagContent[0] !== tagContent[0].toLowerCase()) {
+      } else if (tagContent && entry.originalCase === "lower" && tagContent[0] !== tagContent[0].toLowerCase()) {
         tagContent = tagContent[0].toLowerCase() + tagContent.slice(1);
       }
       return `<LSTag${entry.attrs}>${tagContent}</LSTag>`;

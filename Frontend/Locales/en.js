@@ -364,6 +364,7 @@ export default {
     translateErrorDesc: 'An API error occurred',
     stageStopping:      'Stopping...',
     stageStopped:       'Stopped',
+    stageApplying:      'Applying results...',
     stageCompleted:     'Completed!',
     stageProgress:      (mode, done, total) => `${mode}: ${done} / ${total}`,
     etaSec:             (n) => `~${n}s`,

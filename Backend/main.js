@@ -1,5 +1,6 @@
 const { app, BrowserWindow, screen } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const { registerAllHandlers } = require('./handlers');
 const bg3Manager = require('./manager/bg3Manager');
 const smartManager = require('./manager/smartManager');
@@ -113,7 +114,18 @@ app.whenReady().then(() => {
   try { firstRunManager.initialize({ userDataPath: getUserDataPath(), defaultGlossaryPath: getDefaultGlossaryPath() }); } catch (e) { console.error('[firstRunManager]', e); }
   try { smartManager.initializeSettingsStore(getUserDataPath()); } catch (e) { console.error('[smartManager]', e); }
   try { aiManager.initializeSettings(getUserDataPath()); } catch (e) { console.error('[aiManager]', e); }
-  try { dictionaryManager.initialize(getAppRootPath(), getDefaultGlossaryPath()); } catch (e) { console.error('[dictionaryManager]', e); }
+  // Migrate glossary_user.json from old app-root location to userData (one-time, silent)
+  try {
+    const oldGlossaryPath = path.join(getAppRootPath(), 'glossary', 'glossary_user.json');
+    const newGlossaryDir = path.join(getUserDataPath(), 'glossary');
+    const newGlossaryPath = path.join(newGlossaryDir, 'glossary_user.json');
+    if (fs.existsSync(oldGlossaryPath) && !fs.existsSync(newGlossaryPath)) {
+      if (!fs.existsSync(newGlossaryDir)) fs.mkdirSync(newGlossaryDir, { recursive: true });
+      fs.copyFileSync(oldGlossaryPath, newGlossaryPath);
+      console.log('[migration] Glossary migrated from app root to userData');
+    }
+  } catch (e) { console.warn('[migration] Glossary migration skipped:', e?.message); }
+  try { dictionaryManager.initialize(getUserDataPath(), getDefaultGlossaryPath()); } catch (e) { console.error('[dictionaryManager]', e); }
   try { authManager.initialize(getUserDataPath(), app.getAppPath()); } catch (e) { console.error('[authManager]', e); }
   try { bg3Manager.initialize(getUserDataPath(), app.getAppPath()); } catch (e) { console.error('[bg3Manager]', e); }
   try { ollamaManager.initialize(getUserDataPath()); } catch (e) { console.error('[ollamaManager]', e); }

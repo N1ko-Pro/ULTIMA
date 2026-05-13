@@ -16,12 +16,13 @@ const MARKUP_CLASS = {
   placeholder: 'text-yellow-300/95',
 };
 
-const SEARCH_MATCH_CLASS = 'rounded-sm bg-amber-300/35 text-amber-100 px-[1px]';
+const SEARCH_MATCH_CLASS_TABLE  = 'rounded-sm bg-amber-300/35 text-amber-100 px-[1px]';
+const SEARCH_MATCH_CLASS_EDITOR = 'rounded-sm bg-amber-300/35 text-amber-100';
 
-function renderQueryParts(parts, keyPrefix) {
+function renderQueryParts(parts, keyPrefix, matchClass) {
   return parts.map((part, index) =>
     part.isMatch ? (
-      <mark key={`${keyPrefix}-${index}`} className={SEARCH_MATCH_CLASS}>
+      <mark key={`${keyPrefix}-${index}`} className={matchClass}>
         {part.value}
       </mark>
     ) : (
@@ -39,6 +40,7 @@ function renderQueryParts(parts, keyPrefix) {
  */
 export default function HighlightedText({ text, mode = 'table', searchQuery = '' }) {
   const tokens = tokenizeGameTextMarkup(text);
+  const matchClass = mode === 'editor' ? SEARCH_MATCH_CLASS_EDITOR : SEARCH_MATCH_CLASS_TABLE;
 
   return tokens.map((token, index) => {
     const queryParts = splitBySearchQuery(token.value, searchQuery);
@@ -46,7 +48,7 @@ export default function HighlightedText({ text, mode = 'table', searchQuery = ''
     if (token.type === 'text') {
       return (
         <React.Fragment key={`text-${index}`}>
-          {renderQueryParts(queryParts, `text-${index}`)}
+          {renderQueryParts(queryParts, `text-${index}`, matchClass)}
         </React.Fragment>
       );
     }
@@ -63,7 +65,7 @@ export default function HighlightedText({ text, mode = 'table', searchQuery = ''
 
     return (
       <span key={`tag-${index}`} className={`${layoutClass} ${tokenColor}`}>
-        {renderQueryParts(queryParts, `tag-${index}`)}
+        {renderQueryParts(queryParts, `tag-${index}`, matchClass)}
       </span>
     );
   });

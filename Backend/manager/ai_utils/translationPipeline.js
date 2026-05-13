@@ -37,12 +37,26 @@ function phasePreProcess(dataEntries, glossaryPairs) {
 
     const markerMap = [];
     let idx = 0;
+
+    // Step A: Pre-process self-closing LSTags (icon/image placeholders with no text content).
+    // BG3 uses the non-standard format <LSTag attrs/LSTag> (or standard XML <LSTag attrs/>).
+    // These must be converted to opaque [Tn] markers BEFORE the paired-tag regex runs,
+    // otherwise the AI sees Type='Image' and hallucinates <img> tags.
+    const selfCloseRe = /<LSTag\b([^>]*?)(?:\/LSTag>|\/>)/gi;
+    const preprocessed = text.replace(selfCloseRe, (fullMatch) => {
+      idx++;
+      markerMap.push({ index: idx, attrs: '', word: '', originalWord: '', shortWord: '', glossaryResolved: false, originalCase: 'lower', selfClosingTag: fullMatch });
+      return `[T${idx}]`;
+    });
+
+    // Step B: Convert paired LSTags to [Tn:word] markers — uniform format for the AI.
+    // Glossary-resolved tags get the Russian word; unresolved keep the English word.
+    // Note: inline HTML tags (<b>, <i>, <font>) are intentionally left as-is — the AI
+    // understands HTML semantics and preserves them correctly. Converting them to opaque
+    // markers causes the AI to reorder them and misplace content.
     const lsTagRe = /<LSTag\b([^>]*)>([\s\S]*?)<\/LSTag>/gi;
 
-    // Convert EVERY LSTag to a [Tn:word] marker — uniform format for the AI.
-    // Glossary-resolved tags get the Russian word; unresolved keep the English word.
-    // The AI sees only markers (no raw XML), which prevents mixed-format confusion.
-    const markerText = text.replace(lsTagRe, (_, attrs, content) => {
+    const markerText = preprocessed.replace(lsTagRe, (_, attrs, content) => {
       const original = (content || "").trim();
       const resolved = original ? resolveTagTranslation(original, attrs, glossaryLookup) : original;
       const glossaryResolved = resolved !== original;
@@ -258,7 +272,7 @@ function phaseSegmentDedup(translated, dataToTranslate, allEntries) {
 //  Phase 6 — Final Cleanup:        normalize + segment dedup
 
 async function runTranslationPipeline(dataToTranslate, callbacks, glossaryPairs) {
-  const { translateFn } = callbacks;
+  const { translateFn, retryFn = translateFn } = callbacks;
   const entries = Object.entries(dataToTranslate || {});
   if (entries.length === 0) return {};
 
@@ -285,13 +299,16 @@ async function runTranslationPipeline(dataToTranslate, callbacks, glossaryPairs)
       text,
       markerText,
       mMap,
-      translateFn,
+      retryFn,
       uid
     );
 
-    // Phase 4: Unit stripping + br normalization
+    // Phase 4: Unit stripping + br normalization + newline collapse
     text = phaseUnitStripping(text);
     text = normalizeBrTags(text);
+    // BG3 mod strings use <br> for line breaks, never \n. AI sometimes formats output
+    // with newlines between segments. Collapse \r\n and \n to spaces unconditionally.
+    text = text.replace(/\r?\n/g, ' ').replace(/ {2,}/g, ' ').trim();
 
     // Phase 5: Tag restoration — [Tn:word] → <LSTag>
     text = sanitizeAiXmlOutput(text);
@@ -299,8 +316,40 @@ async function runTranslationPipeline(dataToTranslate, callbacks, glossaryPairs)
     text = phaseUnitStripping(text);
     const withTags = restoreTagsFromMarkers(text, mMap);
 
+    // Phase 5b: Post-processing guards for hallucinated / dropped structural markup.
+    let finalText = withTags;
+    const rawStr = toSafeString(rawText);
+
+    // Strip inline formatting tags hallucinated by AI when absent from original source.
+    for (const tag of ['b', 'i', 'u', 'em', 'strong']) {
+      const srcCount = (rawStr.match(new RegExp(`<${tag}(?:\\s|>)`, 'gi')) || []).length;
+      if (srcCount === 0) {
+        finalText = finalText
+          .replace(new RegExp(`<${tag}(?:\\s[^>]*)?>`, 'gi'), '')
+          .replace(new RegExp(`</${tag}>`, 'gi'), '');
+      }
+    }
+
+    // Collapse any \n that survived restoration (safety net — Phase 4 should have caught these).
+    if (finalText.includes('\n') || finalText.includes('\r')) {
+      finalText = finalText.replace(/\r?\n/g, ' ').replace(/ {2,}/g, ' ').trim();
+    }
+
+    // Enforce <br> count: strip any <br> tags AI added beyond the source count.
+    // AI commonly adds <br> after colons/punctuation in short strings where none existed.
+    const srcBrCount = (rawStr.match(/<br\s*\/?>/gi) || []).length;
+    if (srcBrCount === 0) {
+      finalText = finalText.replace(/<br\s*\/?>/gi, '');
+    } else {
+      let brSeen = 0;
+      finalText = finalText.replace(/<br\s*\/?>/gi, (match) => {
+        brSeen++;
+        return brSeen <= srcBrCount ? match : '';
+      });
+    }
+
     // Phase 6: Final cleanup
-    let finalText = normalizeBrTags(withTags);
+    finalText = normalizeBrTags(finalText);
     finalText = sanitizeAiXmlOutput(finalText);
     finalText = phaseUnitStripping(finalText);
     finalText = stripHallucinatedBrackets(finalText);

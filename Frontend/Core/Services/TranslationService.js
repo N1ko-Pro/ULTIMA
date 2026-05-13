@@ -40,12 +40,14 @@ export default function useAutoTranslation({ originalStrings, translations, setT
   const [isTranslating,       setIsTranslating]       = useState(false);
   const [translationProgress, setTranslationProgress] = useState(0);
   const [translationStage,    setTranslationStage]    = useState('');
+  const [translationPhase,    setTranslationPhase]    = useState('');
 
   const completionTimerRef    = useRef(null);
   const cancelledRef          = useRef(false);
   const translationModeRef    = useRef('');
   const totalItemsRef         = useRef(0);
   const baseCompletedRef      = useRef(0);
+  const maxCompletedRef       = useRef(0);
   const startTimeRef          = useRef(0);
   const itemProgressCleanupRef = useRef(null);
 
@@ -61,6 +63,12 @@ export default function useAutoTranslation({ originalStrings, translations, setT
 
     const progress = Math.min(100, Math.round((overallCompleted / total) * 100));
     setTranslationProgress(progress);
+
+    if (progress >= 100) {
+      setTranslationPhase('applying');
+      setTranslationStage(tRef.current.editor.stageApplying);
+      return;
+    }
 
     const elapsed   = (Date.now() - startTimeRef.current) / 1000;
     const rate      = overallCompleted > 0 ? elapsed / overallCompleted : 0;
@@ -128,6 +136,7 @@ export default function useAutoTranslation({ originalStrings, translations, setT
       cancelledRef.current = false;
       setIsTranslating(true);
       setTranslationProgress(0);
+      setTranslationPhase('');
       setTranslationStage(t.editor.stagePreparing(modeLabel));
 
       let translationFailed = false;
@@ -145,6 +154,7 @@ export default function useAutoTranslation({ originalStrings, translations, setT
 
         totalItemsRef.current = totalItems;
         baseCompletedRef.current = 0;
+        maxCompletedRef.current = 0;
         startTimeRef.current = Date.now();
         setTranslationStage(t.editor.stageLaunching(modeLabel));
 
@@ -152,7 +162,10 @@ export default function useAutoTranslation({ originalStrings, translations, setT
         itemProgressCleanupRef.current?.();
         itemProgressCleanupRef.current = translationsApi.onItemProgress(({ completed }) => {
           if (cancelledRef.current) return;
-          updateProgressSmooth(baseCompletedRef.current + completed);
+          const overall = baseCompletedRef.current + completed;
+          if (overall < maxCompletedRef.current) return;
+          maxCompletedRef.current = overall;
+          updateProgressSmooth(overall);
         });
 
         const chunkSize = TRANSLATION.CHUNK_SIZE;
@@ -202,6 +215,7 @@ export default function useAutoTranslation({ originalStrings, translations, setT
         }
 
         if (wasCancelled) {
+          setTranslationPhase('');
           setTranslationStage(tRef.current.editor.stageStopped);
           setTimeout(() => {
             setIsTranslating(false);
@@ -209,12 +223,14 @@ export default function useAutoTranslation({ originalStrings, translations, setT
             setTranslationStage('');
           }, TRANSLATION.CANCEL_HOLD_MS);
         } else {
+          setTranslationPhase(wasSuccessful ? 'done' : '');
           setTranslationStage(
             wasSuccessful ? tRef.current.editor.stageCompleted : tRef.current.editor.translateError,
           );
           completionTimerRef.current = setTimeout(() => {
             setIsTranslating(false);
             setTranslationProgress(0);
+            setTranslationPhase('');
             setTranslationStage('');
           }, TRANSLATION.COMPLETION_HOLD_MS);
         }
@@ -229,5 +245,6 @@ export default function useAutoTranslation({ originalStrings, translations, setT
     cancelAutoTranslation,
     translationProgress,
     translationStage,
+    translationPhase,
   };
 }

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Trash2 } from 'lucide-react';
+import { Trash2, Bookmark } from 'lucide-react';
 import HighlightedText from '@UI/Highlight/HighlightedText';
 import { useLocale } from '@Locales/LocaleProvider';
 
@@ -8,6 +8,9 @@ import { useLocale } from '@Locales/LocaleProvider';
 // the original string (highlighted) plus a controlled textarea for the
 // translation. Captures Ctrl+Z while empty to restore the previously-cleared
 // value (native undo wouldn't work across React's state cycle).
+//
+// Quick-action column (68 px) holds the bookmark toggle and delete button.
+// Bookmarked rows get an amber left-edge accent bar and a tinted background.
 
 const VirtualTableRow = React.memo(function VirtualTableRow({
   row,
@@ -15,8 +18,10 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
   displayIndex,
   isMissingByValidation,
   isRequiredMissing,
+  isBookmarked,
   onTranslateChange,
   onClearTranslation,
+  onToggleBookmark,
   onDismissHighlight,
   searchQuery,
 }) {
@@ -53,9 +58,11 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
 
   const rowBorder = isRequiredMissing
     ? 'bg-red-500/[0.04] border-red-500/20 [&:not(:focus-within)]:hover:bg-red-500/[0.07] focus-within:bg-red-500/[0.12] focus-within:border-red-400/50 focus-within:shadow-[0_4px_28px_rgba(239,68,68,0.1),inset_3px_0_0_0_rgba(239,68,68,0.45)]'
-    : isTranslated
-      ? 'bg-surface-2/70 border-white/[0.09] [&:not(:focus-within)]:hover:bg-surface-2/90 [&:not(:focus-within)]:hover:border-white/[0.13] focus-within:bg-surface-3/90 focus-within:border-white/[0.25]'
-      : 'bg-surface-0/40 border-white/[0.04] [&:not(:focus-within)]:hover:bg-surface-1/60 [&:not(:focus-within)]:hover:border-white/[0.07] focus-within:bg-surface-2/80 focus-within:border-white/[0.18]';
+    : isBookmarked
+      ? 'bg-amber-500/[0.05] border-amber-400/20 [&:not(:focus-within)]:hover:bg-amber-500/[0.08] [&:not(:focus-within)]:hover:border-amber-400/30 focus-within:bg-amber-500/[0.1] focus-within:border-amber-400/45 focus-within:shadow-[0_4px_24px_rgba(251,191,36,0.08)]'
+      : isTranslated
+        ? 'bg-surface-2/70 border-white/[0.09] [&:not(:focus-within)]:hover:bg-surface-2/90 [&:not(:focus-within)]:hover:border-white/[0.13] focus-within:bg-surface-3/90 focus-within:border-white/[0.25]'
+        : 'bg-surface-0/40 border-white/[0.04] [&:not(:focus-within)]:hover:bg-surface-1/60 [&:not(:focus-within)]:hover:border-white/[0.07] focus-within:bg-surface-2/80 focus-within:border-white/[0.18]';
 
   const indexColor = isRequiredMissing
     ? 'text-red-300/70 group-hover:text-red-200 group-focus-within:text-red-200'
@@ -69,7 +76,13 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
 
   return (
     <div className="pb-1.5">
-      <div className={`group grid grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)] gap-4 p-3 px-6 rounded-2xl items-center transition-all duration-200 border ${rowBorder}`}>
+      <div className={`group grid grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_68px] gap-4 p-3 px-6 rounded-2xl items-center transition-all duration-200 border relative ${rowBorder}`}>
+
+        {/* Amber accent bar for bookmarked rows */}
+        {isBookmarked && !isRequiredMissing && (
+          <div className="pointer-events-none absolute left-0 inset-y-[6px] w-[3px] rounded-r-full bg-amber-400/70 z-10" aria-hidden="true" />
+        )}
+
         <div className={`text-center font-mono text-[12px] font-semibold transition-colors duration-200 border-r border-white/[0.06] pr-4 self-center ${indexColor}`}>
           {displayIndex}
         </div>
@@ -81,7 +94,7 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
           <HighlightedText text={row.original} mode="table" searchQuery={searchQuery} />
         </div>
 
-        <div className="relative flex items-stretch gap-3 pl-4 min-w-0 self-stretch">
+        <div className="relative flex items-stretch min-w-0 self-stretch">
           <div className={`relative flex flex-col flex-1 w-full min-w-0 overflow-hidden rounded-xl border transition-all duration-200 ${editBorder}`}>
             {/* Overlay for search highlighting — sits behind the transparent textarea. */}
             <div
@@ -108,13 +121,29 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
               onChange={(e) => onTranslateChange(row.id, e.target.value)}
             />
           </div>
+        </div>
 
+        {/* Quick actions: bookmark + delete */}
+        <div className="flex items-center justify-end gap-1">
+          <button
+            type="button"
+            onClick={() => onToggleBookmark(row.id)}
+            title={isBookmarked ? t.editor.removeBookmark : t.editor.bookmarkRow}
+            aria-label={isBookmarked ? t.editor.removeBookmark : t.editor.bookmarkRow}
+            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-200 focus:outline-none ${
+              isBookmarked
+                ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-400/[0.12]'
+                : 'text-zinc-700 opacity-0 group-hover:opacity-100 hover:text-amber-400 hover:bg-amber-400/[0.08]'
+            }`}
+          >
+            <Bookmark className={`w-[15px] h-[15px] transition-all duration-150 ${isBookmarked ? 'fill-amber-400/80 scale-110' : ''}`} />
+          </button>
           <button
             type="button"
             onClick={handleClear}
             title={t.editor.clearRow}
             aria-label={t.editor.clearRow}
-            className="w-8 h-8 shrink-0 self-center flex items-center justify-center rounded-lg text-zinc-700 opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/[0.08] transition-all duration-200 focus:outline-none"
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-700 opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/[0.08] transition-all duration-200 focus:outline-none"
           >
             <Trash2 className="w-4 h-4" />
           </button>

@@ -69,7 +69,8 @@ export default function AiPage({ ollamaModel, onOllamaModelChange, onModelAutoSe
       }
 
       if (data.total > 0) {
-        setPullProgress(Math.round((data.completed / data.total) * 100));
+        const pct = Math.round((data.completed / data.total) * 100);
+        setPullProgress((prev) => Math.max(prev, pct));
         updateSpeed(pullSpeedRef, data.completed, setPullSpeedMbs);
       }
       if (data.status) setPullStatus(data.status);

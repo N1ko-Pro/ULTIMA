@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback, useRef, useDeferredValue } from 'react';
 import { Virtuoso } from 'react-virtuoso';
-import { Search, Trash2 } from 'lucide-react';
+import { Search, Trash2, Bookmark, BookmarkX } from 'lucide-react';
 import { useLocale } from '@Locales/LocaleProvider';
 import { useKeyboardShortcuts } from '@Utils/Keyboard/useKeyboardShortcuts';
 import ModalConfirm from '@UI/Modal/ModalConfirm';
@@ -42,6 +42,8 @@ export default function MainTable({
   const [searchQuery,         setSearchQuery]         = useState('');
   const [dismissedAttempts,   setDismissedAttempts]   = useState(() => ({}));
   const [isClearAllOpen,      setIsClearAllOpen]      = useState(false);
+  const [bookmarkFilter,       setBookmarkFilter]       = useState('all');
+  const [rowLimit,            setRowLimit]            = useState('all');
   const searchInputRef = useRef(null);
 
   // Filter reads the deferred value so typing in the search box never
@@ -83,6 +85,27 @@ export default function MainTable({
     });
   }, [translations, packValidation, packValidationAttempt]);
 
+  // ── Bookmarks — stored in translations._bookmarks as { rowId: true } ──────
+  const bookmarks = useMemo(() => {
+    const raw = translations._bookmarks;
+    if (!raw) return new Set();
+    return new Set(Object.keys(raw));
+  }, [translations._bookmarks]);
+
+  const handleToggleBookmark = useCallback((rowId) => {
+    setTranslations((prev) => {
+      const current = prev._bookmarks || {};
+      const next = { ...current };
+      if (next[rowId]) { delete next[rowId]; } else { next[rowId] = true; }
+      return { ...prev, _bookmarks: next };
+    });
+  }, [setTranslations]);
+
+  // Auto-reset filter when last bookmark is removed
+  React.useEffect(() => {
+    if (bookmarkFilter !== 'all' && bookmarks.size === 0) setBookmarkFilter('all');
+  }, [bookmarkFilter, bookmarks.size]);
+
   const filteredStrings = useMemo(() => {
     if (!deferredQuery) return originalStrings || [];
     const q = deferredQuery.toLowerCase();
@@ -91,6 +114,15 @@ export default function MainTable({
       translations[row.id]?.toLowerCase().includes(q),
     );
   }, [originalStrings, translations, deferredQuery]);
+
+  // Apply bookmark filter + row limit on top of search-filtered strings
+  const displayedStrings = useMemo(() => {
+    let result = filteredStrings;
+    if (bookmarkFilter === 'only') result = result.filter((row) =>  bookmarks.has(row.id));
+    else if (bookmarkFilter === 'hide') result = result.filter((row) => !bookmarks.has(row.id));
+    if (rowLimit !== 'all') result = result.slice(0, Number(rowLimit));
+    return result;
+  }, [filteredStrings, bookmarkFilter, bookmarks, rowLimit]);
 
   // O(1) lookup of a row's display index in the FULL list. Without this the
   // Virtuoso itemContent did `originalStrings.indexOf(row)` per visible row
@@ -119,8 +151,8 @@ export default function MainTable({
 
   const handleClearAllTranslations = useCallback(() => {
     setTranslations((prev) => {
-      const { uuid, name, author, description } = prev;
-      return { uuid, name, author, description };
+      const { uuid, name, author, description, _bookmarks } = prev;
+      return { uuid, name, author, description, ...(_bookmarks ? { _bookmarks } : {}) };
     });
     setDismissedAttempts({});
     onResetValidation?.();
@@ -203,15 +235,92 @@ export default function MainTable({
           </div>
         </div>
 
+        {/* Toolbar */}
+        <div className="shrink-0 mb-3 pr-[14px]">
+          <div className="flex items-center gap-0 h-10 px-3 rounded-xl border border-white/[0.07] bg-surface-1/60 backdrop-blur-sm">
+
+            {/* Bookmark filter — always visible */}
+            <div className="flex items-center shrink-0 pr-3">
+              {[
+                { value: 'all',  label: t.editor.filterAll,  Icon: null },
+                { value: 'only', label: t.editor.filterOnly, Icon: Bookmark },
+                { value: 'hide', label: t.editor.filterHide, Icon: BookmarkX },
+              ].map(({ value: v, label, Icon }) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setBookmarkFilter(v)}
+                  className={`flex items-center gap-1.5 h-6 px-2.5 text-[11px] font-semibold rounded-md transition-all duration-150 ${
+                    bookmarkFilter === v
+                      ? v === 'only'
+                        ? 'bg-amber-400/[0.15] text-amber-300'
+                        : 'bg-surface-4/80 text-zinc-200'
+                      : 'text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04]'
+                  }`}
+                >
+                  {Icon && (
+                    <Icon className={`w-[11px] h-[11px] shrink-0 ${
+                      bookmarkFilter === v && v === 'only' ? 'fill-amber-400/70' : ''
+                    }`} />
+                  )}
+                  {label}
+                  {v === 'only' && bookmarks.size > 0 && (
+                    <span className={`text-[10px] font-bold tabular-nums leading-none px-1 py-px rounded ${
+                      bookmarkFilter === 'only' ? 'text-amber-300/70' : 'text-zinc-700'
+                    }`}>{bookmarks.size}</span>
+                  )}
+                </button>
+              ))}
+            </div>
+            <div className="w-px h-4 bg-white/[0.07] shrink-0" />
+
+            <div className="flex-1 min-w-0" />
+
+            {/* Row count when not showing full set */}
+            {displayedStrings.length < filteredStrings.length && bookmarkFilter !== 'only' && (
+              <>
+                <span className="text-[11px] text-zinc-600 font-medium tabular-nums shrink-0 pr-3">
+                  {displayedStrings.length} {t.editor.ofTotal} {filteredStrings.length}
+                </span>
+                <div className="w-px h-4 bg-white/[0.07] shrink-0" />
+              </>
+            )}
+
+            {/* Right: row limit */}
+            <div className="flex items-center gap-2.5 shrink-0 pl-3">
+              <span className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest leading-none">
+                {t.editor.showRows}
+              </span>
+              <div className="flex items-center gap-px bg-black/[0.18] rounded-lg p-[3px] border border-white/[0.06]">
+                {[['25','25'],['50','50'],['100','100'],['200','200'],['500','500'],['Все','all']].map(([label, value]) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => setRowLimit(value)}
+                    className={`h-[22px] px-2 text-[11px] font-semibold rounded-md transition-all duration-150 ${
+                      rowLimit === value
+                        ? 'bg-surface-4/80 text-zinc-200 shadow-sm'
+                        : 'text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+          </div>
+        </div>
+
         {/* Column headers */}
         <div className="shrink-0 pb-3 z-20 relative pr-[14px]" data-tutorial="editor-table">
-          <div className="relative grid grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)] gap-4 px-6 py-3.5 rounded-2xl border border-white/[0.07] bg-surface-2/90">
+          <div className="relative grid grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_68px] gap-4 px-6 py-3.5 rounded-2xl border border-white/[0.07] bg-surface-2/90">
             <div className="absolute inset-x-0 top-0 h-[1px] bg-gradient-to-r from-transparent via-white/[0.1] to-transparent rounded-t-2xl" />
             <div className="text-xs font-black text-zinc-500 uppercase tracking-widest text-center border-r border-white/[0.07] pr-4 flex items-center justify-center">#</div>
             <div className="text-xs font-black text-zinc-400 uppercase tracking-widest pl-1 border-r border-white/[0.07] pr-4 flex items-center">
               {t.editor.colOriginal}
             </div>
-            <div className="flex items-center gap-3 text-xs font-black text-zinc-400 uppercase tracking-widest pl-4">
+            <div className="col-span-2 flex items-center gap-3 text-xs font-black text-zinc-400 uppercase tracking-widest pl-4">
               <span>{t.editor.colTranslation}</span>
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent min-w-4" />
               <button
@@ -234,7 +343,7 @@ export default function MainTable({
             overscan={400}
             computeItemKey={(_, row) => row.id}
             components={{ Footer: () => <div style={{ height: '80px' }} /> }}
-            data={filteredStrings}
+            data={displayedStrings}
             itemContent={(_, row) => {
               const displayIndex = (rowIndexById.get(row.id) ?? 0) + 1;
               const isMissingByValidation = missingRowIdSet.has(row.id);
@@ -250,8 +359,10 @@ export default function MainTable({
                   displayIndex={displayIndex}
                   isMissingByValidation={isMissingByValidation}
                   isRequiredMissing={isRequiredMissing}
+                  isBookmarked={bookmarks.has(row.id)}
                   onTranslateChange={handleTranslateChange}
                   onClearTranslation={handleClearTranslation}
+                  onToggleBookmark={handleToggleBookmark}
                   onDismissHighlight={dismissMissingRowHighlight}
                 />
               );

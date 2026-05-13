@@ -111,6 +111,7 @@ export default function MainPage({
     cancelAutoTranslation,
     translationProgress,
     translationStage,
+    translationPhase,
   } = useAutoTranslation({
     originalStrings,
     translations,
@@ -226,6 +227,7 @@ export default function MainPage({
           visible={isTranslating}
           stage={translationStage}
           progress={translationProgress}
+          phase={translationPhase}
           onCancel={cancelAutoTranslation}
         />
 
