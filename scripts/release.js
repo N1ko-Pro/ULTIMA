@@ -192,6 +192,82 @@ async function updateReleaseMetadata({ token, owner, repo, tag, name, body }) {
   return false;
 }
 
+// ─── Git auto-commit helpers ───────────────────────────────────────────────
+// After a successful release we commit the bumped package.json and push it
+// (plus any tag electron-builder created on the remote). Failures here are
+// non-fatal — the release is already live; the user just needs to push the
+// version bump manually.
+function gitCapture(args) {
+  const res = spawnSync('git', args, { cwd: ROOT, encoding: 'utf-8', shell: false });
+  return { status: res.status, stdout: (res.stdout || '').trim(), stderr: (res.stderr || '').trim() };
+}
+
+function gitRun(args, label) {
+  console.log(`    $ git ${args.join(' ')}`);
+  const res = spawnSync('git', args, { cwd: ROOT, stdio: 'inherit', shell: false });
+  if (res.status !== 0) {
+    console.warn(`  ⚠ ${label} завершился с кодом ${res.status} — продолжаем (релиз уже опубликован).`);
+    return false;
+  }
+  return true;
+}
+
+function commitAndPushVersionBump({ version, didBump }) {
+  if (!didBump) {
+    console.log('  ℹ Версия не менялась — git-коммит не нужен.');
+    return;
+  }
+
+  // Make sure we have a clean repo state outside of package.json before we
+  // touch anything. Refuse to auto-commit if the user has unrelated changes.
+  const status = gitCapture(['status', '--porcelain']);
+  if (status.status !== 0) {
+    console.warn('  ⚠ git status вернул ошибку — пропускаю авто-коммит.');
+    return;
+  }
+  const dirtyFiles = status.stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.slice(3)); // strip the two-char status flag + space
+
+  const unrelated = dirtyFiles.filter((f) => f !== 'package.json');
+  if (unrelated.length > 0) {
+    console.warn('  ⚠ В рабочем дереве есть несвязанные изменения — авто-коммит пропущен.');
+    console.warn('    Закоммить их вручную или сбрось перед следующим релизом:');
+    unrelated.forEach((f) => console.warn(`      • ${f}`));
+    return;
+  }
+
+  if (!dirtyFiles.includes('package.json')) {
+    console.log('  ℹ package.json не модифицирован (уже закоммичен) — пропускаю.');
+    return;
+  }
+
+  console.log(`  → Коммит и push версии v${version}...`);
+
+  if (!gitRun(['add', 'package.json'], 'git add')) return;
+  if (!gitRun(['commit', '-m', `chore(release): v${version}`], 'git commit')) return;
+
+  // Determine the current branch so we can push it explicitly. Detached HEAD
+  // (e.g. after a manual rebase) is rare here but worth handling — we just
+  // skip the push and let the user finish manually.
+  const branch = gitCapture(['rev-parse', '--abbrev-ref', 'HEAD']);
+  if (branch.status !== 0 || !branch.stdout || branch.stdout === 'HEAD') {
+    console.warn('  ⚠ Не удалось определить текущую ветку — push пропущен.');
+    console.warn('    Сделай вручную: git push && git push --tags');
+    return;
+  }
+
+  gitRun(['push', 'origin', branch.stdout], 'git push');
+  // electron-builder publishes the tag on the remote, so a `git push --tags`
+  // would normally fast-forward the local refs. Use `--follow-tags` style
+  // pull to keep the local tag list in sync, ignoring failures.
+  gitRun(['fetch', '--tags', 'origin'], 'git fetch --tags');
+
+  console.log(`  ✔ v${version} закоммичен и запушен в origin/${branch.stdout}.`);
+}
+
 // ─── Main flow ─────────────────────────────────────────────────────────────
 async function main() {
   const pkg = JSON.parse(fs.readFileSync(PKG_PATH, 'utf-8'));
@@ -215,8 +291,9 @@ async function main() {
 
   const bumpKind = (await ask(rl, 'Bump версии? [patch | minor | major | none] (default: none): ')).toLowerCase() || 'none';
   const nextVersion = bumpKind === 'none' ? currentVersion : bumpVersion(currentVersion, bumpKind);
+  const didBump = nextVersion !== currentVersion;
 
-  if (nextVersion !== currentVersion) {
+  if (didBump) {
     pkg.version = nextVersion;
     fs.writeFileSync(PKG_PATH, JSON.stringify(pkg, null, 2) + '\n', 'utf-8');
     console.log(`  ✔ package.json обновлён: ${currentVersion} → ${nextVersion}\n`);
@@ -273,6 +350,18 @@ async function main() {
   console.log('    • BG3-ULTIMA-Setup-<version>.exe');
   console.log('    • BG3-ULTIMA-Setup-<version>.exe.blockmap (дельта-обновления)');
   console.log('    • latest.yml (метаданные авто-обновлений)\n');
+
+  // ── Auto-commit & push the version bump ──────────────────────────────
+  // Done at the very end, AFTER the release is live, so a failure here
+  // doesn't block publication.
+  console.log('  → Авто-коммит изменений версии...');
+  try {
+    commitAndPushVersionBump({ version: nextVersion, didBump });
+  } catch (err) {
+    console.warn(`  ⚠ Авто-коммит упал: ${err?.message || err}`);
+    console.warn('    Сделай вручную: git add package.json && git commit && git push');
+  }
+  console.log('');
 }
 
 function runStep(cmd, args) {
