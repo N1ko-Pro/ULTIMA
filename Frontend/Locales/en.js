@@ -278,7 +278,7 @@ export default {
     editAuthorRequired:     'Please provide the translation author',
     // Target translation language
     targetLanguageLabel:    'Translation language',
-    targetLanguageHint:     'Defines the Localization/<Language> folder inside the .pak and the direction of auto-translation (Smart). Can be changed later.',
+    targetLanguageHint:     'The language your mod will be translated into',
   },
 
   // ─── Pack mod ──────────────────────────────────────────────────────────────

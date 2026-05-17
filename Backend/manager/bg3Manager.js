@@ -214,21 +214,26 @@ class Bg3Manager {
     const { metaLsxPath: translationMetaPath, folderName } =
       buildTranslationMetaLsx(this.cachedData, { ...updatedData, targetLanguage });
 
-    // Use the original loca filename (BG3 matches localisation by filename).
-    const origLocaName = path.basename(this.cachedData.locaPath);
-    const origXmlName = origLocaName.replace(/\.loca$/i, '.xml');
-
     // Resolve the Larian Localization folder for the target language —
     // 'Russian', 'English', 'German', etc. Defaults to Russian for unknown
     // / missing codes (DEFAULT_LANG_CODE).
     const localeFolder = getFolder(targetLanguage);
 
+    // Output filenames mirror Larian's lowercase convention (`russian.loca`,
+    // `english.loca`, `japanese.loca`, …) regardless of how the source mod
+    // named its file. Keeping the filename in sync with the localization
+    // folder makes the packed mod's structure self-explanatory and matches
+    // the layout BG3's own .pak files use.
+    const localeFileBase = localeFolder.toLowerCase();
+    const outLocaName = `${localeFileBase}.loca`;
+    const outXmlName  = `${localeFileBase}.xml`;
+
     // Write translated XML/loca to an OS temp directory so the workspace files
     // (which hold the original English strings) are never overwritten.
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'bg3-translate-'));
     try {
-      const tmpXmlPath  = path.join(tmpDir, origXmlName);
-      const tmpLocaPath = path.join(tmpDir, origLocaName);
+      const tmpXmlPath  = path.join(tmpDir, outXmlName);
+      const tmpLocaPath = path.join(tmpDir, outLocaName);
 
       const builder = new xml2js.Builder({ xmldec: { version: "1.0", encoding: "utf-8" }});
       fs.writeFileSync(tmpXmlPath, builder.buildObject(parsedCopy), "utf8");
@@ -239,7 +244,7 @@ class Bg3Manager {
 
       // Prepare a temp staging directory matching BG3 translation mod structure:
       //   Mods/<folder>/meta.lsx
-      //   Localization/<Language>/<name>.loca  (root — BG3 reads from here)
+      //   Localization/<Language>/<language>.loca  (root — BG3 reads from here)
       const stagingDir = path.join(this.cachedData.modWorkspaceDir, "_pak_staging");
       if (fs.existsSync(stagingDir)) fs.rmSync(stagingDir, { recursive: true, force: true });
 
@@ -251,7 +256,7 @@ class Bg3Manager {
 
       const stagingLocaDir = path.join(stagingDir, "Localization", localeFolder);
       fs.mkdirSync(stagingLocaDir, { recursive: true });
-      fs.copyFileSync(tmpLocaPath, path.join(stagingLocaDir, origLocaName));
+      fs.copyFileSync(tmpLocaPath, path.join(stagingLocaDir, outLocaName));
 
       // Build .pak from staging. Use folderName (already sanitized and contains
       // the language suffix) so the .pak name matches the Mods/<folder> name

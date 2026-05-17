@@ -4,6 +4,15 @@ const crypto = require('crypto');
 const xml2js = require('xml2js');
 const { getSuffix, getLanguage, DEFAULT_LANG_CODE } = require('../shared_utils/languages');
 
+// ── Default save-header version ────────────────────────────────────────────
+// The `<save><version .../></save>` header BG3 expects in meta.lsx evolves
+// across patches. Using stale 4.0.9.331 (Patch 1-2 era) causes Patch 8+ BG3
+// and modern BG3 Mod Manager to refuse the dependency relationship in some
+// scenarios, which is exactly the failure mode we hit on translation mods
+// targeting Patch 8 base mods. Default to the current Patch 8 header; the
+// real value is always copied from the source mod's meta.lsx when available.
+const DEFAULT_SAVE_VERSION = { major: '4', minor: '8', revision: '0', build: '500' };
+
 async function extractModInfo(metaLsxPath) {
   let modInfo = {
     name: 'Unknown Mod',
@@ -11,7 +20,10 @@ async function extractModInfo(metaLsxPath) {
     description: '',
     version: '',
     uuid: '',
-    folder: ''
+    folder: '',
+    md5: '',
+    publishHandle: '',
+    saveVersion: { ...DEFAULT_SAVE_VERSION },
   };
 
   if (!metaLsxPath || !fs.existsSync(metaLsxPath)) return modInfo;
@@ -20,7 +32,19 @@ async function extractModInfo(metaLsxPath) {
     const metaData = fs.readFileSync(metaLsxPath, 'utf8');
     const parser = new xml2js.Parser();
     const metaParsed = await parser.parseStringPromise(metaData);
-    
+
+    // Pull the `<save><version major minor revision build/></save>` header so
+    // we can mirror the exact patch-version the source mod targets.
+    const saveVersionNode = metaParsed?.save?.version?.[0]?.$;
+    if (saveVersionNode) {
+      modInfo.saveVersion = {
+        major: saveVersionNode.major || DEFAULT_SAVE_VERSION.major,
+        minor: saveVersionNode.minor || DEFAULT_SAVE_VERSION.minor,
+        revision: saveVersionNode.revision || DEFAULT_SAVE_VERSION.revision,
+        build: saveVersionNode.build || DEFAULT_SAVE_VERSION.build,
+      };
+    }
+
     let moduleInfoNode = null;
 
     const findModuleInfo = (obj) => {
@@ -46,6 +70,8 @@ async function extractModInfo(metaLsxPath) {
         if (id === 'Version64') modInfo.version = val;
         if (id === 'UUID') modInfo.uuid = val;
         if (id === 'Folder') modInfo.folder = val;
+        if (id === 'MD5') modInfo.md5 = val || '';
+        if (id === 'PublishHandle') modInfo.publishHandle = val || '';
       }
     }
   } catch (err) {
@@ -94,9 +120,23 @@ function buildTranslationMetaLsx(cachedData, overrides = {}) {
     || (alreadyRenamed ? cachedData.modInfo?.uuid : crypto.randomUUID());
   const version = cachedData.modInfo?.version || '36028797018963968';
 
+  // Mirror the source mod's save-header version (4.8.0.500 for Patch 8 mods,
+  // older for legacy mods). BG3 Mod Manager and the game itself use this to
+  // verify the meta.lsx schema; mismatches against current-patch mods cause
+  // dependency tracking + load order to silently break.
+  const sv = cachedData.modInfo?.saveVersion || DEFAULT_SAVE_VERSION;
+
+  // Patch 8 introduced PublishHandle on every meta.lsx coming out of the
+  // in-game Mods workshop. The dependency block (below) keeps the source
+  // mod's PublishHandle so BG3 can match against the workshop entry, but
+  // the translation patch itself is sideloaded — emitting "0" is the
+  // accepted convention for non-workshop mods and avoids the game/manager
+  // trying to validate a handle that doesn't belong to us.
+  const publishHandle = '0';
+
   const metaXml = `<?xml version="1.0" encoding="utf-8"?>
 <save>
-  <version major="4" minor="0" revision="9" build="331" />
+  <version major="${sv.major}" minor="${sv.minor}" revision="${sv.revision}" build="${sv.build}" />
   <region id="Config">
     <node id="root">
       <children>
@@ -113,6 +153,7 @@ function buildTranslationMetaLsx(cachedData, overrides = {}) {
           <attribute id="Name" type="LSString" value="${escapeXmlAttr(name)}" />
           <attribute id="NumPlayers" type="uint8" value="4" />
           <attribute id="PhotoBooth" type="FixedString" value="" />
+          <attribute id="PublishHandle" type="uint64" value="${escapeXmlAttr(publishHandle)}" />
           <attribute id="StartupLevelName" type="FixedString" value="" />
           <attribute id="Tags" type="LSString" value="" />
           <attribute id="Type" type="FixedString" value="Add-on" />
@@ -179,19 +220,29 @@ function decodeVersion64(v64str) {
 /**
  * Inject original mod as a dependency into the translation patch's meta.lsx.
  * Handles both self-closed <node id="Dependencies"/> and existing <children>.
+ *
+ * MD5 + PublishHandle are copied verbatim from the source mod when they
+ * exist. BG3 Mod Manager uses MD5 to verify the dependency relationship and
+ * PublishHandle to recognise mods that originated from the in-game workshop;
+ * leaving them empty is fine for sideloaded mods but blocks workshop mods
+ * from being matched against their translation patch.
  */
 function addDependencyToMetaLsx(metaLsxPath, originalModInfo) {
   if (!metaLsxPath || !fs.existsSync(metaLsxPath) || !originalModInfo) return;
 
   let data = fs.readFileSync(metaLsxPath, 'utf8');
 
+  const md5Value = originalModInfo.md5 || '';
+  const publishHandleValue = originalModInfo.publishHandle || '0';
+
   const depBlock = [
     `            <node id="ModuleShortDesc">`,
-    `              <attribute id="Folder" type="LSString" value="${originalModInfo.folder}" />`,
-    `              <attribute id="MD5" type="LSString" value="" />`,
-    `              <attribute id="Name" type="LSString" value="${originalModInfo.name}" />`,
-    `              <attribute id="UUID" type="FixedString" value="${originalModInfo.uuid}" />`,
-    `              <attribute id="Version64" type="int64" value="${originalModInfo.version || "0"}" />`,
+    `              <attribute id="Folder" type="LSString" value="${escapeXmlAttr(originalModInfo.folder || '')}" />`,
+    `              <attribute id="MD5" type="LSString" value="${escapeXmlAttr(md5Value)}" />`,
+    `              <attribute id="Name" type="LSString" value="${escapeXmlAttr(originalModInfo.name || '')}" />`,
+    `              <attribute id="PublishHandle" type="uint64" value="${escapeXmlAttr(publishHandleValue)}" />`,
+    `              <attribute id="UUID" type="guid" value="${escapeXmlAttr(originalModInfo.uuid || '')}" />`,
+    `              <attribute id="Version64" type="int64" value="${escapeXmlAttr(originalModInfo.version || '0')}" />`,
     `            </node>`,
   ].join('\n');
 
@@ -230,7 +281,8 @@ function buildInfoJson(modInfo, originalModInfo) {
       Name: originalModInfo.name || "",
       Folder: originalModInfo.folder || "",
       Version64: originalModInfo.version || "0",
-      MD5: "",
+      MD5: originalModInfo.md5 || "",
+      PublishHandle: originalModInfo.publishHandle || "0",
     });
   }
 
@@ -245,7 +297,7 @@ function buildInfoJson(modInfo, originalModInfo) {
       Created: new Date().toISOString(),
       Dependencies: deps,
       Group: modInfo.uuid || "",
-      MD5: "",
+      MD5: modInfo.md5 || "",
     }],
     MD5: "",
   };
