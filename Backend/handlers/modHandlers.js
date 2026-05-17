@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { wrapHandler } = require('./handlerUtils');
 const { extractPakFromZip, extractPakFromRar } = require('./archiveUtils');
+const { getSuffix: getLangSuffix, normalizeCode: normalizeLangCode } = require('../manager/shared_utils/languages');
 
 let translationAbortController = null;
 
@@ -111,11 +112,21 @@ function registerModHandlers(mainWindow, { bg3Manager }) {
     return { success: true };
   }));
 
-  ipcMain.handle(CH.MOD_REPACK, wrapHandler(async (_, { updatedData, modName }) => {
+  ipcMain.handle(CH.MOD_REPACK, wrapHandler(async (_, { updatedData, modName, targetLanguage }) => {
+    const langCode = normalizeLangCode(targetLanguage);
+    const langSuffix = getLangSuffix(langCode);
+    // Match any of the supported language suffixes — keeps re-packing
+    // idempotent across language switches (Mod_RU.zip → Mod_DE.zip without
+    // ending up as Mod_RU_DE.zip).
+    const suffixPattern = /_(?:RU|EN|DE|FR|ES|IT|PL|PT|JA|KO|ZH|UK|TR)$/i;
+
     const rawName = modName
       ? modName.replace(/[<>:"/\\|?*]/g, '_').trim() || 'Translated_Mod'
       : 'Translated_Mod';
-    const safeName = /_RU$/i.test(rawName) ? rawName : rawName + '_RU';
+    const safeName = suffixPattern.test(rawName)
+      ? rawName.replace(suffixPattern, langSuffix)
+      : rawName + langSuffix;
+
     const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
       title: 'Сохранить переведённый мод (.zip)',
       filters: [{ name: 'BG3 Mod Archive', extensions: ['zip'] }],
@@ -124,7 +135,7 @@ function registerModHandlers(mainWindow, { bg3Manager }) {
 
     if (canceled || !filePath) return { success: false };
 
-    await bg3Manager.saveAndRepack(updatedData, filePath);
+    await bg3Manager.saveAndRepack(updatedData, filePath, langCode);
     return { success: true, filePath };
   }));
   ipcMain.handle(CH.MOD_OPEN_FOLDER, wrapHandler(async () => {

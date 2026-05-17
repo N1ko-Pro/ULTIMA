@@ -6,6 +6,7 @@ import { notify } from '@Shared/notifications/notifyCore';
 import PackModal from '@UI/Modal/PackModal';
 import UnsavedChangesModal from '@UI/Modal/UnsavedChangesModal';
 import AtpAccessModal from '@UI/Modal/AtpAccessModal';
+import TargetLanguagePill from './TargetLanguagePill';
 import { PackButton, SettingsButton, XmlActionGroup, ToolsGroup } from './TopBarButtons';
 import * as appWindow from '@API/appWindow';
 
@@ -28,6 +29,8 @@ function TopBar({
   onCloseProject,
   hasUnsavedChanges,
   onPackAttemptWithOriginalUuid,
+  targetLanguage,
+  onChangeTargetLanguage,
 }) {
   const [isPackModalOpen,       setIsPackModalOpen]       = useState(false);
   const [isCloseConfirmOpen,    setIsCloseConfirmOpen]    = useState(false);
@@ -149,6 +152,18 @@ function TopBar({
           </div>
 
           <div className="w-px h-8 bg-white/10 mx-2" />
+
+          {targetLanguage && onChangeTargetLanguage && (
+            <>
+              <div data-tutorial="editor-target-language">
+                <TargetLanguagePill
+                  value={targetLanguage}
+                  onChange={onChangeTargetLanguage}
+                />
+              </div>
+              <div className="w-px h-8 bg-white/10 mx-2" />
+            </>
+          )}
 
           <div data-tutorial="editor-pack">
             <PackButton onPack={handlePackClick} />

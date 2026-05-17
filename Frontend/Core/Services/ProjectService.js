@@ -8,6 +8,11 @@ import {
   resolvePersistedProjectName,
 } from '@Shared/helpers/projectShape';
 import { buildTranslationsFingerprint } from '@Shared/helpers/fingerprints';
+import {
+  DEFAULT_TARGET_LANGUAGE,
+  getLanguageSuffix,
+  normalizeLanguageCode,
+} from '@Config/languages.constants';
 import { isAvailable } from '@API/client';
 import * as projectsApi from '@API/projects';
 import * as filesApi from '@API/files';
@@ -43,6 +48,11 @@ export function useProjectManager() {
   const [currentProjectId,   setCurrentProjectId]   = useState(null);
   const [originalPakPath,    setOriginalPakPath]    = useState(null);
   const [workspaceDirName,   setWorkspaceDirName]   = useState(null);
+  // Selected target language code — drives smart-translation, pack folder
+  // (`Localization/<Language>`), file-name suffix and the displayed badge.
+  // Initialised from the project's stored value when loading; defaults to
+  // DEFAULT_TARGET_LANGUAGE for a brand new project.
+  const [targetLanguage,     setTargetLanguageState] = useState(DEFAULT_TARGET_LANGUAGE);
   const [hasUnsavedChanges,  setHasUnsavedChanges]  = useState(false);
   const [isLoadingPak,       setIsLoadingPak]       = useState(false);
   const [isLoadingProject,   setIsLoadingProject]   = useState(false);
@@ -77,6 +87,7 @@ export function useProjectManager() {
     setCurrentProjectId(null);
     setOriginalPakPath(null);
     setWorkspaceDirName(null);
+    setTargetLanguageState(DEFAULT_TARGET_LANGUAGE);
     commitSavedSnapshot({});
   }, [commitSavedSnapshot]);
 
@@ -93,7 +104,13 @@ export function useProjectManager() {
 
   const requestInitInfo = useCallback((defaultModName, existingProjectNames) => {
     return new Promise((resolve, reject) => {
-      setInitModal({ defaultModName, existingNames: existingProjectNames, resolve, reject });
+      setInitModal({
+        defaultModName,
+        defaultTargetLanguage: DEFAULT_TARGET_LANGUAGE,
+        existingNames: existingProjectNames,
+        resolve,
+        reject,
+      });
     });
   }, []);
 
@@ -128,7 +145,12 @@ export function useProjectManager() {
     }
 
     const { strings, modInfo: unpackedModInfo } = result.data;
-    const defaultModName = unpackedModInfo?.name ? `${unpackedModInfo.name}_RU` : 'BG3 Mod Translation';
+    // Default mod name uses the project default suffix until the user picks
+    // a different language inside the init modal.
+    const defaultSuffix = getLanguageSuffix(DEFAULT_TARGET_LANGUAGE);
+    const defaultModName = unpackedModInfo?.name
+      ? `${unpackedModInfo.name}${defaultSuffix}`
+      : 'BG3 Mod Translation';
 
     const existingProjectNames = await fetchProjectNames();
 
@@ -147,12 +169,14 @@ export function useProjectManager() {
         name:   userInput.modName,
         author: userInput.author,
       };
+      const chosenLanguage = normalizeLanguageCode(userInput.targetLanguage);
 
       setOriginalPakPath(result.data.originalPakPath);
       setCurrentProjectId(null);
       setOriginalStrings(dataArray);
       setModInfo(unpackedModInfo);
       setWorkspaceDirName(result.data.workspaceDirName || null);
+      setTargetLanguageState(chosenLanguage);
       _setTranslations(initTrans);
       setHasUnsavedChanges(false);
 
@@ -162,6 +186,7 @@ export function useProjectManager() {
         author:            userInput.author,
         pakPath:           result.data.originalPakPath,
         workspaceDirName:  result.data.workspaceDirName,
+        targetLanguage:    chosenLanguage,
         translations:      initTrans,
       };
 
@@ -189,10 +214,11 @@ export function useProjectManager() {
 
     const projectData = {
       id:               currentProjectId,
-      name:             resolvePersistedProjectName({ translations, modInfo }),
+      name:             resolvePersistedProjectName({ translations, modInfo, targetLanguage }),
       author:           translations.author,
       pakPath:          originalPakPath,
       workspaceDirName: workspaceDirName || undefined,
+      targetLanguage,
       translations,
     };
 
@@ -204,7 +230,7 @@ export function useProjectManager() {
     } else {
       notify.error(t.common.error, t.projects.saveErrorDesc);
     }
-  }, [originalStrings, originalPakPath, currentProjectId, translations, modInfo, workspaceDirName, commitSavedSnapshot, t.projects, t.common.error]);
+  }, [originalStrings, originalPakPath, currentProjectId, translations, modInfo, workspaceDirName, targetLanguage, commitSavedSnapshot, t.projects, t.common.error]);
 
   const handleLoadProject = useCallback(async (projectSummary) => {
     if (!isAvailable()) return;
@@ -212,7 +238,13 @@ export function useProjectManager() {
     try {
       const res = await projectsApi.load(projectSummary.id);
       if (res?.success && res.data) {
-        const { strings, modInfo: loadedModInfo, originalPakPath: loadedPakPath, translations: savedTrans } = res.data;
+        const {
+          strings,
+          modInfo: loadedModInfo,
+          originalPakPath: loadedPakPath,
+          translations: savedTrans,
+          targetLanguage: loadedTargetLanguage,
+        } = res.data;
         const dataArray = mapStringDictionaryToRows(strings);
         const hydratedTranslations = {
           ...createEmptyTranslations(dataArray),
@@ -223,6 +255,9 @@ export function useProjectManager() {
         _setTranslations(hydratedTranslations);
         setOriginalPakPath(loadedPakPath);
         setWorkspaceDirName(res.data.workspaceDirName || null);
+        // Backend returns the normalised language; missing field on legacy
+        // projects falls back to the historical default.
+        setTargetLanguageState(normalizeLanguageCode(loadedTargetLanguage));
         setCurrentProjectId(res.project?.id || projectSummary.id);
         commitSavedSnapshot(hydratedTranslations);
         setProjectLoadCounter((prev) => prev + 1);
@@ -237,13 +272,25 @@ export function useProjectManager() {
 
   const handleSavePak = useCallback(async () => {
     if (!isAvailable()) return;
-    const result = await pakApi.repack(translations, modInfo?.name);
+    const result = await pakApi.repack(translations, modInfo?.name, targetLanguage);
     if (result?.success) {
       notify.success(t.projects.packed, t.projects.packedDesc(result.filePath));
     } else if (result?.error) {
       notify.error(t.projects.packError, result.error);
     }
-  }, [translations, modInfo?.name, t.projects]);
+  }, [translations, modInfo?.name, targetLanguage, t.projects]);
+
+  // Update the project's target language. Marks the project dirty so the
+  // user is reminded to save the change. The actual repack uses whatever
+  // value is in state at pack-time.
+  const handleChangeTargetLanguage = useCallback((nextCode) => {
+    const normalized = normalizeLanguageCode(nextCode);
+    setTargetLanguageState((prev) => {
+      if (prev === normalized) return prev;
+      setHasUnsavedChanges(true);
+      return normalized;
+    });
+  }, []);
 
   // Global Ctrl+S — save current project.
   useKeyboardShortcuts({ onSave: handleSaveProject });
@@ -253,6 +300,8 @@ export function useProjectManager() {
     translations,
     setTranslations,
     modInfo,
+    targetLanguage,
+    setTargetLanguage: handleChangeTargetLanguage,
     hasUnsavedChanges,
     isLoadingPak,
     isLoadingProject,

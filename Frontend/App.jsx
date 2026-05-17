@@ -63,6 +63,7 @@ export default function App() {
     originalStrings: project.originalStrings,
     setTranslations: project.setTranslations,
     modInfo:         project.modInfo,
+    targetLanguage:  project.targetLanguage,
   });
   const validation = usePackValidation({
     originalStrings: project.originalStrings,
@@ -158,8 +159,12 @@ export default function App() {
   const showProjects = !isEditorView && appState.currentView === 'projects';
 
   const projectDisplayName = useMemo(
-    () => resolveProjectDisplayName({ translations: project.translations, modInfo: project.modInfo }),
-    [project.translations, project.modInfo],
+    () => resolveProjectDisplayName({
+      translations: project.translations,
+      modInfo: project.modInfo,
+      targetLanguage: project.targetLanguage,
+    }),
+    [project.translations, project.modInfo, project.targetLanguage],
   );
 
   // ── Update UI visibility ─────────────────────────────────────────────────
@@ -243,6 +248,7 @@ export default function App() {
         <ProjectInitModal
           isOpen={Boolean(project.initModal)}
           defaultModName={project.initModal?.defaultModName || ''}
+          defaultTargetLanguage={project.initModal?.defaultTargetLanguage}
           existingProjectNames={project.initModal?.existingNames || []}
           onConfirm={project.confirmInitModal}
           onCancel={project.cancelInitModal}
@@ -338,6 +344,8 @@ function ActivePage({
           translations={project.translations}
           setTranslations={project.setTranslations}
           modInfo={project.modInfo}
+          targetLanguage={project.targetLanguage}
+          onChangeTargetLanguage={project.setTargetLanguage}
           hasUnsavedChanges={project.hasUnsavedChanges}
           translationSettings={translationSettings}
           onUpdateSettings={updateTranslationSettings}

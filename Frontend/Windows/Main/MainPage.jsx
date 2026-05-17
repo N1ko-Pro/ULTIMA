@@ -48,6 +48,8 @@ const PANEL_CONTAINMENT = '[contain:layout_paint]';
  *   translations: any,
  *   setTranslations: (next: any) => void,
  *   modInfo: any,
+ *   targetLanguage: string,
+ *   onChangeTargetLanguage: (code: string) => void,
  *   hasUnsavedChanges: boolean,
  *   translationSettings: any,
  *   onUpdateSettings: (patch: any) => void,
@@ -77,6 +79,8 @@ export default function MainPage({
   translations,
   setTranslations,
   modInfo,
+  targetLanguage,
+  onChangeTargetLanguage,
   hasUnsavedChanges,
   translationSettings,
   onUpdateSettings,
@@ -116,6 +120,7 @@ export default function MainPage({
     originalStrings,
     translations,
     setTranslations,
+    targetLanguage,
   });
 
   const {
@@ -212,6 +217,7 @@ export default function MainPage({
         onToggleProfile={onToggleProfile}
         packAttemptWithOriginalUuid={packAttemptWithOriginalUuid}
         onDismissPackAttempt={onDismissPackAttempt}
+        targetLanguage={targetLanguage}
       />
 
       {/* Editor column. */}
@@ -246,6 +252,8 @@ export default function MainPage({
           onCloseProject={onCloseProject}
           hasUnsavedChanges={hasUnsavedChanges}
           onPackAttemptWithOriginalUuid={onPackAttemptWithOriginalUuid}
+          targetLanguage={targetLanguage}
+          onChangeTargetLanguage={onChangeTargetLanguage}
         />
 
         <AutoTranslatePanel
@@ -255,6 +263,7 @@ export default function MainPage({
           canStart={canStart}
           isTranslating={isTranslating}
           translationSettings={translationSettings}
+          targetLanguage={targetLanguage}
           onSelectMode={selectMode}
           onStart={startAtp}
           onClose={closeAtp}

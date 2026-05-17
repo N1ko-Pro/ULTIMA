@@ -144,13 +144,17 @@ function saveProject(userDataPath, projectData) {
 
   // When updating an existing project, preserve all previously-saved translations
   // and workspaceDirName so that partial updates (e.g. renaming name/author) never
-  // silently wipe the workspace reference or translated strings.
+  // silently wipe the workspace reference or translated strings. The same goes
+  // for `targetLanguage` — callers that only want to rename the mod shouldn't
+  // accidentally reset the language of the project.
   const mergedProjectData =
     existingProject && incomingProject.translations
       ? {
           ...incomingProject,
           workspaceDirName:
             incomingProject.workspaceDirName || existingProject.workspaceDirName || '',
+          targetLanguage:
+            incomingProject.targetLanguage || existingProject.targetLanguage || '',
           translations: {
             ...existingProject.translations,
             ...incomingProject.translations,
@@ -253,11 +257,13 @@ async function loadProjectForEditing({ userDataPath, projectId, bg3Manager, extr
     project: {
       id: projectRecord.id,
       name: projectRecord.name,
+      targetLanguage: projectRecord.targetLanguage,
     },
     data: {
       ...result,
       originalPakPath: projectRecord.pakPath,
       translations: projectRecord.translations,
+      targetLanguage: projectRecord.targetLanguage,
     },
   };
 }

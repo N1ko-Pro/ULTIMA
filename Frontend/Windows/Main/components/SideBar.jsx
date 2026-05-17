@@ -5,6 +5,7 @@ import { TIER_COLORS } from '@Config/tiers.constants';
 import { useLocale } from '@Locales/LocaleProvider';
 import { useTooltip } from '@Shared/hooks/useTooltip';
 import { notify } from '@Shared/notifications/notifyCore';
+import { getLanguageSuffix } from '@Config/languages.constants';
 import InputField from './InputField';
 import DescriptionField from './DescriptionField';
 import logoSrc from '@Assets/logo.png';
@@ -26,6 +27,7 @@ function SideBar({
   onToggleProfile,
   packAttemptWithOriginalUuid,
   onDismissPackAttempt,
+  targetLanguage,
 }) {
   const { uuid = '', author = '', name = '', description = '' } = modData || {};
   const auth = useAuth();
@@ -116,7 +118,7 @@ function SideBar({
                   icon={Type}
                   label={t.sidebar.modName}
                   original={name}
-                  value={translations.name !== undefined ? translations.name : `${name}_RU`}
+                  value={translations.name !== undefined ? translations.name : `${name}${getLanguageSuffix(targetLanguage)}`}
                   onChange={(v) => handleTranslate('name', v.replace(/[\u0400-\u04FF]/g, ''))}
                   isRequiredMissing={missingModDataFields.name}
                   packValidationAttempt={packValidationAttempt}

@@ -1,4 +1,5 @@
 import { hasText } from '@Shared/helpers/strings';
+import { getLanguageSuffix } from '@Config/languages.constants';
 
 // ─── Project shape helpers ──────────────────────────────────────────────────
 // Pure transformations between the various shapes a project's strings flow
@@ -61,30 +62,34 @@ export function collectPendingTranslationRows(rows, translations) {
     .map((row) => ({ id: row.id, text: row.original }));
 }
 
-function resolveTranslatedModName(modName) {
-  return hasText(modName) ? `${modName}_RU` : '';
+function resolveTranslatedModName(modName, targetLanguage) {
+  if (!hasText(modName)) return '';
+  // Suffix from the project's selected target language ('_RU', '_DE', '_JA', …).
+  // Falls back to '_RU' (the historical default) so legacy callers that don't
+  // pass a language still produce stable display names.
+  return `${modName}${getLanguageSuffix(targetLanguage)}`;
 }
 
 /**
  * Display name to render in the title bar / project tile. Prefers the user-
- * authored translation name, falls back to `<ModName>_RU`, then to a static
- * placeholder so the UI never shows blank.
- * @param {{ translations?: any, modInfo?: any }} input
+ * authored translation name, falls back to `<ModName><suffix>`, then to a
+ * static placeholder so the UI never shows blank.
+ * @param {{ translations?: any, modInfo?: any, targetLanguage?: string }} input
  * @returns {string}
  */
-export function resolveProjectDisplayName({ translations, modInfo }) {
+export function resolveProjectDisplayName({ translations, modInfo, targetLanguage }) {
   if (hasText(translations?.name)) return translations.name;
-  return resolveTranslatedModName(modInfo?.name) || 'BG3 Mod Translation';
+  return resolveTranslatedModName(modInfo?.name, targetLanguage) || 'BG3 Mod Translation';
 }
 
 /**
  * Name persisted with the project record on disk. Differs from the display
  * name in that it preserves intentionally-empty values (so the user can clear
  * the field) and uses 'Unknown Mod' as a last-resort placeholder.
- * @param {{ translations?: any, modInfo?: any }} input
+ * @param {{ translations?: any, modInfo?: any, targetLanguage?: string }} input
  * @returns {string}
  */
-export function resolvePersistedProjectName({ translations, modInfo }) {
+export function resolvePersistedProjectName({ translations, modInfo, targetLanguage }) {
   if (translations?.name !== undefined) return translations.name;
-  return resolveTranslatedModName(modInfo?.name) || 'Unknown Mod';
+  return resolveTranslatedModName(modInfo?.name, targetLanguage) || 'Unknown Mod';
 }

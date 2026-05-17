@@ -276,6 +276,9 @@ export default {
     editNameRequired:       'Mod name is required',
     editNameDuplicate:      'A project with this name already exists — change the mod name',
     editAuthorRequired:     'Please provide the translation author',
+    // Target translation language
+    targetLanguageLabel:    'Translation language',
+    targetLanguageHint:     'Defines the Localization/<Language> folder inside the .pak and the direction of auto-translation (Smart). Can be changed later.',
   },
 
   // ─── Pack mod ──────────────────────────────────────────────────────────────
@@ -343,6 +346,7 @@ export default {
     exitProject:        'Exit project',
     settings:           'Settings',
     generateUuid:       'Generate',
+    targetLanguageTitle:'Translation target language',
     uuidWarning:        'UUID generation required',
     uuidWarningDesc:    'Click «Generate» in the UUID block in the sidebar before packing the mod.',
     packRequired:       'Not all fields filled',
@@ -443,6 +447,7 @@ export default {
     aiLabel:          'AI translation',
     aiDescEnabled:    'High quality',
     aiDescLocked:     'Subscription required',
+    aiDescLanguageLocked: 'Russian only',
     selectModeTitle:  'Select mode',
     selectModeSub:    'to configure',
     smartHeader:      'Smart',
@@ -459,6 +464,23 @@ export default {
     collapse:         'Collapse',
     selectModeError:  'No mode selected',
     selectModeErrorDesc: 'Please select a translation mode (Smart or AI) before starting.',
+  },
+
+  // ─── Translation target languages ──────────────────────────────────────────
+  languages: {
+    ru: 'Russian',
+    en: 'English',
+    de: 'German',
+    fr: 'French',
+    es: 'Spanish',
+    it: 'Italian',
+    pl: 'Polish',
+    pt: 'Portuguese',
+    ja: 'Japanese',
+    ko: 'Korean',
+    zh: 'Chinese',
+    uk: 'Ukrainian',
+    tr: 'Turkish',
   },
 
   // ─── TitleBar ──────────────────────────────────────────────────────────────

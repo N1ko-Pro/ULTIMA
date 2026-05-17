@@ -1,17 +1,35 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Pencil, User, Type, Check } from 'lucide-react';
+import { Pencil, User, Type, Check, Globe } from 'lucide-react';
 import Modal from '@Core/Modal/ModalCore';
 import ButtonCore from '@Core/Buttons/ButtonCore';
 import Field from '@UI/Modal/ModalField';
+import LanguageDropdown from '@UI/Language/LanguageDropdown';
 import { useLocale } from '@Locales/LocaleProvider';
+import {
+  DEFAULT_TARGET_LANGUAGE,
+  normalizeLanguageCode,
+} from '@Config/languages.constants';
+
+// ─── ProjectEditModal ──────────────────────────────────────────────────────
+// Edit metadata of an existing project: mod name, author, and target
+// language. Changing the language re-targets `Localization/<Language>` and
+// the smart-translate destination on next pack/run; existing translations
+// in the project are preserved.
 
 /**
- * Allows editing mod name and author of an existing project.
+ * @param {{
+ *   isOpen: boolean,
+ *   project: any,
+ *   existingProjectNames?: string[],
+ *   onConfirm: (values: { modName: string, author: string, targetLanguage: string }) => void,
+ *   onCancel: () => void,
+ * }} props
  */
 export function ProjectEditModal({ isOpen, project, existingProjectNames = [], onConfirm, onCancel }) {
   const t = useLocale();
   const [modName, setModName] = useState('');
   const [author, setAuthor] = useState('');
+  const [targetLanguage, setTargetLanguage] = useState(DEFAULT_TARGET_LANGUAGE);
   const [modNameError, setModNameError] = useState('');
   const [authorError, setAuthorError] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -22,6 +40,7 @@ export function ProjectEditModal({ isOpen, project, existingProjectNames = [], o
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setModName(project.name || '');
       setAuthor(project.author || '');
+      setTargetLanguage(normalizeLanguageCode(project.targetLanguage));
       setModNameError('');
       setAuthorError('');
       setSubmitted(false);
@@ -51,7 +70,11 @@ export function ProjectEditModal({ isOpen, project, existingProjectNames = [], o
     setModNameError(nameErr);
     setAuthorError(authErr);
     if (nameErr || authErr) return;
-    onConfirm({ modName: modName.trim(), author: author.trim() });
+    onConfirm({
+      modName: modName.trim(),
+      author: author.trim(),
+      targetLanguage,
+    });
   };
 
   const handleModNameChange = (v) => {
@@ -90,6 +113,18 @@ export function ProjectEditModal({ isOpen, project, existingProjectNames = [], o
       }
     >
       <div className="flex flex-col gap-4">
+        {/* Target language */}
+        <div className="flex flex-col gap-1.5">
+          <label className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">
+            <Globe className="w-3.5 h-3.5" />
+            {t.projects.targetLanguageLabel}
+          </label>
+          <LanguageDropdown
+            value={targetLanguage}
+            onChange={setTargetLanguage}
+          />
+        </div>
+
         <Field
           ref={nameInputRef}
           icon={Type}

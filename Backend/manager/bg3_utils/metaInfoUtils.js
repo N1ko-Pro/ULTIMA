@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const xml2js = require('xml2js');
+const { getSuffix, getLanguage, DEFAULT_LANG_CODE } = require('../shared_utils/languages');
 
 async function extractModInfo(metaLsxPath) {
   let modInfo = {
@@ -60,18 +61,35 @@ async function extractModInfo(metaLsxPath) {
  * Does NOT modify the original meta.lsx — writes a new file.
  *
  * @param {object} cachedData — must contain metaLsxPath, modInfo, modWorkspaceDir
- * @param {object} [overrides] — optional {name, author, description, uuid}
+ * @param {object} [overrides] — optional {name, author, description, uuid, targetLanguage}
  * @returns {{ metaLsxPath: string, folderName: string }}
  */
 function buildTranslationMetaLsx(cachedData, overrides = {}) {
   const origName = cachedData.modInfo?.name || '';
-  const alreadyRenamed = /_RU$/i.test(origName);
+  const targetLang = overrides.targetLanguage || DEFAULT_LANG_CODE;
+  const langSuffix = getSuffix(targetLang); // '_RU', '_DE', '_JA', …
+  const langInfo = getLanguage(targetLang);
 
-  const name = overrides.name || (alreadyRenamed ? origName : origName + '_RU');
+  // A mod is considered "already renamed" if the original mod name ends with
+  // any of the supported language suffixes. This keeps re-packing idempotent
+  // — opening a previously-translated mod won't double-suffix the name.
+  const suffixPattern = /_(?:RU|EN|DE|FR|ES|IT|PL|PT|JA|KO|ZH|UK|TR)$/i;
+  const alreadyRenamed = suffixPattern.test(origName);
+
+  const name = overrides.name
+    || (alreadyRenamed ? origName : origName + langSuffix);
   const folderName = name.replace(/[^a-zA-Z0-9_-]/g, '_');
   const author = overrides.author || cachedData.modInfo?.author || '';
+
+  // Russian description keeps its native phrasing for backwards compatibility
+  // with already-published translations. Other languages get a neutral
+  // English description so meta.lsx stays readable in BG3MM.
+  const defaultDescription = targetLang === 'ru'
+    ? `Перевод мода ${origName} на русский язык.`
+    : `Translation of "${origName}" to ${langInfo.folder}.`;
   const description = overrides.description
-    || (alreadyRenamed ? cachedData.modInfo?.description : `Перевод мода ${origName} на русский язык.`);
+    || (alreadyRenamed ? cachedData.modInfo?.description : defaultDescription);
+
   const uuid = overrides.uuid
     || (alreadyRenamed ? cachedData.modInfo?.uuid : crypto.randomUUID());
   const version = cachedData.modInfo?.version || '36028797018963968';

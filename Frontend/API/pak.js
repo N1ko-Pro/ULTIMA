@@ -8,6 +8,10 @@ import { invoke } from './client';
 /**
  * @param {Record<string, string>} translations
  * @param {string} [modName]
+ * @param {string} [targetLanguage] Translator code (e.g. 'ru', 'en', 'de')
+ *   — drives the `Localization/<Language>/...` folder inside the .pak and
+ *   the `_LANG` suffix appended to the resulting .zip filename.
  * @returns {Promise<{ success: boolean, filePath?: string, error?: string } | null>}
  */
-export const repack = (translations, modName) => invoke('repackMod', translations, modName);
+export const repack = (translations, modName, targetLanguage) =>
+  invoke('repackMod', translations, modName, targetLanguage);

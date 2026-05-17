@@ -1,7 +1,8 @@
 const path = require('path');
 const crypto = require('crypto');
+const { normalizeCode, DEFAULT_LANG_CODE } = require('../shared_utils/languages');
 
-const PROJECT_SCHEMA_VERSION = 2;
+const PROJECT_SCHEMA_VERSION = 3;
 
 function ensureObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
@@ -58,6 +59,11 @@ function normalizeProjectRecord(projectData, options = {}) {
   const author = normalizeText(source.author || translations.author || '');
   const workspaceDirName = normalizeText(source.workspaceDirName);
 
+  // Schema v3: targetLanguage. Older records (v2) lack the field — fall back
+  // to the historical default ('ru'). normalizeLangCode also defends against
+  // unknown / typo'd codes so saved data can never poison downstream paths.
+  const targetLanguage = normalizeCode(source.targetLanguage || DEFAULT_LANG_CODE);
+
   return {
     schemaVersion: PROJECT_SCHEMA_VERSION,
     id: projectId,
@@ -65,6 +71,7 @@ function normalizeProjectRecord(projectData, options = {}) {
     author,
     workspaceDirName,
     pakPath,
+    targetLanguage,
     translations,
     createdAt,
     updatedAt,
@@ -78,6 +85,7 @@ function toProjectSummary(projectRecord) {
     name: projectRecord.name,
     author: projectRecord.author || '',
     pakPath: projectRecord.pakPath,
+    targetLanguage: projectRecord.targetLanguage || DEFAULT_LANG_CODE,
     createdAt: projectRecord.createdAt,
     updatedAt: projectRecord.updatedAt,
     lastModified: projectRecord.lastModified,

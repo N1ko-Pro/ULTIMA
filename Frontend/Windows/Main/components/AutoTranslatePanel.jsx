@@ -28,6 +28,7 @@ function AutoTranslatePanel({
   canStart,
   isTranslating,
   translationSettings,
+  targetLanguage,
   onSelectMode,
   onStart,
   onClose,
@@ -37,6 +38,13 @@ function AutoTranslatePanel({
 }) {
   const { canUseAI } = useAuth();
   const t = useLocale();
+
+  // AI mode is locked to Russian outputs (the prompt + glossary tooling are
+  // tuned for Russian and degrade for other targets). When the project's
+  // target language is anything else, we block AI selection and surface a
+  // helpful tooltip via the locked-card description.
+  const aiLockedByLanguage = Boolean(targetLanguage && targetLanguage !== 'ru');
+  const aiAvailable = canUseAI && !aiLockedByLanguage;
 
   const isSmartSelected = selectedModeId === AUTO_TRANSLATION_MODE.SMART;
   const isLocalSelected = selectedModeId === AUTO_TRANSLATION_MODE.LOCAL;
@@ -73,6 +81,15 @@ function AutoTranslatePanel({
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
   }, [isTranslating, isExpanded, onClose]);
+
+  // Auto-deselect AI mode if the target language switches to something AI
+  // can't handle. Done here rather than in TranslationService so the user
+  // visually sees the deselection happen alongside the language change.
+  useEffect(() => {
+    if (isLocalSelected && aiLockedByLanguage) {
+      onSelectMode(AUTO_TRANSLATION_MODE.SMART);
+    }
+  }, [aiLockedByLanguage, isLocalSelected, onSelectMode]);
 
   const isStartEnabled = canStart && canStartActual && !isTranslating;
   const startBtnClass = isStartEnabled
@@ -116,11 +133,19 @@ function AutoTranslatePanel({
                     <AtpModeCard
                       icon={Bot}
                       label={t.atp.aiLabel}
-                      description={canUseAI ? t.atp.aiDescEnabled : t.atp.aiDescLocked}
+                      description={
+                        aiLockedByLanguage
+                          ? t.atp.aiDescLanguageLocked
+                          : (canUseAI ? t.atp.aiDescEnabled : t.atp.aiDescLocked)
+                      }
                       isSelected={isLocalSelected}
                       hasError={hasLocalError}
-                      locked={!canUseAI}
-                      onClick={() => (canUseAI ? onSelectMode(AUTO_TRANSLATION_MODE.LOCAL) : onAuthRequired?.())}
+                      locked={!aiAvailable}
+                      onClick={() => {
+                        if (aiLockedByLanguage) return;
+                        if (!canUseAI) return onAuthRequired?.();
+                        onSelectMode(AUTO_TRANSLATION_MODE.LOCAL);
+                      }}
                     />
                   </div>
                 </div>

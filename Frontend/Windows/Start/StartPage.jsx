@@ -162,13 +162,14 @@ export default function StartPage({
     setEditTarget(project);
   };
 
-  const handleEditConfirm = async ({ modName, author }) => {
+  const handleEditConfirm = async ({ modName, author, targetLanguage }) => {
     if (!editTarget || !isAvailable()) return;
     const projectData = {
       id:      editTarget.id,
       name:    modName,
       author,
       pakPath: editTarget.pakPath,
+      targetLanguage,
       translations: { name: modName, author },
     };
     const res = await projectsApi.save(projectData);

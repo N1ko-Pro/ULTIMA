@@ -3,6 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { buildXmlContent } = require('./xml_utils/xmlBuilder');
 const { parseXmlContent } = require('./xml_utils/xmlParser');
+const { getSuffix: getLangSuffix } = require('./shared_utils/languages');
 
 function getXmlDir(app) {
   const base = app.isPackaged
@@ -17,9 +18,12 @@ function ensureXmlDir(app) {
   return dir;
 }
 
-async function exportXml(mainWindow, app, translations, modInfo) {
+async function exportXml(mainWindow, app, translations, modInfo, targetLanguage) {
   const xmlDir = ensureXmlDir(app);
-  const filename = (modInfo?.name || 'Localizations') + '_RU.xml';
+  // Suffix from the project's selected target language ('_RU', '_DE', '_JA', …).
+  // Defaults to '_RU' when callers from older code paths omit the parameter.
+  const suffix = getLangSuffix(targetLanguage);
+  const filename = (modInfo?.name || 'Localizations') + suffix + '.xml';
   const { canceled, filePath } = await dialog.showSaveDialog(mainWindow, {
     title: 'Экспорт локализации в XML',
     defaultPath: path.join(xmlDir, filename),

@@ -26,7 +26,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     options,
   }),
   abortTranslateStrings: () => ipcRenderer.invoke(CH.TRANSLATE_ABORT),
-  repackMod: (updatedData, modName) => ipcRenderer.invoke(CH.MOD_REPACK, { updatedData, modName }),
+  repackMod: (updatedData, modName, targetLanguage) => ipcRenderer.invoke(CH.MOD_REPACK, { updatedData, modName, targetLanguage }),
   openModFolder: () => ipcRenderer.invoke(CH.MOD_OPEN_FOLDER),
   saveProject: (projectData) => ipcRenderer.invoke(CH.PROJECT_SAVE, projectData),
   loadProjects: () => ipcRenderer.invoke(CH.PROJECT_LOAD_ALL),
@@ -34,7 +34,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   loadProject: (projectId) => ipcRenderer.invoke(CH.PROJECT_LOAD, projectId),
 
   // XML Import/Export
-  exportXml: (translations, modInfo) => ipcRenderer.invoke(CH.XML_EXPORT, translations, modInfo),
+  exportXml: (translations, modInfo, targetLanguage) => ipcRenderer.invoke(CH.XML_EXPORT, translations, modInfo, targetLanguage),
   importXml: () => ipcRenderer.invoke(CH.XML_IMPORT),
 
   // Auth

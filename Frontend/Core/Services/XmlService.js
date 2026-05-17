@@ -15,22 +15,23 @@ import * as xmlApi from '@API/xml';
  *   originalStrings: any[] | null,
  *   setTranslations: (next: any) => void,
  *   modInfo: any,
+ *   targetLanguage?: string,
  * }} deps
  */
-export default function useXmlService({ originalStrings, setTranslations, modInfo }) {
+export default function useXmlService({ originalStrings, setTranslations, modInfo, targetLanguage }) {
   const t = useLocale();
 
   const handleExportXml = useCallback(async () => {
     if (!isAvailable() || !originalStrings) return;
     const dictionary = toIdValueDictionary(originalStrings, 'original');
-    const result = await xmlApi.exportFile(dictionary, modInfo);
+    const result = await xmlApi.exportFile(dictionary, modInfo, targetLanguage);
 
     if (result?.success) {
       notify.success(t.xml.success, t.xml.exportSuccessDesc);
     } else if (result?.error) {
       notify.error(t.xml.exportError, result.error);
     }
-  }, [originalStrings, modInfo, t.xml]);
+  }, [originalStrings, modInfo, targetLanguage, t.xml]);
 
   const handleImportXml = useCallback(async () => {
     if (!isAvailable()) return;

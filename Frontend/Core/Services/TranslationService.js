@@ -5,6 +5,7 @@ import { log } from '@Shared/helpers/logger';
 import { formatEta } from '@Shared/helpers/time';
 import { AUTO_TRANSLATION_MODE } from '@Config/autoTranslationModes.constants';
 import { TRANSLATION } from '@Config/timings.constants';
+import { DEFAULT_TARGET_LANGUAGE, normalizeLanguageCode } from '@Config/languages.constants';
 import {
   collectPendingTranslationRows,
   toIdValueDictionary,
@@ -30,9 +31,10 @@ import * as ollamaApi from '@API/ollama';
  *   originalStrings: any[] | null,
  *   translations: Record<string, string>,
  *   setTranslations: (next: any) => void,
+ *   targetLanguage?: string,
  * }} deps
  */
-export default function useAutoTranslation({ originalStrings, translations, setTranslations }) {
+export default function useAutoTranslation({ originalStrings, translations, setTranslations, targetLanguage }) {
   const t = useLocale();
   const tRef = useRef(t);
   useEffect(() => { tRef.current = t; });
@@ -178,7 +180,17 @@ export default function useAutoTranslation({ originalStrings, translations, setT
           const chunkDict = toIdValueDictionary(chunk, 'text');
           baseCompletedRef.current = completed;
 
-          const result = await translationsApi.translate(chunkDict, 'ru', {
+          // Smart-translate honours the project's selected target language
+          // (Russian, English, German, …). Local AI (Ollama) is hardcoded
+          // to Russian: its prompt + glossary tooling is tuned for Russian
+          // outputs and would degrade quality for other languages. The UI
+          // surface enforces this by blocking AI when the project's target
+          // language is anything other than 'ru'.
+          const requestedLang = isLocalMode
+            ? 'ru'
+            : normalizeLanguageCode(targetLanguage || DEFAULT_TARGET_LANGUAGE);
+
+          const result = await translationsApi.translate(chunkDict, requestedLang, {
             mode: isLocalMode ? 'local' : 'smart',
             ...options,
           });
@@ -236,7 +248,7 @@ export default function useAutoTranslation({ originalStrings, translations, setT
         }
       }
     },
-    [originalStrings, translations, setTranslations, updateProgressSmooth, resetOllamaContext, t.editor],
+    [originalStrings, translations, setTranslations, targetLanguage, updateProgressSmooth, resetOllamaContext, t.editor],
   );
 
   return {
