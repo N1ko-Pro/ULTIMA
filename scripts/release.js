@@ -225,11 +225,14 @@ function commitAndPushVersionBump({ version, didBump }) {
     console.warn('  ⚠ git status вернул ошибку — пропускаю авто-коммит.');
     return;
   }
+  // `git status --porcelain` formats each entry as `XY <path>` where X+Y are
+  // two status flags and column 3 is a literal space. Trimming the line
+  // before slicing eats those flags and would yield e.g. `ackage.json`, so
+  // we operate on the raw line and slice from offset 3.
   const dirtyFiles = status.stdout
     .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => line.slice(3)); // strip the two-char status flag + space
+    .filter((line) => line.length > 3)
+    .map((line) => line.slice(3));
 
   const unrelated = dirtyFiles.filter((f) => f !== 'package.json');
   if (unrelated.length > 0) {
@@ -247,7 +250,7 @@ function commitAndPushVersionBump({ version, didBump }) {
   console.log(`  → Коммит и push версии v${version}...`);
 
   if (!gitRun(['add', 'package.json'], 'git add')) return;
-  if (!gitRun(['commit', '-m', `chore(release): v${version}`], 'git commit')) return;
+  if (!gitRun(['commit', '-m', `NEW VERSION: ${version}`], 'git commit')) return;
 
   // Determine the current branch so we can push it explicitly. Detached HEAD
   // (e.g. after a manual rebase) is rare here but worth handling — we just
