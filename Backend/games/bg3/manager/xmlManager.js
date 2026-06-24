@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 const { buildXmlContent } = require('./xml_utils/xmlBuilder');
 const { parseXmlContent } = require('./xml_utils/xmlParser');
-const { getSuffix: getLangSuffix } = require('./shared_utils/languages');
+const { getSuffix: getLangSuffix } = require('../../../manager/shared_utils/languages');
 
 function getXmlDir(app) {
   const base = app.isPackaged

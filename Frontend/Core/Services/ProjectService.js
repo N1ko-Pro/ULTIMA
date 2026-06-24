@@ -17,6 +17,7 @@ import { isAvailable } from '@API/client';
 import * as projectsApi from '@API/projects';
 import * as filesApi from '@API/files';
 import * as pakApi from '@API/pak';
+import { getGameById } from '@Games/registry';
 
 // ─── Project service ────────────────────────────────────────────────────────
 // The biggest stateful service in the app. Owns:
@@ -38,7 +39,7 @@ async function fetchProjectNames() {
   }
 }
 
-export function useProjectManager({ selectedGame } = {}) {
+export function useProjectManager({ selectedGame, onDependencyMissing } = {}) {
   const t = useLocale();
 
   // ── Mod & translation state ──────────────────────────────────────────────
@@ -121,16 +122,15 @@ export function useProjectManager({ selectedGame } = {}) {
     setIsLoadingPak(true);
     let result;
     try {
-      if (ext === '.pak') {
-        result = await filesApi.unpackPakFile(filePath);
-      } else if (ext === '.zip' || ext === '.rar') {
-        result = await filesApi.unpackArchiveFile(filePath, ext);
-      } else {
-        notify.error(t.projects.unsupportedExt, t.projects.unsupportedExtDesc(ext));
-        return;
-      }
+      result = await filesApi.ingestMod(filePath, ext, selectedGame);
     } finally {
       setIsLoadingPak(false);
+    }
+
+    // Game tooling missing → surface the install modal instead of importing.
+    if (result?.dependencyMissing) {
+      onDependencyMissing?.(result.gameId || selectedGame, result.missing || []);
+      return;
     }
 
     if (!result?.success || !result.data) {
@@ -200,14 +200,16 @@ export function useProjectManager({ selectedGame } = {}) {
     } finally {
       setIsLoadingPak(false);
     }
-  }, [commitSavedSnapshot, requestInitInfo, selectedGame, t.projects, t.common.error]);
+  }, [commitSavedSnapshot, requestInitInfo, selectedGame, onDependencyMissing, t.projects, t.common.error]);
 
   const handleSelectFile = useCallback(async () => {
     if (!isAvailable()) return;
-    const selected = await filesApi.selectFile();
+    const game = getGameById(selectedGame);
+    const extensions = (game?.fileTypes || ['PAK', 'ZIP', 'RAR']).map((f) => f.toLowerCase());
+    const selected = await filesApi.selectModFile(extensions);
     if (!selected?.success) return;
     await handleOpenFile(selected.filePath, selected.ext);
-  }, [handleOpenFile]);
+  }, [handleOpenFile, selectedGame]);
 
   // ── Save / load / repack ─────────────────────────────────────────────────
   const handleSaveProject = useCallback(async () => {

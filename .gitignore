@@ -25,6 +25,9 @@ Glossary/glossary_user.json
 Backend/bin/
 Backend/DllParser/bin/
 Backend/DllParser/obj/
+tools_src/**/bin/
+tools_src/**/obj/
+tools_src/**/publish/
 
 # ── Logs ─────────────────────────────────────────────────────────────────────
 logs/

@@ -46,6 +46,26 @@ export default {
     },
   },
 
+  // ─── Game dependencies (DependencyModal) ───────────────────────────────────
+  deps: {
+    title:            'Additional tools required',
+    description:      "Working with this game's mods needs helper tools. You can install them now or later.",
+    installed:        'Tools installed',
+    installedDesc:    "All set — you can open this game's mods now.",
+    installing:       'Downloading tools…',
+    waitMessage:      'Please wait, this may take a moment.',
+    errorTitle:       'Installation failed',
+    errorDesc:        'Something went wrong while installing the tools.',
+    downloadingLabel: 'Downloading',
+    installNow:       'Install now',
+    later:            'Later',
+    continue:         'Continue',
+    retry:            'Retry',
+    mb:               'MB',
+    notifTitle:       'Tools required',
+    notifMsg:         "This game's mods require additional tools to be installed.",
+  },
+
   // ─── Tutorial (shared buttons) ─────────────────────────────────────────────
   tutorial: {
     skip:   'Skip',

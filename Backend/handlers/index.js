@@ -1,9 +1,9 @@
 const { ipcMain, BrowserWindow } = require('electron');
 const CH = require('../ipcChannels');
-const { registerModHandlers } = require('./modHandlers');
 const { registerProjectHandlers } = require('./projectHandlers');
+const { registerIngestHandlers } = require('./ingestHandlers');
+const { registerDependencyHandlers } = require('./dependencyHandlers');
 const { registerTranslatorHandlers } = require('./translatorHandlers');
-const { registerXmlHandlers } = require('./xmlHandlers');
 const { registerDictionaryHandlers } = require('./dictionaryHandlers');
 const { registerOllamaHandlers } = require('./ollamaHandlers');
 const { registerAuthHandlers } = require('./authHandlers');
@@ -40,14 +40,20 @@ function registerWindowHandlers(mainWindow, app) {
   });
 }
 
-function registerAllHandlers({ app, mainWindow, getUserDataPath, services }) {
-  const { bg3Manager, smartManager, projectManager, aiManager, updateManager } = services;
+function registerAllHandlers({ app, mainWindow, getUserDataPath, games, services }) {
+  const { smartManager, projectManager, aiManager, updateManager } = services;
 
   registerWindowHandlers(mainWindow, app);
-  registerModHandlers(mainWindow, { bg3Manager });
-  registerProjectHandlers(getUserDataPath, { projectManager, bg3Manager });
+
+  // Per-game IPC handlers (mod ingest/pack, localization import/export, …).
+  for (const game of games.listGameModules()) {
+    game.registerHandlers({ mainWindow, app });
+  }
+
+  registerProjectHandlers(getUserDataPath, { projectManager, games });
+  registerIngestHandlers(mainWindow, { games });
+  registerDependencyHandlers(mainWindow, { games });
   registerTranslatorHandlers({ smartManager, aiManager });
-  registerXmlHandlers(mainWindow, app);
   registerDictionaryHandlers();
   registerOllamaHandlers({ mainWindow });
   registerAuthHandlers();

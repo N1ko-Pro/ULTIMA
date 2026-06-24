@@ -6,29 +6,19 @@ import { invoke } from './client';
 // nothing else has to know about the `electronAPI?.getPathForFile?.()` quirk.
 
 /**
- * Open a generic file picker (any supported extension).
+ * Open a game-aware mod file picker.
+ * @param {string[]} extensions Accepted extensions (e.g. ['pak','zip','rar'] or ['dll','zip','rar'])
  * @returns {Promise<{ success: boolean, filePath?: string, ext?: string } | null>}
  */
-export const selectFile = () => invoke('selectFile');
+export const selectModFile = (extensions) => invoke('selectModFile', extensions);
 
 /**
- * Open a `.pak`-only picker.
- * @returns {Promise<{ success: boolean, filePath?: string, ext?: string } | null>}
- */
-export const selectPakFile = () => invoke('selectPakFile');
-
-/**
- * Unpack a `.pak` and return its strings + modInfo.
+ * Ingest a mod file for the given game → returns its strings + modInfo.
  * @param {string} filePath
+ * @param {string} ext  lower-cased extension incl. dot
+ * @param {string} gameId
  */
-export const unpackPakFile = (filePath) => invoke('unpackPakFile', filePath);
-
-/**
- * Unpack a `.zip` or `.rar` archive that contains a `.pak` inside.
- * @param {string} filePath
- * @param {'.zip' | '.rar'} ext
- */
-export const unpackArchiveFile = (filePath, ext) => invoke('unpackArchiveFile', filePath, ext);
+export const ingestMod = (filePath, ext, gameId) => invoke('ingestMod', { filePath, ext, gameId });
 
 /**
  * Native FS path for a `File` instance. Electron 32+ blanks `file.path` under

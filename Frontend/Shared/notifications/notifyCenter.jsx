@@ -72,7 +72,7 @@ function NotificationRow({ entry, onRemove, onHover, onRowClick }) {
   );
 }
 
-export default function NotifyCenter({ onUpdatePillClick, onAtpModalClick }) {
+export default function NotifyCenter({ onUpdatePillClick, onAtpModalClick, onDepsModalClick }) {
   const subscribe = useCallback((cb) => notifyStore.subscribe(cb), []);
   const getSnapshot = useCallback(() => notifyStore.getAll(), []);
   const history = useSyncExternalStore(subscribe, getSnapshot);
@@ -198,6 +198,9 @@ export default function NotifyCenter({ onUpdatePillClick, onAtpModalClick }) {
                           setIsOpen(false);
                         } else if (e.action === 'atp-modal') {
                           onAtpModalClick?.();
+                          setIsOpen(false);
+                        } else if (e.action === 'deps-modal') {
+                          onDepsModalClick?.();
                           setIsOpen(false);
                         }
                       }}

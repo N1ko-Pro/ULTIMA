@@ -1,11 +1,12 @@
 const { ipcMain } = require('electron');
-const path = require('path');
-const fs = require('fs');
 const { wrapHandler } = require('./handlerUtils');
-const { extractPakFromZip, extractPakFromRar } = require('./archiveUtils');
 const CH = require('../ipcChannels');
 
-function registerProjectHandlers(getUserDataPath, { projectManager, bg3Manager }) {
+// Generic project handlers. Persistence (save/load summaries) is game-agnostic;
+// game-specific work (loading a project for editing, cleaning up on-disk
+// artifacts) is delegated to the owning game's module, resolved from the
+// project record's `game` field.
+function registerProjectHandlers(getUserDataPath, { projectManager, games }) {
   ipcMain.handle(CH.PROJECT_SAVE, wrapHandler(async (_, projectData) => {
     const savedProject = projectManager.saveProject(getUserDataPath(), projectData);
     return { success: true, project: savedProject };
@@ -17,11 +18,12 @@ function registerProjectHandlers(getUserDataPath, { projectManager, bg3Manager }
   }));
 
   ipcMain.handle(CH.PROJECT_DELETE, wrapHandler(async (_, id) => {
-    const workspaceRoot = bg3Manager.workspaceDir;
-    if (workspaceRoot) {
-      bg3Manager.clearCachedDataForWorkspace(workspaceRoot);
+    const projectRecord = projectManager.getProjectById(getUserDataPath(), id);
+    const gameModule = projectRecord ? games.getGameModule(projectRecord.game) : null;
+    if (gameModule?.deleteProjectArtifacts) {
+      await gameModule.deleteProjectArtifacts(projectRecord);
     }
-    await projectManager.deleteProject(getUserDataPath(), id, workspaceRoot);
+    await projectManager.deleteProjectRecord(getUserDataPath(), id);
     return { success: true };
   }));
 
@@ -31,46 +33,12 @@ function registerProjectHandlers(getUserDataPath, { projectManager, bg3Manager }
       return { success: false, error: 'Проект не найден или повреждён.' };
     }
 
-    if (!fs.existsSync(projectRecord.pakPath)) {
-      return {
-        success: false,
-        error: `Оригинальный файл больше не существует по пути: ${projectRecord.pakPath}`,
-      };
+    const gameModule = games.getGameModule(projectRecord.game);
+    if (!gameModule?.loadProject) {
+      return { success: false, error: 'Открытие проектов для этой игры пока не поддерживается.' };
     }
 
-    const ext = path.extname(projectRecord.pakPath).toLowerCase();
-    const isArchive = ext === '.zip' || ext === '.rar';
-
-    if (!isArchive) {
-      // Direct PAK — no extraction needed
-      return projectManager.loadProjectForEditing({
-        userDataPath: getUserDataPath(),
-        projectId,
-        bg3Manager,
-      });
-    }
-
-    // Archive (ZIP/RAR) — extract the PAK to a temp dir, then load
-    let tempDir = null;
-    try {
-      let extractedPakPath;
-      if (ext === '.zip') {
-        ({ pakPath: extractedPakPath, tempDir } = extractPakFromZip(projectRecord.pakPath));
-      } else {
-        ({ pakPath: extractedPakPath, tempDir } = await extractPakFromRar(projectRecord.pakPath));
-      }
-
-      return await projectManager.loadProjectForEditing({
-        userDataPath: getUserDataPath(),
-        projectId,
-        bg3Manager,
-        extractedPakPath,
-      });
-    } finally {
-      if (tempDir) {
-        try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore */ }
-      }
-    }
+    return gameModule.loadProject(projectRecord);
   }));
 }
 

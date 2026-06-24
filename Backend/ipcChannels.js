@@ -18,6 +18,15 @@ const MOD_UNPACK_ARCHIVE   = 'unpack-archive-file';
 const MOD_REPACK           = 'repack-mod';
 const MOD_OPEN_FOLDER      = 'open-mod-folder';
 
+// ── Generic mod ingest (game-routed) ─────────────────────────────────────────
+const MOD_SELECT           = 'mod-select';
+const MOD_INGEST           = 'mod-ingest';
+
+// ── Per-game dependencies ─────────────────────────────────────────────────────
+const DEPS_CHECK           = 'deps-check';
+const DEPS_INSTALL         = 'deps-install';
+const DEPS_INSTALL_PROGRESS = 'deps-install-progress';
+
 // ── Translation ──────────────────────────────────────────────────────────────
 const TRANSLATE_STRINGS         = 'translate-strings';
 const TRANSLATE_ABORT           = 'abort-translate-strings';
@@ -93,6 +102,8 @@ const OLLAMA_STATUS_CHANGED    = 'ollama-status-changed';
 module.exports = {
   WIN_MIN, WIN_MAX, WIN_CLOSE, WIN_OS_CLOSE, WIN_OPEN_EXTERNAL,
   MOD_SELECT_FILE, MOD_SELECT_PAK, MOD_UNPACK_PAK, MOD_UNPACK_ARCHIVE, MOD_REPACK, MOD_OPEN_FOLDER,
+  MOD_SELECT, MOD_INGEST,
+  DEPS_CHECK, DEPS_INSTALL, DEPS_INSTALL_PROGRESS,
   TRANSLATE_STRINGS, TRANSLATE_ABORT, TRANSLATE_ITEM_PROGRESS,
   PROJECT_SAVE, PROJECT_LOAD_ALL, PROJECT_DELETE, PROJECT_LOAD,
   XML_EXPORT, XML_IMPORT,

@@ -30,6 +30,7 @@ function TitleBarCore({
   showUpdaterUI,
   onShowUpdateModal,
   onAtpModalClick,
+  onDepsModalClick,
   showBranding = true,
 }) {
   const t = useLocale();
@@ -144,7 +145,7 @@ function TitleBarCore({
             </span>
           </button>
         )}
-        {showBell && <NotifyCenter onUpdatePillClick={handleUpdatePillClick} onAtpModalClick={onAtpModalClick} />}
+        {showBell && <NotifyCenter onUpdatePillClick={handleUpdatePillClick} onAtpModalClick={onAtpModalClick} onDepsModalClick={onDepsModalClick} />}
       </div>
 
       <WindowControls onMinimize={handleMinimize} onMaximize={handleMaximize} onClose={handleClose} />

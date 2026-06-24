@@ -2,14 +2,14 @@ const path = require("path");
 const fs = require("fs");
 const os = require("os");
 const xml2js = require("xml2js");
-const smartManager = require("./smartManager");
-const aiManager = require("./aiManager");
+const smartManager = require("../../../manager/smartManager");
+const aiManager = require("../../../manager/aiManager");
 
 const { findModFiles } = require("./bg3_utils/fileSystemUtils");
 const { sanitizeWorkspaceTag, createSessionWorkspaceTag, resolveWorkspaceDirectory } = require("./bg3_utils/workspaceUtils");
 const DivineCliUtils = require("./bg3_utils/divineCliUtils");
 const { extractModInfo, buildTranslationMetaLsx, addDependencyToMetaLsx, buildInfoJson } = require("./bg3_utils/metaInfoUtils");
-const { getFolder, DEFAULT_LANG_CODE } = require("./shared_utils/languages");
+const { getFolder, DEFAULT_LANG_CODE } = require("../../../manager/shared_utils/languages");
 const AdmZip = require("adm-zip");
 
 function extractStringsFromParsedContent(parsedXml) {

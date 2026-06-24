@@ -21,6 +21,7 @@ const DEFAULT_FORMATS = ['PAK', 'ZIP', 'RAR'];
 export function DropZone({ onClickOpen, onFileDrop, formats }) {
   const t = useLocale();
   const acceptedFormats = formats?.length ? formats : DEFAULT_FORMATS;
+  const acceptedExtensions = acceptedFormats.map((f) => `.${f.toLowerCase()}`);
 
   const handleInvalidFile = useCallback(() => {
     notify.error(t.projects.dropInvalid, t.projects.dropInvalidDesc);
@@ -29,6 +30,7 @@ export function DropZone({ onClickOpen, onFileDrop, formats }) {
   const { isDragging, dragHandlers } = useDragAndDrop({
     onFileDrop,
     onInvalidFile: handleInvalidFile,
+    acceptedExtensions,
   });
 
   const dragBorderClass = isDragging

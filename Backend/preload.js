@@ -16,10 +16,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPathForFile: (file) => webUtils.getPathForFile(file),
 
   // BG3 Workflow
-  selectFile: () => ipcRenderer.invoke(CH.MOD_SELECT_FILE),
-  selectPakFile: () => ipcRenderer.invoke(CH.MOD_SELECT_PAK),
-  unpackPakFile: (filePath) => ipcRenderer.invoke(CH.MOD_UNPACK_PAK, { filePath }),
-  unpackArchiveFile: (filePath, ext) => ipcRenderer.invoke(CH.MOD_UNPACK_ARCHIVE, { filePath, ext }),
+  selectModFile: (extensions) => ipcRenderer.invoke(CH.MOD_SELECT, extensions),
+  ingestMod: (payload) => ipcRenderer.invoke(CH.MOD_INGEST, payload),
+
+  // Per-game dependencies
+  depsCheck: (gameId) => ipcRenderer.invoke(CH.DEPS_CHECK, gameId),
+  depsInstall: (gameId) => ipcRenderer.invoke(CH.DEPS_INSTALL, gameId),
+  onDepsInstallProgress: (callback) => {
+    const handler = (_, percent) => callback(percent);
+    ipcRenderer.on(CH.DEPS_INSTALL_PROGRESS, handler);
+    return () => ipcRenderer.removeListener(CH.DEPS_INSTALL_PROGRESS, handler);
+  },
   translateStrings: (dataToTranslate, targetLang, options = {}) => ipcRenderer.invoke(CH.TRANSLATE_STRINGS, {
     dataToTranslate,
     targetLang,

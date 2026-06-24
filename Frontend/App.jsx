@@ -21,6 +21,8 @@ import EulaModal from '@UI/EULA/EulaModal';
 import DotNetInstallModal from '@UI/Modal/DotNetInstallModal';
 import DotNetMissingModal from '@UI/Modal/DotNetMissingModal';
 import AtpAccessModal from '@UI/Modal/AtpAccessModal';
+import DependencyModal from '@UI/Modal/DependencyModal';
+import * as depsApi from '@API/deps';
 import { ProjectInitModal } from '@UI/Modal/ProjectInitModal';
 
 // ─── Page imports ────────────────────────────────────────────────────────────
@@ -58,7 +60,10 @@ export default function App() {
   }, []);
 
   const appState = useAppState();
-  const project  = useProjectManager({ selectedGame: appState.selectedGame });
+  const project  = useProjectManager({
+    selectedGame: appState.selectedGame,
+    onDependencyMissing: appState.openDepsModal,
+  });
   const { translationSettings, updateTranslationSettings } = useTranslationSettings();
   const xml = useXml({
     originalStrings: project.originalStrings,
@@ -155,6 +160,30 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updater.state.status, updater.state.version]);
 
+  // Check the selected game's dependencies on entry (first selection + each
+  // launch). Missing tools → open the install modal and drop a notification so
+  // the user can reopen it later from the bell.
+  useEffect(() => {
+    const gameId = appState.selectedGame;
+    if (!gameId || !appState.eulaAccepted) return undefined;
+    let cancelled = false;
+    (async () => {
+      const res = await depsApi.check(gameId);
+      if (cancelled || !res?.success || res.ok) return;
+      appState.openDepsModal(gameId, res.missing || []);
+      const locale = translationSettings?.general?.appLanguage === 'en' ? en : ru;
+      notifyStore.recordHistory({
+        id: `deps-${gameId}`,
+        type: 'warning',
+        title: locale.deps.notifTitle,
+        message: locale.deps.notifMsg,
+        action: 'deps-modal',
+      });
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appState.selectedGame, appState.eulaAccepted]);
+
   // ── Derived state ───────────────────────────────────────────────────────
   const isEditorView = Boolean(project.originalStrings);
   const showProjects = !isEditorView && appState.currentView === 'projects';
@@ -226,6 +255,7 @@ export default function App() {
           showUpdaterUI={showUpdaterUI}
           onShowUpdateModal={() => appState.setUpdateModalOpen(true)}
           onAtpModalClick={() => setIsAtpModalOpen(true)}
+          onDepsModalClick={() => appState.openDepsModal(appState.selectedGame, appState.depsMissing)}
           showBranding={!appState.isHomeOverlayOpen}
         />
 
@@ -302,6 +332,12 @@ export default function App() {
           onDismiss={dismissDotNet}
         />
         <AtpAccessModal isOpen={isAtpModalOpen} onClose={() => setIsAtpModalOpen(false)} />
+        <DependencyModal
+          isOpen={appState.depsModalOpen}
+          missing={appState.depsMissing}
+          onInstall={appState.handleInstallDeps}
+          onClose={appState.closeDepsModal}
+        />
       </div>
     </LocaleProvider>
   );

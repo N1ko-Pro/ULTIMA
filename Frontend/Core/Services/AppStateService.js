@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as onboardingApi from '@API/onboarding';
 import * as dotnetApi from '@API/dotnet';
+import * as depsApi from '@API/deps';
 
 // ─── App state service ──────────────────────────────────────────────────────
 // Centralised UI state for the app shell: which overlays are visible, which
@@ -21,6 +22,9 @@ export default function useAppState() {
   const [isFirstLaunch,          setIsFirstLaunch]          = useState(false);
   const [selectedGame,           setSelectedGame]           = useState(null);
   const [isGameSelectOpen,       setIsGameSelectOpen]       = useState(false);
+  const [depsModalOpen,          setDepsModalOpen]          = useState(false);
+  const [depsMissing,            setDepsMissing]            = useState([]);
+  const [depsGameId,             setDepsGameId]             = useState(null);
   const [onboardingReady,        setOnboardingReady]        = useState(false);
   const [onboarding,             setOnboarding]             = useState(null);
   const [packAttemptWithOriginalUuid, setPackAttemptWithOriginalUuid] = useState(false);
@@ -91,6 +95,26 @@ export default function useAppState() {
   }, []);
 
   const handleOpenGameSelect = useCallback(() => setIsGameSelectOpen(true), []);
+
+  // Per-game dependency modal. Opened on entering a game with missing tools
+  // (effect in App), on a mod-open attempt, or from the notification center.
+  const openDepsModal = useCallback((gameId, missing) => {
+    setDepsGameId(gameId);
+    setDepsMissing(missing || []);
+    setDepsModalOpen(true);
+  }, []);
+
+  const closeDepsModal = useCallback(() => setDepsModalOpen(false), []);
+
+  const handleInstallDeps = useCallback(async (onProgress) => {
+    const unsubscribe = depsApi.onInstallProgress(onProgress);
+    try {
+      const res = await depsApi.install(depsGameId);
+      if (!res?.success) throw new Error(res?.error || 'Installation failed');
+    } finally {
+      unsubscribe();
+    }
+  }, [depsGameId]);
 
   const toggleProfile = useCallback(() => {
     setIsProfileOpen((prev) => !prev);
@@ -166,6 +190,12 @@ export default function useAppState() {
     isFirstLaunch,
     selectedGame,
     isGameSelectOpen,
+    depsModalOpen,
+    depsMissing,
+    depsGameId,
+    openDepsModal,
+    closeDepsModal,
+    handleInstallDeps,
     onboardingReady,
     onboarding,
     setOnboarding,

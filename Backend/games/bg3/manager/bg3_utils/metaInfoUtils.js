@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const xml2js = require('xml2js');
-const { getSuffix, getLanguage, DEFAULT_LANG_CODE } = require('../shared_utils/languages');
+const { getSuffix, getLanguage, DEFAULT_LANG_CODE } = require('../../../../manager/shared_utils/languages');
 
 // ── Default save-header version ────────────────────────────────────────────
 // The `<save><version .../></save>` header BG3 expects in meta.lsx evolves

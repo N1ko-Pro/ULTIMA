@@ -2,7 +2,7 @@ const { app, BrowserWindow, screen } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { registerAllHandlers } = require('./handlers');
-const bg3Manager = require('./manager/bg3Manager');
+const games = require('./games');
 const smartManager = require('./manager/smartManager');
 const projectManager = require('./manager/projectManager');
 const dictionaryManager = require('./manager/dictionaryManager');
@@ -127,9 +127,10 @@ app.whenReady().then(() => {
   } catch (e) { console.warn('[migration] Glossary migration skipped:', e?.message); }
   try { dictionaryManager.initialize(getUserDataPath(), getDefaultGlossaryPath()); } catch (e) { console.error('[dictionaryManager]', e); }
   try { authManager.initialize(getUserDataPath(), app.getAppPath()); } catch (e) { console.error('[authManager]', e); }
-  try { bg3Manager.initialize(getUserDataPath(), app.getAppPath()); } catch (e) { console.error('[bg3Manager]', e); }
+  for (const game of games.listGameModules()) {
+    try { game.initialize(getUserDataPath(), app.getAppPath()); } catch (e) { console.error(`[game:${game.id}]`, e); }
+  }
   try { ollamaManager.initialize(getUserDataPath()); } catch (e) { console.error('[ollamaManager]', e); }
-  try { projectManager.initialize(getUserDataPath(), app.isPackaged ? getAppRootPath() : null); } catch (e) { console.error('[projectManager]', e); }
 
   createWindow();
 
@@ -148,7 +149,8 @@ app.whenReady().then(() => {
     app,
     mainWindow,
     getUserDataPath,
-    services: { bg3Manager, smartManager, projectManager, aiManager, updateManager },
+    games,
+    services: { smartManager, projectManager, aiManager, updateManager },
   });
 
   app.on('activate', () => {
