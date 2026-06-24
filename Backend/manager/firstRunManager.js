@@ -19,6 +19,7 @@ function getDefaultOnboarding() {
   return {
     eulaAccepted: false,
     welcomeShown: false,
+    selectedGame: null,
     tutorialStartPage: false,
     tutorialEditor: false,
     tutorialAutoTranslate: false,

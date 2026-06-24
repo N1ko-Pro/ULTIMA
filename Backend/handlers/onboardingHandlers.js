@@ -3,12 +3,13 @@ const fs = require('fs');
 const path = require('path');
 const { wrapHandler } = require('./handlerUtils');
 const CH = require('../ipcChannels');
+const { isValidGameId } = require('../games/gameRegistry');
 
 let configPath = null;
 let configCache = null;
 
 function getDefaultConfig() {
-  return { eulaAccepted: false, welcomeShown: false, tutorialStartPage: false, tutorialEditor: false, tutorialAutoTranslate: false, tutorialDictionary: false };
+  return { eulaAccepted: false, welcomeShown: false, selectedGame: null, tutorialStartPage: false, tutorialEditor: false, tutorialAutoTranslate: false, tutorialDictionary: false };
 }
 
 function loadConfig() {
@@ -46,7 +47,11 @@ function registerOnboardingHandlers(getUserDataPath) {
 
   ipcMain.handle(CH.ONBOARDING_UPDATE, wrapHandler(async (_, patch) => {
     const config = loadConfig();
-    Object.assign(config, patch);
+    const next = { ...patch };
+    if ('selectedGame' in next && next.selectedGame !== null && !isValidGameId(next.selectedGame)) {
+      delete next.selectedGame;
+    }
+    Object.assign(config, next);
     saveConfig(config);
     return { success: true, data: config };
   }));

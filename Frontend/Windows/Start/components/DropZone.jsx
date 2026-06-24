@@ -9,16 +9,18 @@ import { useDragAndDrop } from '../utils/useDragAndDrop';
 // Glow animation on drag-over is driven by the `dropzone-glow` Tailwind
 // keyframes (declared in globals.css).
 
-const ACCEPTED_FORMATS = ['PAK', 'ZIP', 'RAR'];
+const DEFAULT_FORMATS = ['PAK', 'ZIP', 'RAR'];
 
 /**
  * @param {{
  *   onClickOpen: () => void,
  *   onFileDrop: (filePath: string, ext: string) => void,
+ *   formats?: string[],
  * }} props
  */
-export function DropZone({ onClickOpen, onFileDrop }) {
+export function DropZone({ onClickOpen, onFileDrop, formats }) {
   const t = useLocale();
+  const acceptedFormats = formats?.length ? formats : DEFAULT_FORMATS;
 
   const handleInvalidFile = useCallback(() => {
     notify.error(t.projects.dropInvalid, t.projects.dropInvalidDesc);
@@ -73,7 +75,7 @@ export function DropZone({ onClickOpen, onFileDrop }) {
           </div>
 
           <div className="flex items-center gap-2">
-            {ACCEPTED_FORMATS.map((fmt) => (
+            {acceptedFormats.map((fmt) => (
               <span
                 key={fmt}
                 className="px-2.5 py-0.5 rounded-md text-[10px] font-bold tracking-widest uppercase bg-white/[0.05] border border-white/[0.08] text-zinc-500 transition-colors duration-200"

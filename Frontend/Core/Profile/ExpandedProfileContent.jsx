@@ -16,7 +16,7 @@ function FeatureRow({ icon: Icon, label, active, activeText, noText }) {
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-2.5">
         <Icon className={`w-3.5 h-3.5 shrink-0 ${active ? 'text-emerald-400' : 'text-zinc-600'}`} />
-        <span className={`text-[12px] font-medium ${active ? 'text-zinc-300' : 'text-zinc-500'}`}>{label}</span>
+        <span className={`text-[12px] font-medium ${active ? 'text-zinc-100' : 'text-zinc-300'}`}>{label}</span>
       </div>
       <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${
         active
@@ -61,7 +61,7 @@ export function ExpandedProfileContent({ isVisible }) {
       {/* ── Account status card ───────────────────────────────────────────── */}
       {isLoggedIn && (
         <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 space-y-2">
-          <p className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
+          <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
             {t.auth.accountSection}
           </p>
           <div className="flex items-center justify-between">
@@ -77,7 +77,7 @@ export function ExpandedProfileContent({ isVisible }) {
             </div>
           )}
           {!isInGuild && (
-            <p className="flex items-center gap-1.5 text-[11px] text-zinc-500">
+            <p className="flex items-center gap-1.5 text-[11px] text-zinc-400">
               <Shield className="w-3 h-3 shrink-0" />
               {t.auth.notOnServer}
             </p>
@@ -88,7 +88,7 @@ export function ExpandedProfileContent({ isVisible }) {
       {/* ── Features access card ──────────────────────────────────────────── */}
       {isLoggedIn && (
         <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-3.5 space-y-2.5">
-          <p className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">
+          <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">
             {t.auth.featuresSection}
           </p>
           <FeatureRow icon={Zap} label={t.auth.atpPremiumFeature} active={canUseAutoTranslate} activeText={t.auth.available} noText={t.auth.notAvailable} />

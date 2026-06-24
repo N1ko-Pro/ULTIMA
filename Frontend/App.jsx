@@ -29,6 +29,7 @@ import { ProjectInitModal } from '@UI/Modal/ProjectInitModal';
 
 import AuthPage     from '@Windows/Auth/AuthPage';
 import StartPage    from '@Windows/Start/StartPage';
+import HomePage     from '@Windows/Home/HomePage';
 import MainPage     from '@Windows/Main/MainPage';
 import SettingsPage from '@Windows/Settings/SettingsPage';
 
@@ -57,7 +58,7 @@ export default function App() {
   }, []);
 
   const appState = useAppState();
-  const project  = useProjectManager();
+  const project  = useProjectManager({ selectedGame: appState.selectedGame });
   const { translationSettings, updateTranslationSettings } = useTranslationSettings();
   const xml = useXml({
     originalStrings: project.originalStrings,
@@ -322,6 +323,20 @@ function ActivePage({
     return <div className="flex-1 bg-surface-0" />;
   }
 
+  // Game selection gate: shown on first run (no game chosen yet) or when the
+  // user explicitly asks to switch games. Sits between the welcome screen and
+  // the workspace.
+  const needsGameSelect = !appState.selectedGame || appState.isGameSelectOpen;
+  if (needsGameSelect && !isEditorView) {
+    return (
+      <HomePage
+        onSelectGame={appState.handleSelectGame}
+        selectedGame={appState.selectedGame}
+        onSettingsOpen={appState.handleOpenSettings}
+      />
+    );
+  }
+
   if (showProjects) {
     return (
       <StartPage
@@ -330,6 +345,8 @@ function ActivePage({
           onLoadProject={project.handleLoadProject}
           onSettingsOpen={appState.handleOpenSettings}
           onOpenHome={appState.handleOpenHomeOverlay}
+          onOpenGameSelect={appState.handleOpenGameSelect}
+          selectedGame={appState.selectedGame}
           onboarding={appState.onboarding}
           onOnboardingUpdate={appState.setOnboarding}
           onTutorialComplete={appState.handleTutorialComplete}

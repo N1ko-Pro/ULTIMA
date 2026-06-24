@@ -38,7 +38,7 @@ async function fetchProjectNames() {
   }
 }
 
-export function useProjectManager() {
+export function useProjectManager({ selectedGame } = {}) {
   const t = useLocale();
 
   // ── Mod & translation state ──────────────────────────────────────────────
@@ -187,6 +187,7 @@ export function useProjectManager() {
         pakPath:           result.data.originalPakPath,
         workspaceDirName:  result.data.workspaceDirName,
         targetLanguage:    chosenLanguage,
+        game:              selectedGame,
         translations:      initTrans,
       };
 
@@ -199,7 +200,7 @@ export function useProjectManager() {
     } finally {
       setIsLoadingPak(false);
     }
-  }, [commitSavedSnapshot, requestInitInfo, t.projects, t.common.error]);
+  }, [commitSavedSnapshot, requestInitInfo, selectedGame, t.projects, t.common.error]);
 
   const handleSelectFile = useCallback(async () => {
     if (!isAvailable()) return;
@@ -219,6 +220,7 @@ export function useProjectManager() {
       pakPath:          originalPakPath,
       workspaceDirName: workspaceDirName || undefined,
       targetLanguage,
+      game:             selectedGame,
       translations,
     };
 
@@ -230,7 +232,7 @@ export function useProjectManager() {
     } else {
       notify.error(t.common.error, t.projects.saveErrorDesc);
     }
-  }, [originalStrings, originalPakPath, currentProjectId, translations, modInfo, workspaceDirName, targetLanguage, commitSavedSnapshot, t.projects, t.common.error]);
+  }, [originalStrings, originalPakPath, currentProjectId, translations, modInfo, workspaceDirName, targetLanguage, selectedGame, commitSavedSnapshot, t.projects, t.common.error]);
 
   const handleLoadProject = useCallback(async (projectSummary) => {
     if (!isAvailable()) return;

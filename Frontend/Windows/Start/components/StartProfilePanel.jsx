@@ -68,25 +68,28 @@ export function StartProfilePanel({ isExpanded, onToggle, onClose }) {
         style={{
           width:      isExpanded ? EXPANDED_WIDTH : COLLAPSED_SIZE,
           height:     isExpanded ? EXPANDED_HEIGHT : COLLAPSED_SIZE,
-          transition: 'width 500ms cubic-bezier(0.4,0,0.2,1), height 500ms cubic-bezier(0.4,0,0.2,1)',
+          transition: isExpanded
+            ? 'width 500ms cubic-bezier(0.4,0,0.2,1), height 500ms cubic-bezier(0.4,0,0.2,1)'
+            : 'width 500ms cubic-bezier(0.4,0,0.2,1) 280ms, height 500ms cubic-bezier(0.4,0,0.2,1) 280ms',
         }}
       >
         <button
           type="button"
           onClick={onToggle}
           title={t.auth.profile}
-          className="absolute inset-0 flex items-center justify-center hover:bg-white/[0.03] active:scale-[0.94] transition-colors duration-200"
+          className="group absolute inset-0 flex items-center justify-center hover:bg-white/[0.03] active:scale-[0.94] transition-colors duration-200"
           style={{
             opacity:       isExpanded ? 0 : 1,
             pointerEvents: isExpanded ? 'none' : 'auto',
             transition:    'opacity 250ms cubic-bezier(0.4,0,0.2,1)',
+            transitionDelay: isExpanded ? '0ms' : '280ms',
           }}
         >
           <div className="relative">
             {auth.user?.avatar ? (
               <img src={auth.user.avatar} alt="" className="w-6 h-6 rounded-full object-cover" />
             ) : (
-              <User className={`w-5 h-5 ${auth.isLoggedIn ? 'text-zinc-400' : 'text-zinc-500'}`} />
+              <User className={`w-5 h-5 transition-colors duration-200 ${auth.isLoggedIn ? 'text-zinc-400 group-hover:text-zinc-200' : 'text-zinc-500 group-hover:text-zinc-300'}`} />
             )}
             {auth.isLoggedIn && (
               <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-surface-0 ${dot}`} />
@@ -101,7 +104,7 @@ export function StartProfilePanel({ isExpanded, onToggle, onClose }) {
             opacity:         isExpanded ? 1 : 0,
             pointerEvents:   isExpanded ? 'auto' : 'none',
             transition:      'opacity 250ms cubic-bezier(0.4,0,0.2,1)',
-            transitionDelay: isExpanded ? '200ms' : '0ms',
+            transitionDelay: isExpanded ? '200ms' : '280ms',
           }}
         >
           <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -166,14 +169,21 @@ export function StartProfilePanel({ isExpanded, onToggle, onClose }) {
       </div>
 
       <div
-        className="overflow-hidden transition-[max-height,opacity,margin-top] duration-[450ms] ease-[cubic-bezier(0.4,0,0.2,1)]"
+        className="overflow-hidden transition-[max-height,margin-top] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
         style={{
           maxHeight: isExpanded ? '600px' : '0px',
-          opacity:   isExpanded ? 1 : 0,
           marginTop: isExpanded ? '8px' : '0px',
+          transitionDelay: isExpanded ? '120ms' : '0ms',
         }}
       >
-        <div className="w-[320px] rounded-xl border border-white/[0.1] bg-surface-1 shadow-[0_8px_40px_rgba(0,0,0,0.5)] relative overflow-hidden">
+        <div
+          className="w-[320px] rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-2xl relative overflow-hidden transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
+          style={{
+            transform: isExpanded ? 'translateY(0) scale(1)' : 'translateY(-12px) scale(0.97)',
+            transformOrigin: 'top center',
+            transitionDelay: isExpanded ? '150ms' : '0ms',
+          }}
+        >
           {/* Main view */}
           <div className={`p-5 transition-all duration-300 ease-in-out ${
             view === 'main'

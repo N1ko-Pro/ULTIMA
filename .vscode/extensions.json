@@ -1,3 +1,21 @@
 {
-    "recommendations": []
+  "recommendations": [
+    // --- Essential for this stack ---
+    "dbaeumer.vscode-eslint",          // ESLint flat-config integration (no-unused-vars = error)
+    "bradlc.vscode-tailwindcss",       // Tailwind IntelliSense — autocompletes custom surface-* palette, flags invalid opacity
+    "usernamehw.errorlens",            // Inline error/warning display right on the line
+
+    // --- React / JSX productivity ---
+    "dsznajder.es7-react-js-snippets", // React 19 functional-component + hook snippets
+    "formulahendry.auto-rename-tag",   // Auto-rename paired JSX tags
+    "christian-kohler.path-intellisense", // Path autocomplete for the deep Frontend/ tree
+
+    // --- Domain: BG3 mod localization (XML/LSX) ---
+    "redhat.vscode-xml",               // XML editing/validation for mod loca files (xml2js workflow)
+
+    // --- Quality of life ---
+    "streetsidesoftware.code-spell-checker", // Spell-check for en/ru locale strings
+    "gruntfuggly.todo-tree",           // Surface TODO/FIXME across Backend + Frontend
+    "wix.vscode-import-cost"           // Shows import size — useful for keeping the Electron bundle lean
+  ]
 }

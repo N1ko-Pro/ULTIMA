@@ -1,6 +1,7 @@
 const path = require('path');
 const crypto = require('crypto');
 const { normalizeCode, DEFAULT_LANG_CODE } = require('../shared_utils/languages');
+const { isValidGameId, DEFAULT_GAME_ID } = require('../../games/gameRegistry');
 
 const PROJECT_SCHEMA_VERSION = 3;
 
@@ -64,6 +65,10 @@ function normalizeProjectRecord(projectData, options = {}) {
   // unknown / typo'd codes so saved data can never poison downstream paths.
   const targetLanguage = normalizeCode(source.targetLanguage || DEFAULT_LANG_CODE);
 
+  // Game ownership. Legacy records predate multi-game support — they were all
+  // Baldur's Gate 3, so a missing/unknown value falls back to the default game.
+  const game = isValidGameId(source.game) ? source.game : DEFAULT_GAME_ID;
+
   return {
     schemaVersion: PROJECT_SCHEMA_VERSION,
     id: projectId,
@@ -72,6 +77,7 @@ function normalizeProjectRecord(projectData, options = {}) {
     workspaceDirName,
     pakPath,
     targetLanguage,
+    game,
     translations,
     createdAt,
     updatedAt,
@@ -86,6 +92,7 @@ function toProjectSummary(projectRecord) {
     author: projectRecord.author || '',
     pakPath: projectRecord.pakPath,
     targetLanguage: projectRecord.targetLanguage || DEFAULT_LANG_CODE,
+    game: projectRecord.game || DEFAULT_GAME_ID,
     createdAt: projectRecord.createdAt,
     updatedAt: projectRecord.updatedAt,
     lastModified: projectRecord.lastModified,

@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Settings, Info } from 'lucide-react';
+import { Settings, Info, Gamepad2 } from 'lucide-react';
 import { notify } from '@Shared/notifications/notifyCore';
 import { useLocale } from '@Locales/LocaleProvider';
 import TutorialStartPage from '@UI/Tutorial/TutorialStartPage';
 import { DeleteConfirmModal } from '@UI/Modal/DeleteConfirmModal';
 import { ProjectEditModal } from '@UI/Modal/ProjectEditModal';
 import { PageBackground } from './components/PageBackground';
+import { WorkspaceBackdrop } from './components/WorkspaceBackdrop';
+import { getGameById, DEFAULT_GAME_ID } from '@Games/registry';
 import { HeroSection } from './components/HeroSection';
 import { DropZone } from './components/DropZone';
 import { ProjectsSeparator } from './components/ProjectsSeparator';
@@ -59,11 +61,14 @@ export default function StartPage({
   onLoadProject,
   onSettingsOpen,
   onOpenHome,
+  onOpenGameSelect,
+  selectedGame,
   onboarding,
   onOnboardingUpdate,
   onTutorialComplete,
 }) {
   const t = useLocale();
+  const activeGame = getGameById(selectedGame);
   const [projects,          setProjects]          = useState([]);
   const [loading,           setLoading]           = useState(true);
   const [deleteTarget,      setDeleteTarget]      = useState(null);
@@ -183,10 +188,15 @@ export default function StartPage({
   };
 
   // Merge real projects with the example project for the tutorial display.
+  const gameProjects = useMemo(
+    () => projects.filter((p) => (p.game || DEFAULT_GAME_ID) === selectedGame),
+    [projects, selectedGame],
+  );
+
   const displayProjects = useMemo(() => {
-    if (exampleProject && projects.length === 0) return [exampleProject];
-    return projects;
-  }, [projects, exampleProject]);
+    if (exampleProject && gameProjects.length === 0) return [exampleProject];
+    return gameProjects;
+  }, [gameProjects, exampleProject]);
 
   const exampleId = EXAMPLE_PROJECT.id;
   const cardHandlers = {
@@ -198,6 +208,7 @@ export default function StartPage({
   return (
     <div className="flex-1 flex flex-col relative overflow-hidden bg-surface-0 min-h-0">
       <PageBackground />
+      <WorkspaceBackdrop image={activeGame?.workspaceImage} />
 
       <StartProfilePanel
         isExpanded={isProfileExpanded}
@@ -206,12 +217,22 @@ export default function StartPage({
       />
 
       <div className="absolute top-5 right-6 z-30 flex items-center gap-2" data-tutorial="top-buttons">
+        {onOpenGameSelect && (
+          <button
+            type="button"
+            onClick={onOpenGameSelect}
+            title={t.games.change}
+            className="group flex items-center justify-center w-10 h-10 rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-2xl hover:bg-white/[0.06] active:scale-[0.94] transition-colors duration-200"
+          >
+            <Gamepad2 className="w-5 h-5 text-zinc-500 group-hover:text-zinc-300 transition-colors duration-200" />
+          </button>
+        )}
         {onOpenHome && (
           <button
             type="button"
             onClick={onOpenHome}
             title={t.projects.aboutApp}
-            className="group flex items-center justify-center w-10 h-10 rounded-xl border border-white/[0.08] bg-white/[0.03] hover:border-white/[0.16] hover:bg-white/[0.06] active:scale-[0.95] transition-all duration-200"
+            className="group flex items-center justify-center w-10 h-10 rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-2xl hover:bg-white/[0.06] active:scale-[0.94] transition-colors duration-200"
           >
             <Info className="w-5 h-5 text-zinc-500 group-hover:text-zinc-300 transition-colors duration-200" />
           </button>
@@ -221,7 +242,7 @@ export default function StartPage({
             type="button"
             onClick={onSettingsOpen}
             title="Настройки"
-            className="group flex items-center justify-center w-10 h-10 rounded-xl border border-white/[0.08] bg-white/[0.03] hover:border-white/[0.16] hover:bg-white/[0.06] active:scale-[0.95] transition-all duration-200"
+            className="group flex items-center justify-center w-10 h-10 rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-2xl hover:bg-white/[0.06] active:scale-[0.94] transition-colors duration-200"
           >
             <Settings className="w-5 h-5 text-zinc-500 group-hover:text-zinc-300 transition-all duration-500 group-hover:rotate-90" />
           </button>
@@ -232,7 +253,7 @@ export default function StartPage({
         <div className="flex flex-col items-center px-10 pt-16 pb-20 w-full max-w-[1100px] mx-auto">
           <HeroSection />
           <div data-tutorial="dropzone">
-            <DropZone onClickOpen={onSelectFile} onFileDrop={onFileDrop} />
+            <DropZone onClickOpen={onSelectFile} onFileDrop={onFileDrop} formats={activeGame?.fileTypes} />
           </div>
 
           <div data-tutorial="projects-section">

@@ -19,6 +19,8 @@ export default function useAppState() {
   const [isProfileOpen,          setIsProfileOpen]          = useState(false);
   const [isHomeOverlayOpen,      setIsHomeOverlayOpen]      = useState(false);
   const [isFirstLaunch,          setIsFirstLaunch]          = useState(false);
+  const [selectedGame,           setSelectedGame]           = useState(null);
+  const [isGameSelectOpen,       setIsGameSelectOpen]       = useState(false);
   const [onboardingReady,        setOnboardingReady]        = useState(false);
   const [onboarding,             setOnboarding]             = useState(null);
   const [packAttemptWithOriginalUuid, setPackAttemptWithOriginalUuid] = useState(false);
@@ -78,6 +80,18 @@ export default function useAppState() {
   const handleOpenHomeOverlay = useCallback(() => setIsHomeOverlayOpen(true), []);
   const handleResetValidation = useCallback(() => setValidationResetKey((prev) => prev + 1), []);
 
+  // Game selection. Persisted to onboarding so the chosen game's workspace
+  // opens directly on subsequent launches.
+  const handleSelectGame = useCallback(async (gameId) => {
+    setSelectedGame(gameId);
+    setIsGameSelectOpen(false);
+    setCurrentView('projects');
+    setOnboarding((prev) => (prev ? { ...prev, selectedGame: gameId } : { selectedGame: gameId }));
+    try { await onboardingApi.update({ selectedGame: gameId }); } catch { /* ignore */ }
+  }, []);
+
+  const handleOpenGameSelect = useCallback(() => setIsGameSelectOpen(true), []);
+
   const toggleProfile = useCallback(() => {
     setIsProfileOpen((prev) => !prev);
     if (isDictionaryOpen) setIsDictionaryOpen(false);
@@ -127,6 +141,7 @@ export default function useAppState() {
       if (res?.success) {
         setOnboarding(res.data);
         setEulaAccepted(!!res.data.eulaAccepted);
+        setSelectedGame(res.data.selectedGame || null);
         if (res.data.eulaAccepted && !res.data.welcomeShown) {
           setIsFirstLaunch(true);
           setIsHomeOverlayOpen(true);
@@ -149,6 +164,8 @@ export default function useAppState() {
     isProfileOpen,
     isHomeOverlayOpen,
     isFirstLaunch,
+    selectedGame,
+    isGameSelectOpen,
     onboardingReady,
     onboarding,
     setOnboarding,
@@ -176,6 +193,8 @@ export default function useAppState() {
     handleNavigateToProjects,
     handleOpenHomeOverlay,
     handleResetValidation,
+    handleSelectGame,
+    handleOpenGameSelect,
     toggleDictionary,
     toggleProfile,
     handleResetTutorial,

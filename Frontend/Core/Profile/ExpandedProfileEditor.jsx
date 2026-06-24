@@ -31,7 +31,7 @@ export function ExpandedProfileEditor({ isVisible, onClose }) {
   return (
     <div className="space-y-4">
       <div>
-        <label className="text-[11px] font-bold tracking-widest text-zinc-500 uppercase mb-2 block px-1">
+        <label className="text-[11px] font-bold tracking-widest text-zinc-400 uppercase mb-2 block px-1">
           {t.auth.localName}
         </label>
         <input
@@ -44,7 +44,7 @@ export function ExpandedProfileEditor({ isVisible, onClose }) {
           autoFocus={isVisible}
           className="w-full bg-white/[0.04] border border-white/[0.08] rounded-xl px-3 py-2 text-[13px] text-zinc-200 placeholder-zinc-600 outline-none transition-[border-color,box-shadow] duration-200 focus:border-white/[0.25] focus:ring-2 focus:ring-white/[0.06]"
         />
-        <p className="text-[11px] text-zinc-600 leading-relaxed px-1 mt-1.5">{t.auth.localNameDesc}</p>
+        <p className="text-[11px] text-zinc-400 leading-relaxed px-1 mt-1.5">{t.auth.localNameDesc}</p>
       </div>
 
       <div className="flex gap-2">

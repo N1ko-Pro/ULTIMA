@@ -32,6 +32,20 @@ export default {
     },
   },
 
+  // ─── Game selection (HomePage) ────────────────────────────────────────────
+  games: {
+    title:    'Choose a game',
+    subtitle: 'Pick the game whose mod localizations you want to translate. You can switch at any time.',
+    open:     'Open',
+    soon:     'Soon',
+    current:  'Selected',
+    change:   'Change game',
+    cards: {
+      bg3:         { desc: 'Translate and manage Baldur\'s Gate 3 mod localizations.' },
+      mysummercar: { desc: 'Translate and manage My Summer Car mod localizations.' },
+    },
+  },
+
   // ─── Tutorial (shared buttons) ─────────────────────────────────────────────
   tutorial: {
     skip:   'Skip',

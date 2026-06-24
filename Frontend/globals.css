@@ -241,3 +241,18 @@
   from { opacity: 1; transform: translateX(0)    scale(1);    max-height: 200px; margin-bottom: 0;     }
   to   { opacity: 0; transform: translateX(28px) scale(0.94); max-height: 0;     margin-bottom: -12px; }
 }
+
+/* ── Game card hover glare (Steam-style) ─────────────────────────────────── */
+/* A soft diagonal light band that sits high on the card at rest and glides
+   downward on hover. Driven by a vertical translate transition; the band stays
+   visible the whole time. */
+.game-card-glare {
+  background: linear-gradient(45deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.05) 42%,
+    rgba(255, 255, 255, 0.22) 50%,
+    rgba(255, 255, 255, 0.05) 58%,
+    transparent 70%);
+  mix-blend-mode: screen;
+  transition: transform 0.7s cubic-bezier(0.22, 1, 0.36, 1);
+}

@@ -13,6 +13,7 @@ export default defineConfig({
       '@Core':         alias('./Frontend/Core'),
       '@UI':           alias('./Frontend/UI'),
       '@Windows':      alias('./Frontend/Windows'),
+      '@Games':        alias('./Frontend/Games'),
       '@Shared':       alias('./Frontend/Shared'),
       '@Utils':        alias('./Frontend/Utils'),
       '@Config':       alias('./Frontend/Config'),

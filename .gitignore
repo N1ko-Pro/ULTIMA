@@ -47,6 +47,9 @@ lerna-debug.log*
 *.sw?
 *.local
 
+# ── Kiro local settings (contains secrets & machine-specific paths) ──────────
+.kiro/settings/mcp.json
+
 # ── Internal / private ───────────────────────────────────────────────────────
 workspace/
 .windsurf/

@@ -11,6 +11,7 @@
       "@Core/*":         ["Frontend/Core/*"],
       "@UI/*":           ["Frontend/UI/*"],
       "@Windows/*":      ["Frontend/Windows/*"],
+      "@Games/*":        ["Frontend/Games/*"],
       "@Shared/*":       ["Frontend/Shared/*"],
       "@Utils/*":        ["Frontend/Utils/*"],
       "@Config/*":       ["Frontend/Config/*"],
