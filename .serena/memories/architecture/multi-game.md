@@ -141,9 +141,11 @@ generic→bg3 утечки устранены. Контракт игрового
 ## My Summer Car — извлечение строк из DLL (через dnlib-инструмент)
 MSC-моды = управляемые .NET .dll; строки = операнды IL `ldstr`. РЕШЕНО
 использовать dnlib (не ручной парсер — он удалён).
-- `tools_src/MscLocTool/` — C#-CLI на dnlib (`extract`/`inject`), исходник +
-  README + .csproj. Собирается self-contained single-file win-x64. НЕ собран
-  здесь (нет .NET SDK) — собирать в CI, публиковать ассетом GitHub-релиза.
+- `MscLocTool` — C#-CLI на dnlib (`extract`/`inject`), исходник + README +
+  .csproj. ВЫНЕСЕН в отдельный репозиторий `N1ko-Pro/ULTIMA_TOOLS`
+  (`MscLocTool/`), здесь, в ULTIMA, его исходников больше НЕТ. Собирается
+  self-contained single-file win-x64, публикуется ассетом GitHub-релиза
+  ULTIMA_TOOLS.
 - id строки = `'u'+sha256(text)[:16]`; одинаковый в C# (`MakeId`) и Node
   (`dll_utils/stringId.js`) — должны совпадать.
 - `dll_utils/mscToolCli.js` — обёртка над exe (configure/isPresent/extract/
@@ -178,33 +180,30 @@ MSC-моды = управляемые .NET .dll; строки = операнды
   уведомлений: NotifyCenter обрабатывает `deps-modal` → TitleBarCore
   `onDepsModalClick` → App `openDepsModal(selectedGame, depsMissing)`.
 
-## Сборка MscLocTool (СОБРАН и проверен локально)
-- .NET SDK 8 ставился локально через `dotnet-install.ps1` в
-  `%LOCALAPPDATA%/ultima-dotnet` (в среде не было ни SDK, ни winget; нужно было
-  добавить nuget.org как источник: `dotnet nuget add source
-  https://api.nuget.org/v3/index.json -n nuget.org`).
-- Сборка: `dotnet publish tools_src/MscLocTool/MscLocTool.csproj -c Release
-  -r win-x64 --self-contained true -p:PublishSingleFile=true
-  -p:IncludeNativeLibrariesForSelfExtract=true -o tools_src/MscLocTool/publish`.
-  Результат: один `MscLocTool.exe` ~65 МБ.
+## Сборка MscLocTool (СОБРАН и проверен; исходники переехали в ULTIMA_TOOLS)
+- Инструмент мигрирован в репозиторий `N1ko-Pro/ULTIMA_TOOLS` (`MscLocTool/`).
+  Сборка теперь идёт там (CI `build-msc-tool.yml` + ручной publish).
+- Команда сборки (в ULTIMA_TOOLS): `dotnet publish MscLocTool/MscLocTool.csproj
+  -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
+  -p:IncludeNativeLibrariesForSelfExtract=true -o publish`.
+  Результат: один `MscLocTool.exe` ~65 МБ (проверено на .NET SDK 10, таргет net8.0).
 - Проверено: extract даёт строки с id `u<hex16>`; id-ы СОВПАДАЮТ с
   `stringId.makeStringId` (Node); inject возвращает `{replaced:N}` и пишет .dll.
 - Для локального теста exe скопирован в `%APPDATA%/ULTIMA/tools/msc/
   MscLocTool.exe` → `checkDependencies` = ok, `ingest` извлекает строки через
   инструмент. Полный backend-путь MSC работает.
-- Артефакты сборки игнорятся: `.gitignore` → `tools_src/**/{bin,obj,publish}/`.
 
-## Дистрибуция инструмента (CI готов)
-- Репозиторий: `N1ko-Pro/ULTIMA`. DOWNLOAD_URL в `toolConfig.js` уже корректен
-  (`.../releases/download/msc-tools-v1.0.0/MscLocTool.exe`).
-- `.github/workflows/build-msc-tool.yml` — по тегу `msc-tools-v*` собирает
+## Дистрибуция инструмента (релиз ОПУБЛИКОВАН)
+- Репозиторий инструмента: `N1ko-Pro/ULTIMA_TOOLS`. DOWNLOAD_URL в
+  `toolConfig.js` обновлён на
+  `https://github.com/N1ko-Pro/ULTIMA_TOOLS/releases/download/msc-tools-v1.0.0/MscLocTool.exe`.
+- Релиз `msc-tools-v1.0.0` уже создан в ULTIMA_TOOLS (prerelease, не latest),
+  ассет `MscLocTool.exe` (~68.7 МБ) выложен и скачивается (HTTP 200).
+- `build-msc-tool.yml` живёт в ULTIMA_TOOLS — по тегу `msc-tools-v*` собирает
   self-contained single-file exe и прикладывает к релизу (prerelease,
-  make_latest:false — авто-апдейтер приложения не затрагивается). Также
-  workflow_dispatch для ручного запуска (только artifact, без релиза).
-- ЕДИНСТВЕННЫЙ ручной шаг для раздачи: `git tag msc-tools-v1.0.0 && git push
-  origin msc-tools-v1.0.0`. (Я не могу пушить/создавать релизы.)
-- Версионирование: поднять TOOL_VERSION в toolConfig.js + запушить совпадающий
-  тег.
+  make_latest:false). Также workflow_dispatch для ручного запуска.
+- Версионирование: поднять TOOL_VERSION в `toolConfig.js` (ULTIMA) + запушить
+  совпадающий тег `msc-tools-v<версия>` в ULTIMA_TOOLS.
 
 ## ОСТАЁТСЯ: репак (write-back в .dll)
 Инструмент умеет `inject`, `mscToolCli.inject` готов, но кнопка `MOD_REPACK`
