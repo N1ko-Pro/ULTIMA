@@ -16,6 +16,7 @@ export default function DependencyModal({ isOpen, missing, onInstall, onClose })
   const [error, setError] = useState(null);
 
   const items = missing || [];
+  const isUpdate = items.some((dep) => dep.outdated);
 
   const handleInstall = async () => {
     setStatus('installing');
@@ -50,11 +51,13 @@ export default function DependencyModal({ isOpen, missing, onInstall, onClose })
   const titleText = status === 'completed' ? t.deps.installed
     : status === 'error' ? t.deps.errorTitle
     : isBusy ? t.deps.installing
+    : isUpdate ? t.deps.updateTitle
     : t.deps.title;
 
   const descText = status === 'completed' ? t.deps.installedDesc
     : status === 'error' ? error
     : isBusy ? t.deps.waitMessage
+    : isUpdate ? t.deps.updateDescription
     : t.deps.description;
 
   return (
@@ -83,7 +86,13 @@ export default function DependencyModal({ isOpen, missing, onInstall, onClose })
           {items.map((dep) => (
             <div key={dep.id} className="flex items-center justify-between rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-2.5">
               <span className="text-[13px] font-medium text-zinc-200">{dep.name}</span>
-              {dep.sizeMb ? <span className="text-[12px] text-zinc-500">≈ {dep.sizeMb} {t.deps.mb}</span> : null}
+              <div className="flex items-center gap-2.5">
+                {dep.outdated && dep.installedVersion && (
+                  <span className="text-[11px] text-zinc-600 line-through">v{dep.installedVersion}</span>
+                )}
+                {dep.version && <span className="text-[12px] font-medium text-indigo-300/90">v{dep.version}</span>}
+                {dep.sizeMb ? <span className="text-[12px] text-zinc-500">≈ {dep.sizeMb} {t.deps.mb}</span> : null}
+              </div>
             </div>
           ))}
         </div>
@@ -108,7 +117,7 @@ export default function DependencyModal({ isOpen, missing, onInstall, onClose })
         {status === 'idle' && (
           <>
             <ButtonCore variant="emerald" icon={Download} fullWidth size="lg" onClick={handleInstall}>
-              {t.deps.installNow}
+              {isUpdate ? t.deps.updateNow : t.deps.installNow}
             </ButtonCore>
             <ButtonCore variant="ghost" fullWidth size="lg" onClick={onClose}>
               {t.deps.later}

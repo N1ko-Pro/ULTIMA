@@ -1,4 +1,5 @@
-const { ipcMain, dialog } = require('electron');
+const { ipcMain, dialog, shell } = require('electron');
+const fs = require('fs');
 const path = require('path');
 const { wrapHandler } = require('./handlerUtils');
 const CH = require('../ipcChannels');
@@ -41,6 +42,25 @@ function registerIngestHandlers(mainWindow, { games }) {
 
     const data = await gameModule.ingest(filePath, ext);
     return { success: true, data };
+  }));
+
+  // Reveal the selected game's own folder in the OS file manager. Routes to the
+  // game module so each game opens its own workspace (BG3: the loaded mod's
+  // folder or workspace/BG3; MSC: workspace/MSC).
+  ipcMain.handle(CH.MOD_OPEN_FOLDER, wrapHandler(async (_, gameId) => {
+    const gameModule = games.getGameModule(gameId);
+    const dir = gameModule?.getWorkspaceFolder ? gameModule.getWorkspaceFolder() : null;
+    if (!dir) {
+      return { success: false, error: 'Папка для этой игры недоступна.' };
+    }
+    try {
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    } catch { /* fall through — shell.openPath will report failure */ }
+    const result = await shell.openPath(dir);
+    if (result) {
+      return { success: false, error: result };
+    }
+    return { success: true };
   }));
 }
 

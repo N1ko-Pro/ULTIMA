@@ -103,6 +103,7 @@ export default function MainPage({
   packAttemptWithOriginalUuid,
   onDismissPackAttempt,
   onPackAttemptWithOriginalUuid,
+  gameId,
 }) {
   const { canUseAutoTranslate } = useAuth();
   const [isAuthOverlayOpen,       setIsAuthOverlayOpen]       = useState(false);
@@ -218,6 +219,7 @@ export default function MainPage({
         packAttemptWithOriginalUuid={packAttemptWithOriginalUuid}
         onDismissPackAttempt={onDismissPackAttempt}
         targetLanguage={targetLanguage}
+        gameId={gameId}
       />
 
       {/* Editor column. */}
@@ -254,6 +256,7 @@ export default function MainPage({
           onPackAttemptWithOriginalUuid={onPackAttemptWithOriginalUuid}
           targetLanguage={targetLanguage}
           onChangeTargetLanguage={onChangeTargetLanguage}
+          gameId={gameId}
         />
 
         <AutoTranslatePanel

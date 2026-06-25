@@ -15,15 +15,17 @@ import LanguageDropdown from '@UI/Language/LanguageDropdown';
  * @param {{
  *   value: string,
  *   onChange: (code: string) => void,
+ *   compact?: boolean,
  * }} props
  */
-function TargetLanguagePill({ value, onChange }) {
+function TargetLanguagePill({ value, onChange, compact = false }) {
   const t = useLocale();
   return (
     <LanguageDropdown
       value={value}
       onChange={onChange}
       variant="pill"
+      compact={compact}
       triggerLabel={t.editor.targetLanguageTitle}
     />
   );

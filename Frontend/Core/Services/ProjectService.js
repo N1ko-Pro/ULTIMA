@@ -144,7 +144,7 @@ export function useProjectManager({ selectedGame, onDependencyMissing } = {}) {
       return;
     }
 
-    const { strings, modInfo: unpackedModInfo } = result.data;
+    const { strings, modInfo: unpackedModInfo, stringMeta } = result.data;
     // Default mod name uses the project default suffix until the user picks
     // a different language inside the init modal.
     const defaultSuffix = getLanguageSuffix(DEFAULT_TARGET_LANGUAGE);
@@ -163,7 +163,7 @@ export function useProjectManager({ selectedGame, onDependencyMissing } = {}) {
 
     setIsLoadingPak(true);
     try {
-      const dataArray = mapStringDictionaryToRows(strings);
+      const dataArray = mapStringDictionaryToRows(strings, stringMeta);
       const initTrans = {
         ...createEmptyTranslations(dataArray),
         name:   userInput.modName,
@@ -249,7 +249,7 @@ export function useProjectManager({ selectedGame, onDependencyMissing } = {}) {
           translations: savedTrans,
           targetLanguage: loadedTargetLanguage,
         } = res.data;
-        const dataArray = mapStringDictionaryToRows(strings);
+        const dataArray = mapStringDictionaryToRows(strings, res.data.stringMeta);
         const hydratedTranslations = {
           ...createEmptyTranslations(dataArray),
           ...(savedTrans || {}),

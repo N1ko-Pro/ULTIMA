@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
-const { DOWNLOAD_URL, EXE_NAME } = require('../toolConfig');
+const { DOWNLOAD_URL, EXE_NAME, VERSION_FILE, TOOL_VERSION } = require('../toolConfig');
 
 const MAX_REDIRECTS = 5;
 
@@ -45,6 +45,9 @@ function fetchTo(url, destPath, onProgress, redirects = 0) {
       out.on('finish', () => out.close((err) => {
         if (err) { reject(err); return; }
         try {
+          // Overwrite any existing (older) exe — fs.renameSync won't replace an
+          // existing file on Windows, so remove it first.
+          if (fs.existsSync(destPath)) fs.unlinkSync(destPath);
           fs.renameSync(tmpPath, destPath);
           onProgress?.(100);
           resolve();
@@ -71,6 +74,11 @@ async function downloadTool(toolDir, onProgress) {
   fs.mkdirSync(toolDir, { recursive: true });
   const dest = path.join(toolDir, EXE_NAME);
   await fetchTo(DOWNLOAD_URL, dest, onProgress);
+  // Record the installed version so checkDependencies() can later detect an
+  // outdated tool and offer an update. Non-fatal if it can't be written.
+  try {
+    fs.writeFileSync(path.join(toolDir, VERSION_FILE), TOOL_VERSION, 'utf8');
+  } catch { /* ignore */ }
 }
 
 module.exports = { downloadTool };

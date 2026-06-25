@@ -1,15 +1,19 @@
-import React, { useId } from 'react';
+import React, { useId, forwardRef } from 'react';
 
 // ─── Workspace backdrop ──────────────────────────────────────────────────────
 // Per-game decorative artwork band in the upper area of the workspace. The
 // image is fully opaque at the left/right screen edges and fades to transparent
 // toward the centre. The fade boundary is given a ragged "torn page" edge by
 // displacing ONLY the gradient mask — the image itself stays crisp.
+//
+// The root accepts a forwarded ref so the host can drive a scroll parallax,
+// nudging the band upward as the workspace scrolls (it would otherwise sit
+// statically behind the scroll container).
 
 const VIEW_W = 1000;
 const VIEW_H = 620;
 
-export function WorkspaceBackdrop({ image }) {
+export const WorkspaceBackdrop = forwardRef(function WorkspaceBackdrop({ image }, ref) {
   const rawId = useId().replace(/[:]/g, '');
   const fadeId = `ws-fade-${rawId}`;
   const roughId = `ws-rough-${rawId}`;
@@ -18,7 +22,12 @@ export function WorkspaceBackdrop({ image }) {
   if (!image) return null;
 
   return (
-    <div className="absolute inset-x-0 top-0 z-0 pointer-events-none overflow-hidden" style={{ height: VIEW_H }} aria-hidden="true">
+    <div
+      ref={ref}
+      className="absolute inset-x-0 top-0 z-0 pointer-events-none overflow-hidden"
+      style={{ height: VIEW_H, willChange: 'transform', transform: 'translate3d(0,0,0)' }}
+      aria-hidden="true"
+    >
       <svg
         className="absolute inset-0 w-full h-full"
         viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}
@@ -67,4 +76,4 @@ export function WorkspaceBackdrop({ image }) {
       />
     </div>
   );
-}
+});

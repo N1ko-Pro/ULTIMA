@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback, useRef, useDeferredValue } from 'react';
 import { Virtuoso } from 'react-virtuoso';
-import { Search, Trash2, Bookmark, BookmarkX } from 'lucide-react';
+import { Search, Trash2, Bookmark, BookmarkX, Wrench } from 'lucide-react';
 import { useLocale } from '@Locales/LocaleProvider';
 import { useKeyboardShortcuts } from '@Utils/Keyboard/useKeyboardShortcuts';
 import ModalConfirm from '@UI/Modal/ModalConfirm';
@@ -17,7 +17,7 @@ import { SearchClearButton } from '../MainPageButtons';
 // by `MainPage` and threaded in via props — this component stays focused on
 // presenting and filtering rows.
 
-const PROGRESS_BAR_WIDTH = 'clamp(150px, 15vw, 200px)';
+const PROGRESS_BAR_MAX = '200px';
 
 function getProgressGradient(percent) {
   if (percent === 0) return 'from-zinc-700 to-zinc-600';
@@ -44,6 +44,7 @@ export default function MainTable({
   const [isClearAllOpen,      setIsClearAllOpen]      = useState(false);
   const [bookmarkFilter,       setBookmarkFilter]       = useState('all');
   const [rowLimit,            setRowLimit]            = useState('all');
+  const [showTechnical,        setShowTechnical]        = useState(false);
   const searchInputRef = useRef(null);
 
   // Filter reads the deferred value so typing in the search box never
@@ -59,10 +60,34 @@ export default function MainTable({
     setDismissedAttempts({});
   }, [originalStrings]);
 
-  const totalCount = originalStrings?.length || 0;
+  // ── Technical-string classification (MSC etc.) ────────────────────────────
+  // Rows carry an auto `category` ('text' | 'uncertain' | 'technical') from the
+  // backend classifier. The user can override per-row; overrides persist in the
+  // project under `translations._techOverride`. Technical rows are hidden by
+  // default and excluded from the progress count so the denominator is honest.
+  const techOverride = useMemo(() => translations._techOverride || {}, [translations._techOverride]);
+  const autoCategoryById = useMemo(() => {
+    const map = {};
+    (originalStrings || []).forEach((row) => { map[row.id] = row.category || 'text'; });
+    return map;
+  }, [originalStrings]);
+  const effectiveCategoryOf = useCallback(
+    (id) => techOverride[id] || autoCategoryById[id] || 'text',
+    [techOverride, autoCategoryById],
+  );
+  const hasClassified = useMemo(
+    () => (originalStrings || []).some((row) => (row.category || 'text') !== 'text'),
+    [originalStrings],
+  );
+
+  const countableStrings = useMemo(
+    () => (originalStrings || []).filter((row) => effectiveCategoryOf(row.id) !== 'technical'),
+    [originalStrings, effectiveCategoryOf],
+  );
+  const totalCount = countableStrings.length;
   const translatedCount = useMemo(
-    () => originalStrings?.filter((row) => translations[row.id]?.trim()).length || 0,
-    [originalStrings, translations],
+    () => countableStrings.filter((row) => translations[row.id]?.trim()).length,
+    [countableStrings, translations],
   );
 
   const progress = totalCount > 0 ? Math.round((translatedCount / totalCount) * 100) : 0;
@@ -115,14 +140,21 @@ export default function MainTable({
     );
   }, [originalStrings, translations, deferredQuery]);
 
-  // Apply bookmark filter + row limit on top of search-filtered strings
+  // Apply bookmark filter + technical visibility + row limit on top of search.
   const displayedStrings = useMemo(() => {
     let result = filteredStrings;
     if (bookmarkFilter === 'only') result = result.filter((row) =>  bookmarks.has(row.id));
     else if (bookmarkFilter === 'hide') result = result.filter((row) => !bookmarks.has(row.id));
+    if (!showTechnical) result = result.filter((row) => effectiveCategoryOf(row.id) !== 'technical');
     if (rowLimit !== 'all') result = result.slice(0, Number(rowLimit));
     return result;
-  }, [filteredStrings, bookmarkFilter, bookmarks, rowLimit]);
+  }, [filteredStrings, bookmarkFilter, bookmarks, rowLimit, showTechnical, effectiveCategoryOf]);
+
+  // Technical rows currently hidden (within the search-filtered set).
+  const technicalHiddenCount = useMemo(
+    () => filteredStrings.filter((row) => effectiveCategoryOf(row.id) === 'technical').length,
+    [filteredStrings, effectiveCategoryOf],
+  );
 
   // O(1) lookup of a row's display index in the FULL list. Without this the
   // Virtuoso itemContent did `originalStrings.indexOf(row)` per visible row
@@ -151,13 +183,33 @@ export default function MainTable({
 
   const handleClearAllTranslations = useCallback(() => {
     setTranslations((prev) => {
-      const { uuid, name, author, description, _bookmarks } = prev;
-      return { uuid, name, author, description, ...(_bookmarks ? { _bookmarks } : {}) };
+      const { uuid, name, author, description, _bookmarks, _techOverride } = prev;
+      return {
+        uuid, name, author, description,
+        ...(_bookmarks ? { _bookmarks } : {}),
+        ...(_techOverride ? { _techOverride } : {}),
+      };
     });
     setDismissedAttempts({});
     onResetValidation?.();
     setIsClearAllOpen(false);
   }, [setTranslations, onResetValidation]);
+
+  // Per-row reclassification. Toggles between technical (hidden) and text
+  // (visible); an override that matches the auto verdict is dropped so the map
+  // only stores genuine corrections.
+  const handleToggleTechnical = useCallback((rowId) => {
+    setTranslations((prev) => {
+      const auto = autoCategoryById[rowId] || 'text';
+      const current = prev._techOverride || {};
+      const effective = current[rowId] || auto;
+      const target = effective === 'technical' ? 'text' : 'technical';
+      const next = { ...current };
+      if (target === auto) delete next[rowId];
+      else next[rowId] = target;
+      return { ...prev, _techOverride: next };
+    });
+  }, [setTranslations, autoCategoryById]);
 
   const dismissMissingRowHighlight = useCallback(
     (rowId, isMissingByValidation) => {
@@ -178,13 +230,13 @@ export default function MainTable({
       >
         {/* Header strip: progress + auto-translate button + search */}
         <div className="shrink-0 mb-4 flex items-center pl-1 pr-[14px] gap-0">
-          <div className="glass-panel px-5 py-3 rounded-2xl flex items-center shrink-0" data-tutorial="editor-progress">
-            <div className="flex flex-col gap-1.5 items-start">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest leading-none">
+          <div className="glass-panel px-5 py-3 rounded-2xl flex items-center min-w-0 flex-[0_1_300px]" data-tutorial="editor-progress">
+            <div className="flex flex-col gap-1.5 items-start min-w-0 w-full">
+              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest leading-none truncate max-w-full">
                 {t.editor.progressLabel}
               </span>
-              <div className="flex items-center gap-3">
-                <div className="h-1.5 bg-surface-2 rounded-full ring-1 ring-white/[0.1] relative" style={{ width: PROGRESS_BAR_WIDTH }}>
+              <div className="flex items-center gap-3 w-full min-w-0">
+                <div className="h-1.5 bg-surface-2 rounded-full ring-1 ring-white/[0.1] relative flex-1 min-w-0" style={{ maxWidth: PROGRESS_BAR_MAX }}>
                   <div className="absolute inset-0 overflow-hidden rounded-full">
                     <div
                       className={`h-full bg-gradient-to-r ${getProgressGradient(progress)} rounded-full transition-all duration-700 ease-out`}
@@ -192,7 +244,7 @@ export default function MainTable({
                     />
                   </div>
                 </div>
-                <span className="text-xs font-semibold text-zinc-300">
+                <span className="text-xs font-semibold text-zinc-300 shrink-0">
                   {translatedCount} / {totalCount}
                 </span>
               </div>
@@ -203,7 +255,7 @@ export default function MainTable({
 
           <div
             data-tutorial="editor-btn-translate"
-            className={`transition-all origin-bottom shrink-0 ${
+            className={`transition-all origin-bottom min-w-0 flex-[0_1_210px] ${
               isAtpExpanded
                 ? 'scale-y-0 scale-x-50 opacity-0 pointer-events-none translate-y-4'
                 : 'scale-100 opacity-100 translate-y-0'
@@ -214,12 +266,13 @@ export default function MainTable({
               disabled={!originalStrings.length}
               isTranslating={isTranslating}
               onOpen={onAutoTranslateOpen}
+              className="w-full min-w-0"
             />
           </div>
 
           <DividerLine isHidden={isAtpExpanded} origin="left" direction="l" />
 
-          <div className="relative group shrink-0 w-full" style={{ maxWidth: '300px' }} data-tutorial="editor-search">
+          <div className="relative group min-w-0 flex-[0_1_300px]" data-tutorial="editor-search">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
               <Search className="w-4 h-4 text-zinc-500 group-focus-within:text-white/60 transition-colors duration-200" />
             </div>
@@ -273,6 +326,33 @@ export default function MainTable({
               ))}
             </div>
             <div className="w-px h-4 bg-white/[0.07] shrink-0" />
+
+            {/* Technical-string visibility — only when the classifier ran (MSC). */}
+            {hasClassified && (
+              <>
+                <div className="flex items-center shrink-0 px-3">
+                  <button
+                    type="button"
+                    onClick={() => setShowTechnical((v) => !v)}
+                    title={showTechnical ? t.editor.techHideTitle : t.editor.techShowTitle}
+                    className={`flex items-center gap-1.5 h-6 px-2.5 text-[11px] font-semibold rounded-md transition-all duration-150 ${
+                      showTechnical
+                        ? 'bg-sky-400/[0.14] text-sky-300'
+                        : 'text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    <Wrench className="w-[12px] h-[12px] shrink-0" />
+                    {showTechnical ? t.editor.techShown : t.editor.techHidden}
+                    {technicalHiddenCount > 0 && !showTechnical && (
+                      <span className="text-[10px] font-bold tabular-nums leading-none px-1 py-px rounded text-zinc-700">
+                        {technicalHiddenCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
+                <div className="w-px h-4 bg-white/[0.07] shrink-0" />
+              </>
+            )}
 
             <div className="flex-1 min-w-0" />
 
@@ -360,9 +440,12 @@ export default function MainTable({
                   isMissingByValidation={isMissingByValidation}
                   isRequiredMissing={isRequiredMissing}
                   isBookmarked={bookmarks.has(row.id)}
+                  techState={effectiveCategoryOf(row.id)}
+                  techReasons={row.techReasons}
                   onTranslateChange={handleTranslateChange}
                   onClearTranslation={handleClearTranslation}
                   onToggleBookmark={handleToggleBookmark}
+                  onToggleTechnical={hasClassified ? handleToggleTechnical : undefined}
                   onDismissHighlight={dismissMissingRowHighlight}
                 />
               );

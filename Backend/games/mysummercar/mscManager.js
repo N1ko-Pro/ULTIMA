@@ -9,13 +9,17 @@ const fs = require('fs');
 const path = require('path');
 const mscToolCli = require('./dll_utils/mscToolCli');
 const { extractDllFromZip, extractDllFromRar } = require('./dll_utils/archiveDll');
+const { readAssemblyDescription } = require('./dll_utils/assemblyInfo');
+const { classifyStrings } = require('../../manager/stringClassifier');
 
-function buildModInfo(sourcePath) {
+function buildModInfo(sourcePath, dllPath) {
   return {
     name: path.basename(sourcePath, path.extname(sourcePath)),
     author: '',
     uuid: '',
-    description: '',
+    // MSC mods carry no .pak metadata; the description is read from the DLL's
+    // embedded .NET assembly info (AssemblyDescription / Title / Product).
+    description: dllPath ? readAssemblyDescription(dllPath) : '',
   };
 }
 
@@ -28,7 +32,7 @@ async function resolveDll(filePath, ext) {
 }
 
 /**
- * @returns {Promise<{ strings: Record<string,string>, modInfo: object, workspaceDirName: null }>}
+ * @returns {Promise<{ strings: Record<string,string>, stringMeta: object, modInfo: object, workspaceDirName: null }>}
  */
 async function loadStrings(filePath, ext) {
   let tempDir = null;
@@ -41,12 +45,27 @@ async function loadStrings(filePath, ext) {
     }
 
     const literals = await mscToolCli.extract(resolved.dllPath);
+    const items = [];
     const strings = {};
-    for (const { id, text } of literals) {
-      if (text && text.trim()) strings[id] = text;
+    for (const { id, text, context } of literals) {
+      if (text && text.trim()) {
+        strings[id] = text;
+        // `context` (IL-usage signals) is present only with newer MscLocTool
+        // builds; the classifier treats it as optional (Phase 2).
+        items.push({ id, text, context });
+      }
     }
 
-    return { strings, modInfo: buildModInfo(filePath), workspaceDirName: null };
+    // Classify each literal as player-facing text vs technical token so the
+    // editor can hide the noise by default (see manager/stringClassifier).
+    const stringMeta = classifyStrings(items);
+
+    return {
+      strings,
+      stringMeta,
+      modInfo: buildModInfo(filePath, resolved.dllPath),
+      workspaceDirName: null,
+    };
   } finally {
     if (tempDir) {
       try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch { /* ignore */ }

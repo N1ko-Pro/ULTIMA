@@ -10,7 +10,7 @@ const os = require('os');
 const util = require('util');
 const { execFile } = require('child_process');
 const execFileAsync = util.promisify(execFile);
-const { EXE_NAME } = require('../toolConfig');
+const { EXE_NAME, VERSION_FILE } = require('../toolConfig');
 
 const EXEC_OPTIONS = { windowsHide: true, maxBuffer: 128 * 1024 * 1024 };
 
@@ -29,6 +29,19 @@ function isPresent() {
   return Boolean(exe && fs.existsSync(exe));
 }
 
+// Version recorded by the downloader (sidecar file). null when unknown — e.g.
+// a tool installed by an older app build that didn't write the marker.
+function getInstalledVersion() {
+  if (!toolDir) return null;
+  try {
+    const versionPath = path.join(toolDir, VERSION_FILE);
+    if (!fs.existsSync(versionPath)) return null;
+    return fs.readFileSync(versionPath, 'utf8').trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 function ensureAvailable() {
   if (!isPresent()) {
     const err = new Error('MSC_TOOL_MISSING');
@@ -38,8 +51,12 @@ function ensureAvailable() {
 }
 
 /**
+ * Extract hardcoded string literals from a mod DLL.
+ * Newer MscLocTool builds may attach an optional `context` object per literal
+ * (IL-usage signals: { sinks?, roles?, fields? }) consumed by the string
+ * classifier. Older builds omit it — that's fine, it's treated as optional.
  * @param {string} dllPath
- * @returns {Promise<{ id: string, text: string }[]>}
+ * @returns {Promise<{ id: string, text: string, context?: object }[]>}
  */
 async function extract(dllPath) {
   ensureAvailable();
@@ -65,4 +82,4 @@ async function inject(dllPath, translations, outPath) {
   }
 }
 
-module.exports = { configure, getExePath, isPresent, extract, inject };
+module.exports = { configure, getExePath, isPresent, getInstalledVersion, extract, inject };

@@ -9,10 +9,15 @@ function registerDependencyHandlers(mainWindow, { games }) {
   ipcMain.handle(CH.DEPS_CHECK, wrapHandler(async (_, gameId) => {
     const gameModule = games.getGameModule(gameId);
     if (!gameModule?.checkDependencies) {
-      return { success: true, ok: true, missing: [] };
+      return { success: true, ok: true, updateAvailable: false, missing: [] };
     }
     const result = await gameModule.checkDependencies();
-    return { success: true, ok: !!result.ok, missing: result.missing || [] };
+    return {
+      success: true,
+      ok: !!result.ok,
+      updateAvailable: !!result.updateAvailable,
+      missing: result.missing || [],
+    };
   }));
 
   ipcMain.handle(CH.DEPS_INSTALL, wrapHandler(async (event, gameId) => {

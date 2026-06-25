@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { BookOpen, FolderOpen, Save, LogOut } from 'lucide-react';
 import { useAuth } from '@Core/Services/AuthService';
 import { useLocale } from '@Locales/LocaleProvider';
@@ -31,6 +31,7 @@ function TopBar({
   onPackAttemptWithOriginalUuid,
   targetLanguage,
   onChangeTargetLanguage,
+  gameId,
 }) {
   const [isPackModalOpen,       setIsPackModalOpen]       = useState(false);
   const [isCloseConfirmOpen,    setIsCloseConfirmOpen]    = useState(false);
@@ -38,6 +39,56 @@ function TopBar({
   const [packWarnings,          setPackWarnings]          = useState(null);
   const { canUseDictionary } = useAuth();
   const t = useLocale();
+
+  // ── Adaptive layout ───────────────────────────────────────────────────────
+  // The toolbar can't always fit every labelled button — the editor column
+  // narrows with the window and shrinks further when a side panel opens. Rather
+  // than dropping buttons (they're all important), we collapse them to icons
+  // progressively, in reverse priority order, so the primary action keeps its
+  // label the longest:
+  //   level 0 — everything labelled
+  //   level 1 — XML import/export → icons
+  //   level 2 — + target-language pill → flag only
+  //   level 3 — + "Pack" → icon (most compact; every button still visible)
+  // Driven by the header's real border-box width with per-step hysteresis so
+  // dragging near a breakpoint doesn't flicker.
+  const headerRef = useRef(null);
+  const levelRef  = useRef(0);
+  const [level, setLevel] = useState(0);
+
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+
+    // Minimum width to STAY at each level (0,1,2). Below it we drop one step of
+    // detail; detail is only restored once we clear the boundary by HYST.
+    const MINS = [1000, 858, 770];
+    const HYST = 40;
+
+    const resolve = (width) => {
+      let lvl = levelRef.current;
+      while (lvl < 3 && width < MINS[lvl]) lvl += 1;
+      while (lvl > 0 && width >= MINS[lvl - 1] + HYST) lvl -= 1;
+      return lvl;
+    };
+
+    const ro = new ResizeObserver((entries) => {
+      const width = entries[0]?.borderBoxSize?.[0]?.inlineSize ?? el.offsetWidth;
+      const next = resolve(width);
+      if (next !== levelRef.current) { levelRef.current = next; setLevel(next); }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const xmlCompact  = level >= 1;
+  const langCompact = level >= 2;
+  const packCompact = level >= 3;
+
+  const gapCls = level === 0 ? 'gap-3' : level === 1 ? 'gap-2' : 'gap-1.5';
+  const prCls  = level === 0 ? 'pr-8' : level === 1 ? 'pr-5' : 'pr-3';
+  const plCls  = isDictionaryOpen ? 'pl-0' : (level === 0 ? 'pl-8' : level === 1 ? 'pl-5' : 'pl-3');
+  const divider = `w-px h-8 bg-white/10 shrink-0 ${level === 0 ? 'mx-2' : 'mx-1'}`;
 
   const handlePackClick = () => {
     if (hasOriginalUuid) {
@@ -71,7 +122,8 @@ function TopBar({
   return (
     <>
       <header
-        className={`h-20 border-b border-white/[0.06] bg-surface-1/95 backdrop-blur-2xl flex items-center justify-between pr-8 shrink-0 relative z-30 transition-[padding-left] duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${isDictionaryOpen ? 'pl-0' : 'pl-8'}`}
+        ref={headerRef}
+        className={`h-20 border-b border-white/[0.06] bg-surface-1/95 backdrop-blur-2xl flex items-center justify-between shrink-0 relative z-30 transition-[padding] duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${prCls} ${plCls}`}
         data-tutorial="editor-toolbar"
       >
         <div className="absolute inset-0 bg-gradient-to-r from-surface-2/40 to-surface-2/20" />
@@ -109,7 +161,7 @@ function TopBar({
             {modData && (
               <button
                 type="button"
-                onClick={() => appWindow.openModFolder()}
+                onClick={() => appWindow.openModFolder(gameId)}
                 title={t.editor.openModFolder}
                 className="group relative h-[42px] w-[42px] flex items-center justify-center rounded-xl border bg-surface-2 border-white/[0.08] text-zinc-400 hover:text-sky-300 hover:border-sky-400/20 hover:bg-sky-400/[0.06] hover:shadow-[0_0_16px_rgba(56,189,248,0.1)] active:scale-[0.95] transition-all duration-200 overflow-hidden shrink-0"
               >
@@ -146,12 +198,12 @@ function TopBar({
           </ToolsGroup>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0" data-tutorial="editor-toolbar-right">
+        <div className={`flex items-center shrink-0 ${gapCls}`} data-tutorial="editor-toolbar-right">
           <div data-tutorial="editor-xml">
-            <XmlActionGroup onImport={onImportXml} onExport={onExportXml} />
+            <XmlActionGroup onImport={onImportXml} onExport={onExportXml} compact={xmlCompact} />
           </div>
 
-          <div className="w-px h-8 bg-white/10 mx-2" />
+          <div className={divider} />
 
           {targetLanguage && onChangeTargetLanguage && (
             <>
@@ -159,17 +211,18 @@ function TopBar({
                 <TargetLanguagePill
                   value={targetLanguage}
                   onChange={onChangeTargetLanguage}
+                  compact={langCompact}
                 />
               </div>
-              <div className="w-px h-8 bg-white/10 mx-2" />
+              <div className={divider} />
             </>
           )}
 
           <div data-tutorial="editor-pack">
-            <PackButton onPack={handlePackClick} />
+            <PackButton onPack={handlePackClick} compact={packCompact} />
           </div>
 
-          <div className="w-px h-8 bg-white/10 mx-2" />
+          <div className={divider} />
 
           <div data-tutorial="editor-settings-btn">
             <SettingsButton onSettings={onSettingsOpen} />

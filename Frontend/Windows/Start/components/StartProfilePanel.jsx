@@ -23,9 +23,9 @@ const GHOST_HEIGHT_IN  = '482px';
 const GHOST_HEIGHT_OUT = '262px';
 
 /**
- * @param {{ isExpanded: boolean, onToggle: () => void, onClose: () => void }} props
+ * @param {{ isExpanded: boolean, onToggle: () => void, onClose: () => void, onHeightChange?: (height: number) => void }} props
  */
-export function StartProfilePanel({ isExpanded, onToggle, onClose }) {
+export function StartProfilePanel({ isExpanded, onToggle, onClose, onHeightChange }) {
   const auth = useAuth();
   const t = useLocale();
   const panelRef = useRef(null);
@@ -53,6 +53,23 @@ export function StartProfilePanel({ isExpanded, onToggle, onClose }) {
     document.addEventListener('mousedown', handleMouseDown);
     return () => document.removeEventListener('mousedown', handleMouseDown);
   }, [isExpanded, onClose]);
+
+  // Report the panel's real rendered height so the launcher rail below can
+  // stick to its bottom edge — tracking the open/close animation frame by
+  // frame and adapting to the guest vs. logged-in layouts automatically.
+  // The ghost div is absolutely positioned, so it does not affect this height.
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!el || !onHeightChange || typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const h = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height;
+        onHeightChange(Math.round(h));
+      }
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [onHeightChange]);
 
   return (
     <>

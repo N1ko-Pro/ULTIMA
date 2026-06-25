@@ -104,6 +104,14 @@ export default function useAppState() {
     setDepsModalOpen(true);
   }, []);
 
+  // Set the dependency context WITHOUT opening the modal. Used for non-blocking
+  // update offers: the user is only nudged via a notification and can open the
+  // modal from the bell when (if) they choose to update.
+  const primeDepsModal = useCallback((gameId, missing) => {
+    setDepsGameId(gameId);
+    setDepsMissing(missing || []);
+  }, []);
+
   const closeDepsModal = useCallback(() => setDepsModalOpen(false), []);
 
   const handleInstallDeps = useCallback(async (onProgress) => {
@@ -194,6 +202,7 @@ export default function useAppState() {
     depsMissing,
     depsGameId,
     openDepsModal,
+    primeDepsModal,
     closeDepsModal,
     handleInstallDeps,
     onboardingReady,

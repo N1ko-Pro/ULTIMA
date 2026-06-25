@@ -126,6 +126,8 @@ app.whenReady().then(() => {
     }
   } catch (e) { console.warn('[migration] Glossary migration skipped:', e?.message); }
   try { dictionaryManager.initialize(getUserDataPath(), getDefaultGlossaryPath()); } catch (e) { console.error('[dictionaryManager]', e); }
+  // Relocate any legacy flat project records into their per-game folder.
+  try { projectManager.migrateLegacyProjects(getUserDataPath()); } catch (e) { console.warn('[migration] Projects migration skipped:', e?.message); }
   try { authManager.initialize(getUserDataPath(), app.getAppPath()); } catch (e) { console.error('[authManager]', e); }
   for (const game of games.listGameModules()) {
     try { game.initialize(getUserDataPath(), app.getAppPath()); } catch (e) { console.error(`[game:${game.id}]`, e); }

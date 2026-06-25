@@ -14,6 +14,7 @@ const { downloadTool } = require('./dll_utils/mscToolDownloader');
 const { TOOL_VERSION, SIZE_MB } = require('./toolConfig');
 
 let toolDir = null;
+let workspaceDir = null;
 
 module.exports = {
   id: 'mysummercar',
@@ -22,22 +23,46 @@ module.exports = {
     if (userDataPath && typeof userDataPath === 'string') {
       toolDir = path.join(userDataPath, 'tools', 'msc');
       mscToolCli.configure(toolDir);
+      // Per-game workspace segment. MSC extracts to temp dirs during ingest, so
+      // this folder is mostly a stable, game-owned location for "open folder".
+      workspaceDir = path.join(userDataPath, 'workspace', 'MSC');
     }
   },
 
   registerHandlers() { /* no game-specific IPC yet */ },
 
+  // Folder revealed by the generic "open folder" action.
+  getWorkspaceFolder() {
+    return workspaceDir;
+  },
+
   // ── Dependency contract ───────────────────────────────────────────────────
+  // Presence gates usage; version is only a *non-blocking* update offer, so a
+  // user who declines an update can still open mods with the installed tool.
   async checkDependencies() {
-    const ok = mscToolCli.isPresent();
+    const present = mscToolCli.isPresent();
+    const installedVersion = mscToolCli.getInstalledVersion();
+    const upToDate = present && installedVersion === TOOL_VERSION;
+
+    const item = {
+      id: 'msc-tool',
+      name: 'MscLocTool',
+      version: TOOL_VERSION,
+      sizeMb: SIZE_MB,
+    };
+
+    if (!present) {
+      // Required install — this DOES block opening mods.
+      return { ok: false, updateAvailable: false, missing: [item] };
+    }
+    if (upToDate) {
+      return { ok: true, updateAvailable: false, missing: [] };
+    }
+    // Present but outdated → offer an update, but report ok so nothing blocks.
     return {
-      ok,
-      missing: ok ? [] : [{
-        id: 'msc-tool',
-        name: 'MscLocTool',
-        version: TOOL_VERSION,
-        sizeMb: SIZE_MB,
-      }],
+      ok: true,
+      updateAvailable: true,
+      missing: [{ ...item, outdated: true, installedVersion: installedVersion || null }],
     };
   },
 

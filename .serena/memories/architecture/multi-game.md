@@ -246,3 +246,185 @@ MSC-моды = управляемые .NET .dll; строки = операнды
 - Per-game рабочее пространство (StartPage/MainPage сейчас BG3-специфичны:
   .pak, Divine, bg3Manager и т.д.). Ветвление по `selectedGame` ещё не сделано.
 - Бэкенд-менеджеры для My Summer Car (пока нет).
+
+## Физическое разделение данных по играм (на диске) — ВЫПОЛНЕНО
+Раньше всё хранилось плоско. Теперь — подпапки по «короткому» имени игры.
+- Реестр: `Backend/games/gameRegistry.js` — у каждой игры поле `folder`
+  (`bg3`→`BG3`, `mysummercar`→`MSC`) + `getGameFolder(id)` (фолбэк на
+  дефолтную игру для легаси/невалидных id).
+- Проекты (JSON): `<userData>/projects/<FOLDER>/<id>.json`.
+  - `project_utils/fileIO.js`: `ensureProjectsRoot`,
+    `ensureProjectsDirectory(userDataPath, folder)`,
+    `listProjectJsonFiles(dir)`, `buildProjectFilePath`, `readProjectFile`.
+  - `manager/projectManager.js`: `saveProject` пишет в папку по
+    `getGameFolder(record.game)` и удаляет старую копию, если путь изменился;
+    `getProjectById`/`deleteProjectRecord` ищут файл через `findProjectFile`
+    (сканируют все game-папки + легаси-корень — id это UUID, уникален);
+    `loadProjectSummaries` сканирует все папки и дедупит по id;
+    `migrateLegacyProjects(userDataPath)` — разовый best-effort перенос плоских
+    `projects/*.json` в папку по `game` (дефолт BG3). Подписи IPC-хендлеров НЕ
+    менялись → `projectHandlers.js` не трогали. Вызов миграции в `main.js`
+    (whenReady, после dictionaryManager.initialize).
+- Workspace-артефакты BG3: `<userData>/workspace/BG3/...`.
+  `bg3Manager.initialize` ставит `workspaceDir = workspace/BG3` и зовёт
+  `_migrateLegacyWorkspace` (переносит «свободные» папки из `workspace/` в
+  `workspace/BG3`, пропуская зарезервированные имена game-папок, не
+  перетирая существующие, best-effort). MSC: `workspace/MSC` (в основном
+  пустая — MSC распаковывает во временные папки), задаётся в `index.initialize`.
+
+## «Открыть папку» — generic, маршрутизация по игре — ВЫПОЛНЕНО
+- Контракт игрового модуля расширен опц. методом `getWorkspaceFolder()`:
+  - BG3 (`games/bg3/index.js`): `cachedData.modWorkspaceDir || workspaceDir`
+    (папка текущего загруженного мода, иначе корень `workspace/BG3`).
+  - MSC (`games/mysummercar/index.js`): возвращает `workspace/MSC`.
+- Канал `MOD_OPEN_FOLDER` ('open-mod-folder') СТАЛ generic: хендлер удалён из
+  `games/bg3/handlers/modHandlers.js` (там убран неиспользуемый импорт `shell`)
+  и добавлен в `Backend/handlers/ingestHandlers.js` (там добавлены `shell`,
+  `fs`): резолвит `games.getGameModule(gameId).getWorkspaceFolder()`, создаёт
+  папку при отсутствии, `shell.openPath`, возвращает строку ошибки при сбое.
+- `gameId` прокинут с фронта: preload `openModFolder(gameId)` →
+  `Frontend/API/appWindow.js` `openModFolder(gameId)` → `TopBar` (проп `gameId`,
+  кнопка FolderOpen) → `MainPage` (проп `gameId`) → `App.jsx`
+  (`gameId={appState.selectedGame}`).
+
+
+## MSC — редактор: UUID скрыт, описание из DLL — ВЫПОЛНЕНО
+- UUID — это BG3-концепт (meta.lsx). `SideBar` получил проп `gameId`
+  (App → MainPage → SideBar); блок UUID обёрнут в `{showUuid && ...}`,
+  где `showUuid = gameId !== 'mysummercar'`. Для MSC блок не рендерится.
+- Описание мода для MSC берётся из DLL: новый `Backend/games/mysummercar/
+  dll_utils/assemblyInfo.js` → `readAssemblyDescription(dllPath)` — чистый JS
+  парсер PE → .rsrc → RT_VERSION → VS_VERSIONINFO, возвращает
+  Comments(AssemblyDescription) || FileDescription(AssemblyTitle) ||
+  ProductName, '' при любой ошибке (без нативных зависимостей).
+  `mscManager.buildModInfo(sourcePath, dllPath)` зовёт его; `loadStrings`
+  передаёт `resolved.dllPath` (до удаления temp). Описание попадает в
+  `modInfo.description` → блок «Описание мода» в SideBar.
+- ВАЖНО / ограничение: это AssemblyDescription, НЕ внутриигровое
+  MSCLoader `Mod.Description` (IL-строка-литерал). Чтобы взять именно
+  Mod.Description (и сделать его переводимым/реинжектируемым), нужно
+  расширить MscLocTool (dnlib) в репозитории ULTIMA_TOOLS, чтобы он помечал
+  нужный ldstr (name/author/description). Реинжект описания для MSC всё ещё
+  не реализован (как и общий MSC-репак).
+
+
+## Классификатор технических строк (MSC) — Фаза 1 — ВЫПОЛНЕНО
+Цель: при выдаче строк из DLL отделять переводимый текст от технического
+(идентификаторы, пути, ключи, форматы). Данные НЕ удаляются — помечаются.
+
+Бэкенд (generic, без ИИ, оффлайн, объяснимо):
+- `Backend/manager/stringClassifier/rules.js` — взвешенные СТРУКТУРНЫЕ детекторы
+  (path/assetExt/parenTag/snake/camel/allCaps/alnumMix/keyword/noSpace +
+  негативные multiword/sentence/hasSpace). Веса подобраны; пороги
+  `THRESHOLDS={technical:3, text:-2}`.
+- `Backend/manager/stringClassifier/index.js` — `classifyString(text, ctx?)` и
+  `classifyStrings(items)`. Три полосы: 'technical' | 'uncertain' | 'text'.
+  Консервативный байас: одиночные слова (Open/Fold/Trigger/Button) → 'uncertain'
+  (видимы, помечены), не прячем. Второй проход — кластеризация по префиксу
+  `Prefix_`: 'uncertain' с ≥2 техническими «соседями» → 'technical' (reason
+  'cluster'). API принимает необязательный `context` (зацеплено под будущий
+  IL-контекст из MscLocTool — Фаза 2 — без переделки вызовов).
+- Проверено на примерах пользователя: все `MSCQualityTweaks_*`, `ITEMS`,
+  `car jack(itemx)`, путь, `ThisPart` → technical; `Fold/Trigger/Open/Button`
+  → uncertain. Тест был временным (`_selftest.js`), удалён после прогона.
+- `mscManager.loadStrings` зовёт `classifyStrings` и возвращает `stringMeta`
+  ({id:{category,score,reasons}}) рядом со `strings`. Прокидывается через
+  index.js (ingest/loadProject спредят `...result`).
+
+Фронтенд:
+- `projectShape.mapStringDictionaryToRows(strings, meta)` — ряд получает
+  `{id, original, category, techReasons}` (дефолт category 'text' → BG3 не
+  затронут). `ProjectService` передаёт `stringMeta` в обоих путях (open/load).
+- `MainTable`: технические скрыты по умолчанию; тумблер «Технические скрыты/
+  видны (N)» в тулбаре (только при `hasClassified`, т.е. MSC). Прогресс
+  (translated/total) считается ТОЛЬКО по нетехническим. Переопределения per-row
+  персистятся в `translations._techOverride` ({id:'technical'|'text'}),
+  сохраняются при clearAll, как `_bookmarks`.
+- `VirtualTableRow`: технические ряды приглушены (opacity), у каждого ряда
+  кнопка-гаечный-ключ (Wrench) для перевода между technical/text; тултип
+  показывает причины (`t.editor.techReasons[code]`). Контрол виден только при
+  активной классификации (`onToggleTechnical` приходит только для MSC).
+- `collectPendingTranslationRows` исключает effective-technical из
+  авто-перевода (не тратим бюджет ИИ на идентификаторы). BG3 не затронут.
+- Локали: `editor.techHidden/techShown/techShowTitle/techHideTitle/
+  markTechnical/markTranslatable/techReasons{...}` в ru.js и en.js.
+
+Следующие фазы (по желанию): Фаза 2 — IL-контекст из MscLocTool (ULTIMA_TOOLS),
+решает спорные слова; Фаза 3 — Ollama для серой зоны; Фаза 4 — общий denylist.
+
+
+## Классификатор — Фаза 2 (IL-контекст) — consumer ВЫПОЛНЕН
+- `Backend/manager/stringClassifier/context.js` — база знаний «sink → вердикт».
+  `scoreContext(context)` даёт большой знаковый вес (±8, доминирует над
+  структурными порогами ±3): DISPLAY-sink → текст (показывается игроку),
+  TECHNICAL-sink → технический. Сигналы: `sinks` (API, напр.
+  `UnityEngine.GameObject::Find` → тех; `UnityEngine.GUI::Label`/`::set_text`/
+  MSCLoader Settings/ModUI → дисплей), `roles` (tag/name/key/path… vs
+  label/message/text…), `fields` (имена полей, токенизируются по camelCase/
+  snake → 'stateName' распознаётся). Если оба сигнала — взаимозачёт, решает
+  структура. reason-коды: 'ctxTechnical' (в тултипе), 'ctxDisplay' (нет).
+- `index.js classifyString` прибавляет `scoreContext` к структурному score.
+  Полностью обратносовместимо: нет контекста → поведение Фазы 1.
+- `mscManager.loadStrings` читает `context` из литералов и кладёт в items.
+  `mscToolCli.extract` JSDoc: `{ id, text, context? }` (context опционален —
+  старые сборки тула без него работают как раньше).
+- Проверено (временный тест, удалён): "Open"+Find→technical, "Open"+GUI.Button
+  →text, "Trigger"+role tag→technical, "Fold"+field stateName→technical,
+  display-sink спасает структурно-технический ярлык, без контекста → как Фаза 1.
+
+## Фаза 2 — патч MscLocTool — ВЫПОЛНЕН
+Исходники инструмента лежат в соседнем репо `c:\Project\ULTIMA_TOOLS\MscLocTool`
+(доступны с этой машины). Пропатчен `Program.cs`:
+- `Extract` теперь агрегирует по id (сохраняя first-seen порядок) и для каждой
+  строки собирает `context` через `AnalyzeUsage`: forward-scan (до 6 инструкций)
+  от `ldstr` до первого Call/Callvirt/Newobj (→ `sinks`: "Type::Method") или
+  Stfld/Stsfld (→ `fields`: имя поля); останавливается на ветвлении/возврате.
+  Выводит `{ id, text, context?: { sinks?[], fields?[] } }` (context опускается,
+  если сигналов нет). `inject` не тронут. Добавлен класс `Entry`.
+- Версия: `MscLocTool.csproj` → 1.1.0; `toolConfig.js` TOOL_VERSION → '1.1.0'.
+- Сборка `dotnet build -c Release` проходит (.NET 10 SDK на машине). Проверено
+  на dnlib.dll: 1541 строк, 946 с context, sinks атрибутируются корректно.
+- ОСТАЛОСЬ (релиз, делает пользователь): закоммитить ULTIMA_TOOLS и запушить тег
+  `msc-tools-v1.1.0` → workflow соберёт и выложит MscLocTool.exe; приложение уже
+  указывает на v1.1.0. Я НЕ коммитил/пушил (git-safety).
+
+
+## Авто-обновление MscLocTool у пользователя — ВЫПОЛНЕНО
+Раньше `checkDependencies` проверял только наличие exe → юзер со старой версией
+никогда не получал апдейт. Теперь — по версии:
+- `toolConfig.js`: добавлен `VERSION_FILE = 'MscLocTool.version'` (сайдкар-файл
+  с версией) + экспорт.
+- `mscToolDownloader.downloadTool`: после успешной загрузки пишет
+  `<toolDir>/MscLocTool.version` = TOOL_VERSION; перед rename удаляет старый exe
+  (на Windows renameSync не перезаписывает) → апдейт корректно overwrite'ит.
+- `mscToolCli.getInstalledVersion()` — читает сайдкар (null, если нет — напр.
+  установка старым билдом без маркера).
+- `index.checkDependencies()`: ok ТОЛЬКО если exe есть И версия === TOOL_VERSION.
+  Иначе `{ok:false, missing:[{..., outdated:present, installedVersion}]}`.
+  Триггеры уже есть: App.jsx зовёт depsApi.check при входе в игру; ingest гейтит.
+  Значит юзер со старым тулом (или без маркера) автоматически получит модалку.
+- UI: `DependencyModal` различает install vs update (`isUpdate = missing.some
+  outdated`): заголовок/описание/кнопка → `deps.updateTitle/updateDescription/
+  updateNow`; в строке инструмента показывается `v<installed>` (зачёркнуто) →
+  `v<new>`. App.jsx-нотификация тоже update-aware (`deps.updateNotif*`).
+- Локали: `deps.updateTitle/updateDescription/updateNow/updateNotifTitle/
+  updateNotifMsg` в ru.js и en.js.
+Итог: при следующем релизе тула достаточно поднять TOOL_VERSION (уже 1.1.0) —
+пользователи со старым exe увидят «Доступно обновление» и перекачают.
+
+
+## Обновление MscLocTool — НЕ блокирует (исправлено)
+Важно: апдейт не должен мешать открыть мод со старым тулом.
+- `checkDependencies` теперь: `ok = present` (наличие exe гейтит использование),
+  `updateAvailable = present && версия!=TOOL_VERSION` (не блокирует), `missing`
+  несёт либо install-item (нет exe), либо update-item (outdated:true) для модалки.
+- `dependencyHandlers` пробрасывает `updateAvailable`.
+- `ingestHandlers` гейтит по `!ok` (= только отсутствие exe) → устаревший, но
+  присутствующий тул мод открывает нормально (Phase 1 без контекста).
+- App.jsx (вход в игру): если `!ok` → openDepsModal (обязательная установка);
+  если `updateAvailable` → НЕ открывает модалку, только `primeDepsModal`
+  (ставит depsGameId/depsMissing без открытия) + info-уведомление
+  `deps.updateNotif*` (action 'deps-modal' → открыть из колокольчика по желанию).
+- AppStateService: добавлен `primeDepsModal(gameId, missing)` (set без open).
+Итог: обновление предлагается ненавязчиво, отказ не мешает работе со старой
+версией; отсутствие тула по-прежнему требует установки.

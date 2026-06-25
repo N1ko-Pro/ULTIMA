@@ -28,11 +28,16 @@ function SideBar({
   packAttemptWithOriginalUuid,
   onDismissPackAttempt,
   targetLanguage,
+  gameId,
 }) {
   const { uuid = '', author = '', name = '', description = '' } = modData || {};
   const auth = useAuth();
   const t = useLocale();
   const { anchorRef: tooltipAnchorRef, show: showTooltip, hide: hideTooltip, renderTooltip } = useTooltip();
+
+  // The mod UUID is a Baldur's Gate 3 concept (meta.lsx). Other games (e.g.
+  // My Summer Car) have no such field, so the block is hidden for them.
+  const showUuid = gameId !== 'mysummercar';
 
   const handleTranslate = (key, value) => {
     setTranslations((prev) => ({ ...prev, [key]: value }));
@@ -140,6 +145,7 @@ function SideBar({
                 />
               </FieldCard>
 
+              {showUuid && (
               <FieldCard>
                 <InputField
                   icon={Hash}
@@ -183,6 +189,7 @@ function SideBar({
                   }
                 />
               </FieldCard>
+              )}
             </div>
           </section>
 

@@ -1,4 +1,4 @@
-const { ipcMain, dialog, shell } = require('electron');
+const { ipcMain, dialog } = require('electron');
 const CH = require('../../../ipcChannels');
 const { wrapHandler } = require('../../../handlers/handlerUtils');
 const { getSuffix: getLangSuffix, normalizeCode: normalizeLangCode } = require('../../../manager/shared_utils/languages');
@@ -71,12 +71,6 @@ function registerModHandlers(mainWindow, { bg3Manager }) {
 
     await bg3Manager.saveAndRepack(updatedData, filePath, langCode);
     return { success: true, filePath };
-  }));
-  ipcMain.handle(CH.MOD_OPEN_FOLDER, wrapHandler(async () => {
-    const dir = bg3Manager.cachedData?.modWorkspaceDir;
-    if (!dir) return { success: false, error: 'No mod loaded' };
-    await shell.openPath(dir);
-    return { success: true };
   }));
 }
 

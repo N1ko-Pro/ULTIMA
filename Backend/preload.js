@@ -34,7 +34,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   }),
   abortTranslateStrings: () => ipcRenderer.invoke(CH.TRANSLATE_ABORT),
   repackMod: (updatedData, modName, targetLanguage) => ipcRenderer.invoke(CH.MOD_REPACK, { updatedData, modName, targetLanguage }),
-  openModFolder: () => ipcRenderer.invoke(CH.MOD_OPEN_FOLDER),
+  openModFolder: (gameId) => ipcRenderer.invoke(CH.MOD_OPEN_FOLDER, gameId),
   saveProject: (projectData) => ipcRenderer.invoke(CH.PROJECT_SAVE, projectData),
   loadProjects: () => ipcRenderer.invoke(CH.PROJECT_LOAD_ALL),
   deleteProject: (id) => ipcRenderer.invoke(CH.PROJECT_DELETE, id),

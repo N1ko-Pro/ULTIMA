@@ -31,6 +31,7 @@ export default function LanguageDropdown({
   className = '',
   variant = 'field',
   triggerLabel,
+  compact = false,
 }) {
   const t = useLocale();
   const code = normalizeLanguageCode(value);
@@ -114,7 +115,7 @@ export default function LanguageDropdown({
   // part of the same toolbar group. The `field` variant is the modal-style
   // input used inside ProjectInitModal / ProjectEditModal.
   const triggerCls = variant === 'pill'
-    ? 'group relative flex items-center gap-2.5 h-[42px] px-3.5 rounded-xl bg-white/[0.06] border border-white/[0.12] transition-all duration-200 hover:bg-white/[0.1] hover:border-amber-400/30 hover:shadow-[0_0_20px_rgba(251,191,36,0.08)] active:scale-[0.97] overflow-hidden'
+    ? `group relative flex items-center gap-2.5 h-[42px] rounded-xl bg-white/[0.06] border border-white/[0.12] transition-all duration-200 hover:bg-white/[0.1] hover:border-amber-400/30 hover:shadow-[0_0_20px_rgba(251,191,36,0.08)] active:scale-[0.97] overflow-hidden shrink-0 ${compact ? 'px-2.5' : 'px-3.5'}`
     : 'w-full flex items-center gap-3 h-[42px] px-3 rounded-xl border border-white/[0.08] bg-surface-2 hover:bg-surface-3 hover:border-white/[0.14] transition-all duration-200';
 
   return (
@@ -137,14 +138,16 @@ export default function LanguageDropdown({
         )}
 
         <FlagByName name={selected?.flag || 'FlagRU'} className="relative z-10 w-5 h-[14px] shrink-0" />
-        <div className={`relative z-10 ${variant === 'pill' ? 'flex items-center' : 'flex-1'} min-w-0 text-left`}>
-          <span className={`block font-medium truncate ${variant === 'pill' ? 'text-[12px] text-zinc-200 group-hover:text-amber-100 transition-colors duration-200' : 'text-[12px] text-zinc-200'}`}>
-            {selected?.nativeLabel || ''}
-          </span>
-          {variant === 'field' && localizedLabel(code) && localizedLabel(code) !== selected?.nativeLabel && (
-            <span className="block text-[10px] text-zinc-500 truncate">{localizedLabel(code)}</span>
-          )}
-        </div>
+        {!(variant === 'pill' && compact) && (
+          <div className={`relative z-10 ${variant === 'pill' ? 'flex items-center' : 'flex-1'} min-w-0 text-left`}>
+            <span className={`block font-medium truncate ${variant === 'pill' ? 'text-[12px] text-zinc-200 group-hover:text-amber-100 transition-colors duration-200' : 'text-[12px] text-zinc-200'}`}>
+              {selected?.nativeLabel || ''}
+            </span>
+            {variant === 'field' && localizedLabel(code) && localizedLabel(code) !== selected?.nativeLabel && (
+              <span className="block text-[10px] text-zinc-500 truncate">{localizedLabel(code)}</span>
+            )}
+          </div>
+        )}
         <ChevronDown
           className={`relative z-10 w-3.5 h-3.5 shrink-0 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''} ${variant === 'pill' ? 'text-zinc-400 group-hover:text-amber-200/70' : 'text-zinc-500'}`}
         />

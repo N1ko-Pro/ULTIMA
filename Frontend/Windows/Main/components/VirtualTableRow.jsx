@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Trash2, Bookmark } from 'lucide-react';
+import { Trash2, Bookmark, Wrench } from 'lucide-react';
 import HighlightedText from '@UI/Highlight/HighlightedText';
 import { useLocale } from '@Locales/LocaleProvider';
 
@@ -19,9 +19,12 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
   isMissingByValidation,
   isRequiredMissing,
   isBookmarked,
+  techState = 'text',
+  techReasons,
   onTranslateChange,
   onClearTranslation,
   onToggleBookmark,
+  onToggleTechnical,
   onDismissHighlight,
   searchQuery,
 }) {
@@ -30,6 +33,13 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
   const isTranslated = Boolean(normalizedTranslation.trim());
   const prevValueRef = useRef(normalizedTranslation);
   const textareaRef = useRef(null);
+
+  const isTechnical = techState === 'technical';
+  const isUncertain = techState === 'uncertain';
+  const reasonLabels = (techReasons || []).map((code) => t.editor.techReasons?.[code] || code);
+  const techTitle = isTechnical
+    ? t.editor.markTranslatable
+    : `${t.editor.markTechnical}${reasonLabels.length ? ` · ${reasonLabels.join(', ')}` : ''}`;
 
   const handleClear = () => {
     prevValueRef.current = normalizedTranslation;
@@ -76,7 +86,7 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
 
   return (
     <div className="pb-1.5">
-      <div className={`group grid grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_68px] gap-4 p-3 px-6 rounded-2xl items-center transition-all duration-200 border relative ${rowBorder}`}>
+      <div className={`group grid grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_68px] gap-4 p-3 px-6 rounded-2xl items-center transition-all duration-200 border relative ${rowBorder} ${isTechnical ? 'opacity-60 hover:opacity-100' : ''}`}>
 
         {/* Amber accent bar for bookmarked rows */}
         {isBookmarked && !isRequiredMissing && (
@@ -87,11 +97,29 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
           {displayIndex}
         </div>
 
-        <div className="text-[13px] text-zinc-300 leading-relaxed font-medium break-words [overflow-wrap:anywhere] select-text pl-4 border-r border-white/[0.06] pr-4 self-center min-w-0 relative">
+        <div className={`text-[13px] text-zinc-300 leading-relaxed font-medium break-words [overflow-wrap:anywhere] select-text pl-4 border-r border-white/[0.06] self-center min-w-0 relative ${onToggleTechnical ? 'pr-9' : 'pr-4'}`}>
           {!isTranslated && (
             <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-orange-400/60 shadow-[0_0_6px_rgba(251,146,60,0.4)]" />
           )}
           <HighlightedText text={row.original} mode="table" searchQuery={searchQuery} />
+
+          {onToggleTechnical && (
+            <button
+              type="button"
+              onClick={() => onToggleTechnical(row.id)}
+              title={techTitle}
+              aria-label={techTitle}
+              className={`absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center rounded-md transition-all duration-150 focus:outline-none ${
+                isTechnical
+                  ? 'text-zinc-300 bg-white/[0.06] hover:text-white hover:bg-white/[0.12]'
+                  : isUncertain
+                    ? 'text-amber-400/80 bg-amber-400/[0.08] hover:text-amber-300 hover:bg-amber-400/[0.16]'
+                    : 'text-zinc-700 opacity-0 group-hover:opacity-100 hover:text-zinc-300 hover:bg-white/[0.06]'
+              }`}
+            >
+              <Wrench className="w-3.5 h-3.5" />
+            </button>
+          )}
         </div>
 
         <div className="relative flex items-stretch min-w-0 self-stretch">

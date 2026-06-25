@@ -25,6 +25,12 @@ module.exports = {
     registerXmlHandlers(mainWindow, app);
   },
 
+  // Folder revealed by the generic "open folder" action: the currently-loaded
+  // mod's workspace if one is open, otherwise the BG3 workspace root.
+  getWorkspaceFolder() {
+    return bg3Manager.cachedData?.modWorkspaceDir || bg3Manager.workspaceDir;
+  },
+
   // Project pipeline hooks — called by the generic project handlers, resolved
   // via the project record's `game` field.
   ingest,

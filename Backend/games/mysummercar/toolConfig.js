@@ -9,8 +9,11 @@
 //  ship a new tool build.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const TOOL_VERSION = '1.0.0';
+const TOOL_VERSION = '1.1.0';
 const EXE_NAME = 'MscLocTool.exe';
+// Sidecar file recording the version actually downloaded, so the app can detect
+// an outdated tool and prompt an update (the exe itself exposes no version).
+const VERSION_FILE = 'MscLocTool.version';
 
 const DOWNLOAD_URL =
   `https://github.com/N1ko-Pro/ULTIMA_TOOLS/releases/download/msc-tools-v${TOOL_VERSION}/${EXE_NAME}`;
@@ -18,4 +21,4 @@ const DOWNLOAD_URL =
 // Approx download size shown in the dependency modal.
 const SIZE_MB = 65;
 
-module.exports = { TOOL_VERSION, EXE_NAME, DOWNLOAD_URL, SIZE_MB };
+module.exports = { TOOL_VERSION, EXE_NAME, VERSION_FILE, DOWNLOAD_URL, SIZE_MB };

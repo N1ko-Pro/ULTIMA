@@ -10,6 +10,7 @@ const { sanitizeWorkspaceTag, createSessionWorkspaceTag, resolveWorkspaceDirecto
 const DivineCliUtils = require("./bg3_utils/divineCliUtils");
 const { extractModInfo, buildTranslationMetaLsx, addDependencyToMetaLsx, buildInfoJson } = require("./bg3_utils/metaInfoUtils");
 const { getFolder, DEFAULT_LANG_CODE } = require("../../../manager/shared_utils/languages");
+const { GAMES } = require("../../gameRegistry");
 const AdmZip = require("adm-zip");
 
 function extractStringsFromParsedContent(parsedXml) {
@@ -65,7 +66,11 @@ class Bg3Manager {
 
   initialize(userDataPath, appPath) {
     if (userDataPath && typeof userDataPath === 'string') {
-      this.workspaceDir = path.join(userDataPath, 'workspace');
+      // Per-game segment: <userData>/workspace/BG3. Legacy builds wrote mod
+      // workspaces straight into <userData>/workspace — relocate those once.
+      const workspaceRoot = path.join(userDataPath, 'workspace');
+      this.workspaceDir = path.join(workspaceRoot, 'BG3');
+      this._migrateLegacyWorkspace(workspaceRoot, this.workspaceDir);
     }
     // In packaged builds, tools are unpacked to app.asar.unpacked/tools
     if (appPath && typeof appPath === 'string') {
@@ -74,6 +79,23 @@ class Bg3Manager {
       this.toolsDir = path.join(unpackedPath, 'tools');
       this.divineCliUtils = new DivineCliUtils(path.join(this.toolsDir, "divine.exe"));
     }
+  }
+
+  // Best-effort one-time move of legacy loose workspace folders into the BG3
+  // subfolder. Skips the per-game folders themselves and never clobbers.
+  _migrateLegacyWorkspace(workspaceRoot, bg3Dir) {
+    try {
+      if (!fs.existsSync(workspaceRoot)) return;
+      if (!fs.existsSync(bg3Dir)) fs.mkdirSync(bg3Dir, { recursive: true });
+      const reserved = new Set(GAMES.map((game) => game.folder));
+      for (const entry of fs.readdirSync(workspaceRoot)) {
+        if (reserved.has(entry)) continue;
+        const from = path.join(workspaceRoot, entry);
+        const to = path.join(bg3Dir, entry);
+        if (fs.existsSync(to)) continue;
+        try { fs.renameSync(from, to); } catch { /* in-use / locked — leave it */ }
+      }
+    } catch { /* best-effort, never block init */ }
   }
 
   clearCachedDataForWorkspace(workspacePath) {

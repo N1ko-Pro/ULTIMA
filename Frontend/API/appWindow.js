@@ -21,8 +21,8 @@ export const close = () => send('close');
  */
 export const openExternal = (url) => invoke('openExternal', url);
 
-/** Reveal the unpacked mod folder in the OS file manager. */
-export const openModFolder = () => invoke('openModFolder');
+/** Reveal the selected game's own folder in the OS file manager. */
+export const openModFolder = (gameId) => invoke('openModFolder', gameId);
 
 /**
  * Subscribe to the OS-level close request (X button / Alt+F4). Returns an

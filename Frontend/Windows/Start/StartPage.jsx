@@ -1,5 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { Settings, Info, Gamepad2 } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { notify } from '@Shared/notifications/notifyCore';
 import { useLocale } from '@Locales/LocaleProvider';
 import TutorialStartPage from '@UI/Tutorial/TutorialStartPage';
@@ -16,6 +15,7 @@ import { EmptyState } from './components/EmptyState';
 import { ProjectCard } from './components/ProjectCard';
 import { Footer } from './components/Footer';
 import { StartProfilePanel } from './components/StartProfilePanel';
+import { StartLauncherRail } from './components/StartLauncherRail';
 import { isAvailable } from '@API/client';
 import * as projectsApi from '@API/projects';
 import * as onboardingApi from '@API/onboarding';
@@ -75,6 +75,33 @@ export default function StartPage({
   const [editTarget,        setEditTarget]        = useState(null);
   const [showTutorial,      setShowTutorial]      = useState(false);
   const [isProfileExpanded, setIsProfileExpanded] = useState(false);
+  const [isLauncherExpanded, setIsLauncherExpanded] = useState(false);
+  const [profileHeight, setProfileHeight] = useState(40);
+
+  // ── Backdrop parallax ─────────────────────────────────────────────────────
+  // The artwork band sits behind the scroll container, so it would stay frozen
+  // while the content scrolls. Drive it upward from the scroll position (at a
+  // slower rate for depth) via rAF-throttled direct DOM writes — no re-renders.
+  const scrollRef   = useRef(null);
+  const backdropRef = useRef(null);
+  const rafRef      = useRef(0);
+
+  const PARALLAX_FACTOR = 0.5;
+
+  const handleScroll = useCallback(() => {
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = 0;
+      const el = backdropRef.current;
+      if (!el) return;
+      const top = scrollRef.current?.scrollTop ?? 0;
+      el.style.transform = `translate3d(0, ${-(top * PARALLAX_FACTOR)}px, 0)`;
+    });
+  }, []);
+
+  useEffect(() => () => {
+    if (rafRef.current) cancelAnimationFrame(rafRef.current);
+  }, []);
   const [exampleProject,    setExampleProject]    = useState(null);
 
   // ── Project list ────────────────────────────────────────────────────────
@@ -208,48 +235,25 @@ export default function StartPage({
   return (
     <div className="flex-1 flex flex-col relative overflow-hidden bg-surface-0 min-h-0">
       <PageBackground />
-      <WorkspaceBackdrop image={activeGame?.workspaceImage} />
+      <WorkspaceBackdrop ref={backdropRef} image={activeGame?.workspaceImage} />
 
       <StartProfilePanel
         isExpanded={isProfileExpanded}
         onToggle={() => setIsProfileExpanded((v) => !v)}
         onClose={() => setIsProfileExpanded(false)}
+        onHeightChange={setProfileHeight}
       />
 
-      <div className="absolute top-5 right-6 z-30 flex items-center gap-2" data-tutorial="top-buttons">
-        {onOpenGameSelect && (
-          <button
-            type="button"
-            onClick={onOpenGameSelect}
-            title={t.games.change}
-            className="group flex items-center justify-center w-10 h-10 rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-2xl hover:bg-white/[0.06] active:scale-[0.94] transition-colors duration-200"
-          >
-            <Gamepad2 className="w-5 h-5 text-zinc-500 group-hover:text-zinc-300 transition-colors duration-200" />
-          </button>
-        )}
-        {onOpenHome && (
-          <button
-            type="button"
-            onClick={onOpenHome}
-            title={t.projects.aboutApp}
-            className="group flex items-center justify-center w-10 h-10 rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-2xl hover:bg-white/[0.06] active:scale-[0.94] transition-colors duration-200"
-          >
-            <Info className="w-5 h-5 text-zinc-500 group-hover:text-zinc-300 transition-colors duration-200" />
-          </button>
-        )}
-        {onSettingsOpen && (
-          <button
-            type="button"
-            onClick={onSettingsOpen}
-            title="Настройки"
-            className="group flex items-center justify-center w-10 h-10 rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-2xl hover:bg-white/[0.06] active:scale-[0.94] transition-colors duration-200"
-          >
-            <Settings className="w-5 h-5 text-zinc-500 group-hover:text-zinc-300 transition-all duration-500 group-hover:rotate-90" />
-          </button>
-        )}
-      </div>
+      <StartLauncherRail
+        expanded={isLauncherExpanded}
+        onToggleExpand={() => setIsLauncherExpanded((v) => !v)}
+        profileHeight={profileHeight}
+        onOpenGameSelect={onOpenGameSelect}
+        onOpenHome={onOpenHome}
+        onSettingsOpen={onSettingsOpen}
+      />
 
-      <div className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden">
+      <div ref={scrollRef} onScroll={handleScroll} className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden">
         <div className="flex flex-col items-center px-10 pt-16 pb-20 w-full max-w-[1100px] mx-auto">
           <HeroSection />
           <div data-tutorial="dropzone">

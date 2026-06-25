@@ -9,16 +9,29 @@ import { getLanguageSuffix } from '@Config/languages.constants';
  * @typedef {Object} StringRow
  * @property {string} id
  * @property {string} original
+ * @property {'text'|'technical'|'uncertain'} [category]  auto classification
+ * @property {string[]} [techReasons]  reason codes behind the classification
  */
 
 /**
  * Convert the backend's `{ id: original }` dictionary into the array form
- * the editor uses for virtualization and ordering.
+ * the editor uses for virtualization and ordering. An optional `meta` map
+ * (`{ id: { category, reasons } }`, produced by the string classifier for
+ * games like MSC) annotates each row so the editor can filter technical noise.
  * @param {Record<string, string> | null | undefined} strings
+ * @param {Record<string, { category?: string, reasons?: string[] }> | null | undefined} [meta]
  * @returns {StringRow[]}
  */
-export function mapStringDictionaryToRows(strings) {
-  return Object.entries(strings || {}).map(([id, original]) => ({ id, original }));
+export function mapStringDictionaryToRows(strings, meta) {
+  return Object.entries(strings || {}).map(([id, original]) => {
+    const info = meta?.[id];
+    return {
+      id,
+      original,
+      category: info?.category || 'text',
+      techReasons: info?.reasons || [],
+    };
+  });
 }
 
 /**
@@ -57,7 +70,11 @@ export function toIdValueDictionary(items, valueKey) {
  * @returns {Array<{ id: string, text: string }>}
  */
 export function collectPendingTranslationRows(rows, translations) {
+  const overrides = translations?._techOverride || {};
   return (rows || [])
+    // Skip strings classified (or marked) as technical — they aren't meant for
+    // translation, so they shouldn't consume auto-translate budget.
+    .filter((row) => (overrides[row.id] || row.category || 'text') !== 'technical')
     .filter((row) => !hasText(translations?.[row.id]))
     .map((row) => ({ id: row.id, text: row.original }));
 }
