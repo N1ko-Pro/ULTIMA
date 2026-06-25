@@ -62,7 +62,7 @@
       "dist/**/*",
       "dist-electron/**/*",
       "Backend/config/**/*",
-      "tools/**/*",
+      "tools/BG3/**/*",
       "package.json",
       "!node_modules/**/{test,__tests__,tests,example,examples,docs}/**",
       "!**/*.{md,map,ts,tsx}",
@@ -86,7 +86,7 @@
     ],
     "asar": true,
     "asarUnpack": [
-      "tools/**/*"
+      "tools/BG3/**/*"
     ],
     "win": {
       "target": [

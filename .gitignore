@@ -6,7 +6,15 @@ dist/
 dist-ssr/
 dist-electron/
 release/
-build/
+
+# Installer build resources (electron-builder `buildResources`). Track the
+# resources, ignore the generated release-notes.md and placeholder.
+build/*
+!build/nsis/
+!build/icon.ico
+!build/installer.nsh
+!build/license_en_US.txt
+!build/license_ru_RU.txt
 
 # ── Local secrets & environment ──────────────────────────────────────────────
 .env
@@ -25,6 +33,15 @@ Glossary/glossary_user.json
 Backend/bin/
 Backend/DllParser/bin/
 Backend/DllParser/obj/
+
+# ── MSC tool (released from the separate N1ko-Pro/ULTIMA_TOOLS repo; the exe is
+#    downloaded at runtime to %APPDATA%/ULTIMA/tools/msc and never bundled).
+#    We edit the tool SOURCE here, so track it but ignore all build output. ────
+tools/MSC/*
+!tools/MSC/*.cs
+!tools/MSC/*.csproj
+!tools/MSC/README.md
+tools_src/
 
 # ── Logs ─────────────────────────────────────────────────────────────────────
 logs/
