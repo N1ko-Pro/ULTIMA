@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   maximize: () => ipcRenderer.send(CH.WIN_MAX),
   close: () => ipcRenderer.send(CH.WIN_CLOSE),
   openExternal: (url) => ipcRenderer.invoke(CH.WIN_OPEN_EXTERNAL, url),
+  getAppVersion: () => ipcRenderer.invoke(CH.APP_GET_VERSION),
   onOsClose: (callback) => {
     ipcRenderer.on(CH.WIN_OS_CLOSE, callback);
     return () => ipcRenderer.removeListener(CH.WIN_OS_CLOSE, callback);
@@ -21,7 +22,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Per-game dependencies
   depsCheck: (gameId) => ipcRenderer.invoke(CH.DEPS_CHECK, gameId),
-  depsInstall: (gameId) => ipcRenderer.invoke(CH.DEPS_INSTALL, gameId),
+  depsInstall: (gameId, toolId) => ipcRenderer.invoke(CH.DEPS_INSTALL, gameId, toolId),
   onDepsInstallProgress: (callback) => {
     const handler = (_, percent) => callback(percent);
     ipcRenderer.on(CH.DEPS_INSTALL_PROGRESS, handler);

@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Trash2, Bookmark, Wrench } from 'lucide-react';
+import { Trash2, Bookmark, Wrench, Eye, EyeOff } from 'lucide-react';
 import HighlightedText from '@UI/Highlight/HighlightedText';
 import { useLocale } from '@Locales/LocaleProvider';
 
@@ -19,11 +19,13 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
   isMissingByValidation,
   isRequiredMissing,
   isBookmarked,
+  isHidden,
   techState = 'text',
   techReasons,
   onTranslateChange,
   onClearTranslation,
   onToggleBookmark,
+  onToggleHidden,
   onToggleTechnical,
   onDismissHighlight,
   searchQuery,
@@ -109,7 +111,7 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
               onClick={() => onToggleTechnical(row.id)}
               title={techTitle}
               aria-label={techTitle}
-              className={`absolute top-1.5 right-1.5 w-6 h-6 flex items-center justify-center rounded-md transition-all duration-150 focus:outline-none ${
+              className={`absolute top-1/2 -translate-y-1/2 right-1.5 w-6 h-6 flex items-center justify-center rounded-md transition-all duration-150 focus:outline-none ${
                 isTechnical
                   ? 'text-zinc-300 bg-white/[0.06] hover:text-white hover:bg-white/[0.12]'
                   : isUncertain
@@ -151,29 +153,48 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
           </div>
         </div>
 
-        {/* Quick actions: bookmark + delete */}
-        <div className="flex items-center justify-end gap-1">
-          <button
-            type="button"
-            onClick={() => onToggleBookmark(row.id)}
-            title={isBookmarked ? t.editor.removeBookmark : t.editor.bookmarkRow}
-            aria-label={isBookmarked ? t.editor.removeBookmark : t.editor.bookmarkRow}
-            className={`w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-200 focus:outline-none ${
-              isBookmarked
-                ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-400/[0.12]'
-                : 'text-zinc-700 opacity-0 group-hover:opacity-100 hover:text-amber-400 hover:bg-amber-400/[0.08]'
-            }`}
-          >
-            <Bookmark className={`w-[15px] h-[15px] transition-all duration-150 ${isBookmarked ? 'fill-amber-400/80 scale-110' : ''}`} />
-          </button>
+        {/* Quick actions: favorite + hide (top row), clear (centered below) */}
+        <div className="flex flex-col items-center justify-center gap-1">
+          <div className="flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => onToggleBookmark(row.id)}
+              title={isBookmarked ? t.editor.removeBookmark : t.editor.bookmarkRow}
+              aria-label={isBookmarked ? t.editor.removeBookmark : t.editor.bookmarkRow}
+              className={`w-7 h-7 flex items-center justify-center rounded-lg transition-all duration-200 focus:outline-none ${
+                isBookmarked
+                  ? 'text-amber-400 hover:text-amber-300 hover:bg-amber-400/[0.12]'
+                  : 'text-zinc-700 opacity-0 group-hover:opacity-100 hover:text-amber-400 hover:bg-amber-400/[0.08]'
+              }`}
+            >
+              <Bookmark className={`w-[14px] h-[14px] transition-all duration-150 ${isBookmarked ? 'fill-amber-400/80 scale-110' : ''}`} />
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onToggleHidden(row.id)}
+              title={isHidden ? t.editor.unhideRow : t.editor.hideRow}
+              aria-label={isHidden ? t.editor.unhideRow : t.editor.hideRow}
+              className={`w-7 h-7 flex items-center justify-center rounded-lg transition-all duration-200 focus:outline-none ${
+                isHidden
+                  ? 'text-sky-400 hover:text-sky-300 hover:bg-sky-400/[0.12]'
+                  : 'text-zinc-700 opacity-0 group-hover:opacity-100 hover:text-sky-400 hover:bg-sky-400/[0.08]'
+              }`}
+            >
+              {isHidden
+                ? <Eye className="w-[14px] h-[14px]" />
+                : <EyeOff className="w-[14px] h-[14px]" />}
+            </button>
+          </div>
+
           <button
             type="button"
             onClick={handleClear}
             title={t.editor.clearRow}
             aria-label={t.editor.clearRow}
-            className="w-8 h-8 flex items-center justify-center rounded-lg text-zinc-700 opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/[0.08] transition-all duration-200 focus:outline-none"
+            className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-700 opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/[0.08] transition-all duration-200 focus:outline-none"
           >
-            <Trash2 className="w-4 h-4" />
+            <Trash2 className="w-[15px] h-[15px]" />
           </button>
         </div>
       </div>

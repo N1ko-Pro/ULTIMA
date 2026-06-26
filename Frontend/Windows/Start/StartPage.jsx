@@ -16,6 +16,7 @@ import { ProjectCard } from './components/ProjectCard';
 import { Footer } from './components/Footer';
 import { StartProfilePanel } from './components/StartProfilePanel';
 import { StartLauncherRail } from './components/StartLauncherRail';
+import ToolStatusWidget from './components/ToolStatusWidget';
 import { isAvailable } from '@API/client';
 import * as projectsApi from '@API/projects';
 import * as onboardingApi from '@API/onboarding';
@@ -66,6 +67,8 @@ export default function StartPage({
   onboarding,
   onOnboardingUpdate,
   onTutorialComplete,
+  toolStatus,
+  onInstallTools,
 }) {
   const t = useLocale();
   const activeGame = getGameById(selectedGame);
@@ -75,7 +78,6 @@ export default function StartPage({
   const [editTarget,        setEditTarget]        = useState(null);
   const [showTutorial,      setShowTutorial]      = useState(false);
   const [isProfileExpanded, setIsProfileExpanded] = useState(false);
-  const [isLauncherExpanded, setIsLauncherExpanded] = useState(false);
   const [profileHeight, setProfileHeight] = useState(40);
 
   // ── Backdrop parallax ─────────────────────────────────────────────────────
@@ -245,13 +247,16 @@ export default function StartPage({
       />
 
       <StartLauncherRail
-        expanded={isLauncherExpanded}
-        onToggleExpand={() => setIsLauncherExpanded((v) => !v)}
         profileHeight={profileHeight}
         onOpenGameSelect={onOpenGameSelect}
         onOpenHome={onOpenHome}
         onSettingsOpen={onSettingsOpen}
       />
+
+      {/* Per-game tool status — top-right corner of the workspace. */}
+      <div className="absolute top-5 right-6 z-30">
+        <ToolStatusWidget tools={toolStatus?.tools || []} onInstall={onInstallTools} />
+      </div>
 
       <div ref={scrollRef} onScroll={handleScroll} className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden">
         <div className="flex flex-col items-center px-10 pt-16 pb-20 w-full max-w-[1100px] mx-auto">

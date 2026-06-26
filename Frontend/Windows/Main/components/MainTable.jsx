@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback, useRef, useDeferredValue } from 'react';
 import { Virtuoso } from 'react-virtuoso';
-import { Search, Trash2, Bookmark, BookmarkX, Wrench } from 'lucide-react';
+import { Search, Trash2, Bookmark, EyeOff, Wrench } from 'lucide-react';
 import { useLocale } from '@Locales/LocaleProvider';
 import { useKeyboardShortcuts } from '@Utils/Keyboard/useKeyboardShortcuts';
 import ModalConfirm from '@UI/Modal/ModalConfirm';
@@ -42,7 +42,7 @@ export default function MainTable({
   const [searchQuery,         setSearchQuery]         = useState('');
   const [dismissedAttempts,   setDismissedAttempts]   = useState(() => ({}));
   const [isClearAllOpen,      setIsClearAllOpen]      = useState(false);
-  const [bookmarkFilter,       setBookmarkFilter]       = useState('all');
+  const [bookmarkFilter,       setBookmarkFilter]       = useState('all'); // 'all' | 'favorites' | 'hidden'
   const [rowLimit,            setRowLimit]            = useState('all');
   const [showTechnical,        setShowTechnical]        = useState(false);
   const searchInputRef = useRef(null);
@@ -117,6 +117,15 @@ export default function MainTable({
     return new Set(Object.keys(raw));
   }, [translations._bookmarks]);
 
+  // ── Hidden rows — stored in translations._hidden as { rowId: true } ───────
+  // A manual per-row "hide" (distinct from the auto technical classification).
+  // Hidden rows only appear under the "Скрытые" filter.
+  const hiddenRows = useMemo(() => {
+    const raw = translations._hidden;
+    if (!raw) return new Set();
+    return new Set(Object.keys(raw));
+  }, [translations._hidden]);
+
   const handleToggleBookmark = useCallback((rowId) => {
     setTranslations((prev) => {
       const current = prev._bookmarks || {};
@@ -126,10 +135,20 @@ export default function MainTable({
     });
   }, [setTranslations]);
 
-  // Auto-reset filter when last bookmark is removed
+  const handleToggleHidden = useCallback((rowId) => {
+    setTranslations((prev) => {
+      const current = prev._hidden || {};
+      const next = { ...current };
+      if (next[rowId]) { delete next[rowId]; } else { next[rowId] = true; }
+      return { ...prev, _hidden: next };
+    });
+  }, [setTranslations]);
+
+  // Auto-reset filter when its set empties out (last favorite/hidden removed).
   React.useEffect(() => {
-    if (bookmarkFilter !== 'all' && bookmarks.size === 0) setBookmarkFilter('all');
-  }, [bookmarkFilter, bookmarks.size]);
+    if (bookmarkFilter === 'favorites' && bookmarks.size === 0) setBookmarkFilter('all');
+    if (bookmarkFilter === 'hidden' && hiddenRows.size === 0) setBookmarkFilter('all');
+  }, [bookmarkFilter, bookmarks.size, hiddenRows.size]);
 
   const filteredStrings = useMemo(() => {
     if (!deferredQuery) return originalStrings || [];
@@ -140,15 +159,21 @@ export default function MainTable({
     );
   }, [originalStrings, translations, deferredQuery]);
 
-  // Apply bookmark filter + technical visibility + row limit on top of search.
+  // Apply row filter (all / favorites / hidden) + technical visibility + limit.
   const displayedStrings = useMemo(() => {
     let result = filteredStrings;
-    if (bookmarkFilter === 'only') result = result.filter((row) =>  bookmarks.has(row.id));
-    else if (bookmarkFilter === 'hide') result = result.filter((row) => !bookmarks.has(row.id));
-    if (!showTechnical) result = result.filter((row) => effectiveCategoryOf(row.id) !== 'technical');
+    if (bookmarkFilter === 'hidden') {
+      // Hidden view: only manually-hidden rows, shown regardless of technical.
+      result = result.filter((row) => hiddenRows.has(row.id));
+    } else {
+      // All / favorites: never show hidden rows here.
+      result = result.filter((row) => !hiddenRows.has(row.id));
+      if (bookmarkFilter === 'favorites') result = result.filter((row) => bookmarks.has(row.id));
+      if (!showTechnical) result = result.filter((row) => effectiveCategoryOf(row.id) !== 'technical');
+    }
     if (rowLimit !== 'all') result = result.slice(0, Number(rowLimit));
     return result;
-  }, [filteredStrings, bookmarkFilter, bookmarks, rowLimit, showTechnical, effectiveCategoryOf]);
+  }, [filteredStrings, bookmarkFilter, bookmarks, hiddenRows, rowLimit, showTechnical, effectiveCategoryOf]);
 
   // Technical rows currently hidden (within the search-filtered set).
   const technicalHiddenCount = useMemo(
@@ -183,11 +208,12 @@ export default function MainTable({
 
   const handleClearAllTranslations = useCallback(() => {
     setTranslations((prev) => {
-      const { uuid, name, author, description, _bookmarks, _techOverride } = prev;
+      const { uuid, name, author, description, _bookmarks, _techOverride, _hidden } = prev;
       return {
         uuid, name, author, description,
         ...(_bookmarks ? { _bookmarks } : {}),
         ...(_techOverride ? { _techOverride } : {}),
+        ...(_hidden ? { _hidden } : {}),
       };
     });
     setDismissedAttempts({});
@@ -292,20 +318,20 @@ export default function MainTable({
         <div className="shrink-0 mb-3 pr-[14px]">
           <div className="flex items-center gap-0 h-10 px-3 rounded-xl border border-white/[0.07] bg-surface-1/60 backdrop-blur-sm">
 
-            {/* Bookmark filter — always visible */}
+            {/* Row filter — All / Favorites / Hidden */}
             <div className="flex items-center shrink-0 pr-3">
               {[
-                { value: 'all',  label: t.editor.filterAll,  Icon: null },
-                { value: 'only', label: t.editor.filterOnly, Icon: Bookmark },
-                { value: 'hide', label: t.editor.filterHide, Icon: BookmarkX },
-              ].map(({ value: v, label, Icon }) => (
+                { value: 'all',       label: t.editor.filterAll,       Icon: null,     count: 0 },
+                { value: 'favorites', label: t.editor.filterFavorites, Icon: Bookmark, count: bookmarks.size },
+                { value: 'hidden',    label: t.editor.filterHidden,    Icon: EyeOff,   count: hiddenRows.size },
+              ].map(({ value: v, label, Icon, count }) => (
                 <button
                   key={v}
                   type="button"
                   onClick={() => setBookmarkFilter(v)}
                   className={`flex items-center gap-1.5 h-6 px-2.5 text-[11px] font-semibold rounded-md transition-all duration-150 ${
                     bookmarkFilter === v
-                      ? v === 'only'
+                      ? v === 'favorites'
                         ? 'bg-amber-400/[0.15] text-amber-300'
                         : 'bg-surface-4/80 text-zinc-200'
                       : 'text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04]'
@@ -313,14 +339,16 @@ export default function MainTable({
                 >
                   {Icon && (
                     <Icon className={`w-[11px] h-[11px] shrink-0 ${
-                      bookmarkFilter === v && v === 'only' ? 'fill-amber-400/70' : ''
+                      bookmarkFilter === v && v === 'favorites' ? 'fill-amber-400/70' : ''
                     }`} />
                   )}
                   {label}
-                  {v === 'only' && bookmarks.size > 0 && (
+                  {count > 0 && (
                     <span className={`text-[10px] font-bold tabular-nums leading-none px-1 py-px rounded ${
-                      bookmarkFilter === 'only' ? 'text-amber-300/70' : 'text-zinc-700'
-                    }`}>{bookmarks.size}</span>
+                      bookmarkFilter === v
+                        ? v === 'favorites' ? 'text-amber-300/70' : 'text-zinc-400'
+                        : 'text-zinc-700'
+                    }`}>{count}</span>
                   )}
                 </button>
               ))}
@@ -357,7 +385,7 @@ export default function MainTable({
             <div className="flex-1 min-w-0" />
 
             {/* Row count when not showing full set */}
-            {displayedStrings.length < filteredStrings.length && bookmarkFilter !== 'only' && (
+            {displayedStrings.length < filteredStrings.length && bookmarkFilter === 'all' && (
               <>
                 <span className="text-[11px] text-zinc-600 font-medium tabular-nums shrink-0 pr-3">
                   {displayedStrings.length} {t.editor.ofTotal} {filteredStrings.length}
@@ -440,11 +468,13 @@ export default function MainTable({
                   isMissingByValidation={isMissingByValidation}
                   isRequiredMissing={isRequiredMissing}
                   isBookmarked={bookmarks.has(row.id)}
+                  isHidden={hiddenRows.has(row.id)}
                   techState={effectiveCategoryOf(row.id)}
                   techReasons={row.techReasons}
                   onTranslateChange={handleTranslateChange}
                   onClearTranslation={handleClearTranslation}
                   onToggleBookmark={handleToggleBookmark}
+                  onToggleHidden={handleToggleHidden}
                   onToggleTechnical={hasClassified ? handleToggleTechnical : undefined}
                   onDismissHighlight={dismissMissingRowHighlight}
                 />

@@ -35,7 +35,11 @@ const hasWhitespace = (t) => /\s/.test(t);
 function isPathLike(t) {
   if (hasWhitespace(t)) return false;
   if (!/[/\\]/.test(t)) return false;
-  return t.split(/[/\\]/).filter(Boolean).length >= 2;
+  const segments = t.split(/[/\\]/).filter(Boolean).length;
+  // Multi-segment paths (`a/b/c`) OR a single token carrying a leading/trailing
+  // slash (`ITEMS/`, `/Spawn`, `Assets\`). Both are structural identifiers /
+  // resource prefixes, never player-facing prose.
+  return segments >= 2 || /[/\\]$/.test(t) || /^[/\\]/.test(t);
 }
 
 function isParenTag(t) {

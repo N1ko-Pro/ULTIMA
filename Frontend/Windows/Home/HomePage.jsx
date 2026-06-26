@@ -1,7 +1,8 @@
 import React from 'react';
-import { Settings } from 'lucide-react';
+import { Info, Settings } from 'lucide-react';
 import { useLocale } from '@Locales/LocaleProvider';
 import { GAMES } from '@Games/registry';
+import { LauncherDock } from '@Core/Navigation/LauncherDock';
 import { HomeBackground } from './components/HomeBackground';
 import { GameCard } from './components/GameCard';
 
@@ -19,27 +20,25 @@ import { GameCard } from './components/GameCard';
  *   onSelectGame: (gameId: string) => void,
  *   selectedGame?: string | null,
  *   onSettingsOpen?: () => void,
+ *   onOpenHome?: () => void,
  * }} props
  */
-export default function HomePage({ onSelectGame, selectedGame, onSettingsOpen }) {
+export default function HomePage({ onSelectGame, selectedGame, onSettingsOpen, onOpenHome }) {
   const t = useLocale();
+
+  // Same launcher dock as the Start page — keeps navigation consistent across
+  // the game-select and workspace screens. "Change game" is omitted here since
+  // this screen *is* the game selector.
+  const dockItems = [
+    onOpenHome     && { key: 'about',    icon: Info,     label: t.projects.aboutApp, onClick: onOpenHome },
+    onSettingsOpen && { key: 'settings', icon: Settings, label: t.settings.title,    onClick: onSettingsOpen, spin: true },
+  ].filter(Boolean);
 
   return (
     <div className="flex-1 flex flex-col relative overflow-hidden bg-surface-0 min-h-0">
       <HomeBackground />
 
-      {onSettingsOpen && (
-        <div className="absolute top-5 right-6 z-30">
-          <button
-            type="button"
-            onClick={onSettingsOpen}
-            title={t.projects.settings}
-            className="group flex items-center justify-center w-10 h-10 rounded-xl border border-white/[0.08] bg-white/[0.03] hover:border-white/[0.16] hover:bg-white/[0.06] active:scale-[0.95] transition-all duration-200"
-          >
-            <Settings className="w-5 h-5 text-zinc-500 group-hover:text-zinc-300 transition-all duration-500 group-hover:rotate-90" />
-          </button>
-        </div>
-      )}
+      <LauncherDock items={dockItems} className="top-5 left-6" />
 
       <div className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden">
         <div className="flex flex-col items-center px-10 pt-20 pb-20 w-full max-w-[1100px] mx-auto">

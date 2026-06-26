@@ -16,6 +16,7 @@ import AutoTranslatePanel from './components/AutoTranslatePanel';
 import SideBar from './components/SideBar';
 import MainTable from './components/MainTable';
 import DictionaryPanel from './components/DictionaryPanel';
+import { getGameById } from '@Games/registry';
 import * as onboardingApi from '@API/onboarding';
 
 // ─── MainPage ───────────────────────────────────────────────────────────────
@@ -183,6 +184,10 @@ export default function MainPage({
   const hasOriginalUuid = !translations?.uuid && Boolean(modInfo?.uuid);
   const isCompactSidebar = isDictionaryOpen || isProfileOpen;
 
+  // The term dictionary (D&D glossary) is a BG3-specific feature — gate it per
+  // game so it never appears for games that don't have one (e.g. My Summer Car).
+  const hasDictionary = getGameById(gameId)?.features?.dictionary ?? false;
+
   return (
     <div className="flex-1 flex min-h-0 relative overflow-hidden bg-surface-0">
       {/* Profile / dictionary panels — in flex flow. Opening one expands its
@@ -202,7 +207,7 @@ export default function MainPage({
         style={{ width: isDictionaryOpen ? DICTIONARY_PANEL_WIDTH : '0px' }}
       >
         <div className={`w-[480px] h-full flex flex-col ${PANEL_GLASS}`}>
-          <DictionaryPanel isOpen={isDictionaryOpen} onClose={onToggleDictionary} />
+          {hasDictionary && <DictionaryPanel isOpen={isDictionaryOpen} onClose={onToggleDictionary} />}
         </div>
       </div>
 
@@ -249,6 +254,7 @@ export default function MainPage({
           isDictionaryOpen={isDictionaryOpen}
           onToggleDictionary={handleToggleDictionary}
           onCloseDictionary={onToggleDictionary}
+          hasDictionary={hasDictionary}
           modData={modInfo}
           onSaveProject={onSaveProject}
           onCloseProject={onCloseProject}

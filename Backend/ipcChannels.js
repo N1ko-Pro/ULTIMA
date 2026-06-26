@@ -9,6 +9,7 @@ const WIN_MAX              = 'window-max';
 const WIN_CLOSE            = 'window-close';
 const WIN_OS_CLOSE         = 'os-window-close';
 const WIN_OPEN_EXTERNAL    = 'open-external';
+const APP_GET_VERSION      = 'app-get-version';
 
 // ── Mod / BG3 workflow ───────────────────────────────────────────────────────
 const MOD_SELECT_FILE      = 'select-file';
@@ -101,6 +102,7 @@ const OLLAMA_STATUS_CHANGED    = 'ollama-status-changed';
 
 module.exports = {
   WIN_MIN, WIN_MAX, WIN_CLOSE, WIN_OS_CLOSE, WIN_OPEN_EXTERNAL,
+  APP_GET_VERSION,
   MOD_SELECT_FILE, MOD_SELECT_PAK, MOD_UNPACK_PAK, MOD_UNPACK_ARCHIVE, MOD_REPACK, MOD_OPEN_FOLDER,
   MOD_SELECT, MOD_INGEST,
   DEPS_CHECK, DEPS_INSTALL, DEPS_INSTALL_PROGRESS,

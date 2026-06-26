@@ -21,6 +21,13 @@ export const close = () => send('close');
  */
 export const openExternal = (url) => invoke('openExternal', url);
 
+/**
+ * Get the running Electron app's version (authoritative — reflects the
+ * actually installed/packaged build, not the bundled package.json).
+ * @returns {Promise<string | null>}
+ */
+export const getVersion = () => invoke('getAppVersion');
+
 /** Reveal the selected game's own folder in the OS file manager. */
 export const openModFolder = (gameId) => invoke('openModFolder', gameId);
 

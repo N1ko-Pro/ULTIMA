@@ -22,7 +22,6 @@ import DotNetInstallModal from '@UI/Modal/DotNetInstallModal';
 import DotNetMissingModal from '@UI/Modal/DotNetMissingModal';
 import AtpAccessModal from '@UI/Modal/AtpAccessModal';
 import DependencyModal from '@UI/Modal/DependencyModal';
-import * as depsApi from '@API/deps';
 import { ProjectInitModal } from '@UI/Modal/ProjectInitModal';
 
 // ─── Page imports ────────────────────────────────────────────────────────────
@@ -161,44 +160,14 @@ export default function App() {
   }, [updater.state.status, updater.state.version]);
 
   // Check the selected game's dependencies on entry (first selection + each
-  // launch). Missing tools → open the install modal and drop a notification so
-  // the user can reopen it later from the bell.
+  // launch). This only refreshes the on-screen tool-status widget — it never
+  // opens a modal. The blocking install modal appears solely when the user
+  // tries to open a mod whose tool is missing (ProjectService →
+  // onDependencyMissing). Update offers are surfaced passively by the widget.
   useEffect(() => {
     const gameId = appState.selectedGame;
-    if (!gameId || !appState.eulaAccepted) return undefined;
-    let cancelled = false;
-    (async () => {
-      const res = await depsApi.check(gameId);
-      if (cancelled || !res?.success) return;
-      // Tool present and current → nothing to do.
-      if (res.ok && !res.updateAvailable) return;
-
-      const locale = translationSettings?.general?.appLanguage === 'en' ? en : ru;
-
-      if (!res.ok) {
-        // Tool missing — required to work; open the install modal.
-        appState.openDepsModal(gameId, res.missing || []);
-        notifyStore.recordHistory({
-          id: `deps-${gameId}`,
-          type: 'warning',
-          title: locale.deps.notifTitle,
-          message: locale.deps.notifMsg,
-          action: 'deps-modal',
-        });
-      } else {
-        // Update available — NON-blocking. Don't interrupt: just prime the
-        // modal state and drop a notification the user can act on later.
-        appState.primeDepsModal(gameId, res.missing || []);
-        notifyStore.recordHistory({
-          id: `deps-update-${gameId}`,
-          type: 'info',
-          title: locale.deps.updateNotifTitle,
-          message: locale.deps.updateNotifMsg,
-          action: 'deps-modal',
-        });
-      }
-    })();
-    return () => { cancelled = true; };
+    if (!gameId || !appState.eulaAccepted) return;
+    appState.checkDeps(gameId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appState.selectedGame, appState.eulaAccepted]);
 
@@ -387,6 +356,7 @@ function ActivePage({
         onSelectGame={appState.handleSelectGame}
         selectedGame={appState.selectedGame}
         onSettingsOpen={appState.handleOpenSettings}
+        onOpenHome={appState.handleOpenHomeOverlay}
       />
     );
   }
@@ -404,6 +374,8 @@ function ActivePage({
           onboarding={appState.onboarding}
           onOnboardingUpdate={appState.setOnboarding}
           onTutorialComplete={appState.handleTutorialComplete}
+          toolStatus={appState.depsStatus}
+          onInstallTools={appState.handleInstallDeps}
         />
     );
   }

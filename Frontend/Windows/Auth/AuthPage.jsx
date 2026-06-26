@@ -4,7 +4,7 @@ import { useDiscordLogin } from '@Shared/hooks/useDiscordLogin';
 import { useLocale } from '@Locales/LocaleProvider';
 import TutorialWelcome from '@UI/Tutorial/TutorialWelcome';
 import logoSrc from '@Assets/logo.png';
-import pkg from '../../../package.json';
+import { useAppVersion } from '@Shared/hooks/useAppVersion';
 import { getFeatures } from './utils/constants';
 import { FeatureCard } from './components/FeatureCard';
 import { UserStatusCard } from './components/UserStatusCard';
@@ -49,7 +49,7 @@ export default function AuthPage({ onNavigateToProjects, isOverlay = false, isFi
     if (!isProfileExpanded) setProfileView('main');
   }, [isProfileExpanded]);
 
-  const appVersion  = pkg?.version || '0.0.0';
+  const appVersion  = useAppVersion();
   const currentYear = new Date().getFullYear();
   const features    = getFeatures(t);
 

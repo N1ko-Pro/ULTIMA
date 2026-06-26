@@ -113,7 +113,7 @@ export default function DotNetInstallModal({ isOpen, onInstall, onLater, onDismi
             <ButtonCore variant="emerald" icon={Download} fullWidth size="lg" onClick={handleInstall}>
               {t.dotnet.installNow}
             </ButtonCore>
-            <ButtonCore variant="ghost" fullWidth size="lg" onClick={handleLater}>
+            <ButtonCore variant="ghost" size="lg" className="self-center" onClick={handleLater}>
               {t.dotnet.later}
             </ButtonCore>
           </>
@@ -130,7 +130,7 @@ export default function DotNetInstallModal({ isOpen, onInstall, onLater, onDismi
             <ButtonCore variant="secondary" fullWidth size="lg" onClick={handleInstall}>
               {t.dotnet.retry}
             </ButtonCore>
-            <ButtonCore variant="ghost" fullWidth size="lg" onClick={handleLater}>
+            <ButtonCore variant="ghost" size="lg" className="self-center" onClick={handleLater}>
               {t.dotnet.later}
             </ButtonCore>
           </>

@@ -25,6 +25,7 @@ export default function useAppState() {
   const [depsModalOpen,          setDepsModalOpen]          = useState(false);
   const [depsMissing,            setDepsMissing]            = useState([]);
   const [depsGameId,             setDepsGameId]             = useState(null);
+  const [depsStatus,             setDepsStatus]             = useState({ tools: [], ok: true, updateAvailable: false });
   const [onboardingReady,        setOnboardingReady]        = useState(false);
   const [onboarding,             setOnboarding]             = useState(null);
   const [packAttemptWithOriginalUuid, setPackAttemptWithOriginalUuid] = useState(false);
@@ -112,17 +113,38 @@ export default function useAppState() {
     setDepsMissing(missing || []);
   }, []);
 
+  // Check a game's tooling and store the result for the inline tool-status
+  // widget. This DOES NOT open any modal — entering a game just refreshes the
+  // on-screen status (red = missing, amber = update, green = installed). The
+  // blocking install modal is only triggered when the user actually tries to
+  // open a mod whose tool is missing (see ProjectService → onDependencyMissing).
+  const checkDeps = useCallback(async (gameId) => {
+    if (!gameId) return;
+    const res = await depsApi.check(gameId);
+    if (!res?.success) return;
+    setDepsGameId(gameId);
+    setDepsMissing(res.missing || []);
+    setDepsStatus({
+      tools: res.tools || [],
+      ok: res.ok,
+      updateAvailable: res.updateAvailable,
+    });
+  }, []);
+
   const closeDepsModal = useCallback(() => setDepsModalOpen(false), []);
 
-  const handleInstallDeps = useCallback(async (onProgress) => {
+  const handleInstallDeps = useCallback(async (onProgress, toolId) => {
     const unsubscribe = depsApi.onInstallProgress(onProgress);
     try {
-      const res = await depsApi.install(depsGameId);
+      const res = await depsApi.install(depsGameId, toolId);
       if (!res?.success) throw new Error(res?.error || 'Installation failed');
     } finally {
       unsubscribe();
     }
-  }, [depsGameId]);
+    // Refresh the on-screen status (and modal context) after a successful
+    // install/update so the widget flips to its new state immediately.
+    await checkDeps(depsGameId);
+  }, [depsGameId, checkDeps]);
 
   const toggleProfile = useCallback(() => {
     setIsProfileOpen((prev) => !prev);
@@ -201,8 +223,10 @@ export default function useAppState() {
     depsModalOpen,
     depsMissing,
     depsGameId,
+    depsStatus,
     openDepsModal,
     primeDepsModal,
+    checkDeps,
     closeDepsModal,
     handleInstallDeps,
     onboardingReady,

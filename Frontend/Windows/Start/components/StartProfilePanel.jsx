@@ -81,7 +81,7 @@ export function StartProfilePanel({ isExpanded, onToggle, onClose, onHeightChang
       />
 
       <div
-        className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-2xl"
+        className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-surface-2/85"
         style={{
           width:      isExpanded ? EXPANDED_WIDTH : COLLAPSED_SIZE,
           height:     isExpanded ? EXPANDED_HEIGHT : COLLAPSED_SIZE,
@@ -194,7 +194,7 @@ export function StartProfilePanel({ isExpanded, onToggle, onClose, onHeightChang
         }}
       >
         <div
-          className="w-[320px] rounded-xl border border-white/[0.08] bg-white/[0.03] backdrop-blur-2xl relative overflow-hidden transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
+          className="w-[320px] rounded-xl border border-white/[0.08] bg-surface-2/85 relative overflow-hidden transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
           style={{
             transform: isExpanded ? 'translateY(0) scale(1)' : 'translateY(-12px) scale(0.97)',
             transformOrigin: 'top center',

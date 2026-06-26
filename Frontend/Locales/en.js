@@ -69,6 +69,19 @@ export default {
     updateNow:        'Update now',
     updateNotifTitle: 'Tool update available',
     updateNotifMsg:   "A newer version of this game's helper tool is available.",
+    // Tool-status widget (top-right of the workspace)
+    toolsTitle:       'Tools',
+    toolsReady:       'All tools ready',
+    toolsAttention:   'Action required',
+    toolsUpdate:      'Update available!',
+    statusInstalled:  'Installed',
+    statusUpToDate:   'Up to date',
+    statusMissing:    'Not installed',
+    statusUpdate:     'Update',
+    installAction:    'Install',
+    updateAction:     'Update',
+    installAllAction: 'Install all',
+    updateAllAction:  'Update all',
   },
 
   // ─── Tutorial (shared buttons) ─────────────────────────────────────────────
@@ -445,6 +458,16 @@ export default {
     clearAllTitle:      'Clear all translations',
     clearAllConfirm:    (n) => `Are you sure you want to clear all translations? This will delete ${n} translated strings.`,
     clearRow:           'Clear translation',
+    bookmarkRow:        'Add to favorites',
+    removeBookmark:     'Remove from favorites',
+    bookmarksLabel:     'favorites',
+    hideRow:            'Hide row',
+    unhideRow:          'Show row',
+    filterAll:          'All',
+    filterFavorites:    'Favorites',
+    filterHidden:       'Hidden',
+    showRows:           'Rows',
+    ofTotal:            'of',
   },
 
   // ─── Sidebar (mod data) ────────────────────────────────────────────────────

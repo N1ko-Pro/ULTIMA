@@ -119,7 +119,7 @@ export default function DependencyModal({ isOpen, missing, onInstall, onClose })
             <ButtonCore variant="emerald" icon={Download} fullWidth size="lg" onClick={handleInstall}>
               {isUpdate ? t.deps.updateNow : t.deps.installNow}
             </ButtonCore>
-            <ButtonCore variant="ghost" fullWidth size="lg" onClick={onClose}>
+            <ButtonCore variant="ghost" size="lg" className="self-center" onClick={onClose}>
               {t.deps.later}
             </ButtonCore>
           </>
@@ -136,7 +136,7 @@ export default function DependencyModal({ isOpen, missing, onInstall, onClose })
             <ButtonCore variant="secondary" fullWidth size="lg" onClick={handleInstall}>
               {t.deps.retry}
             </ButtonCore>
-            <ButtonCore variant="ghost" fullWidth size="lg" onClick={onClose}>
+            <ButtonCore variant="ghost" size="lg" className="self-center" onClick={onClose}>
               {t.common.close}
             </ButtonCore>
           </>

@@ -32,6 +32,7 @@ function TopBar({
   targetLanguage,
   onChangeTargetLanguage,
   gameId,
+  hasDictionary = true,
 }) {
   const [isPackModalOpen,       setIsPackModalOpen]       = useState(false);
   const [isCloseConfirmOpen,    setIsCloseConfirmOpen]    = useState(false);
@@ -134,6 +135,7 @@ function TopBar({
             className={`transition-[margin] duration-[600ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${isDictionaryOpen ? '-ml-4' : ''}`}
             data-tutorial="editor-tools"
           >
+            {hasDictionary && (
             <div
               data-tutorial="editor-btn-dictionary"
               className={`transition-all origin-left shrink-0 ${
@@ -157,6 +159,7 @@ function TopBar({
                 <BookOpen className="relative z-10 w-[18px] h-[18px] transition-all duration-300 group-hover:scale-110 group-hover:-rotate-6" />
               </button>
             </div>
+            )}
 
             {modData && (
               <button

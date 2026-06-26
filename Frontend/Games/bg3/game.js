@@ -11,6 +11,8 @@ export default {
   icon: Swords,
   available: true,
   fileTypes: ['PAK', 'ZIP', 'RAR'],
+  // Capability flags — gate game-specific editor features.
+  features: { dictionary: true },
   accent: {
     gradient:    'from-violet-600/25 via-fuchsia-500/10 to-transparent',
     glow:        '0 0 60px -12px rgba(139,92,246,0.45)',

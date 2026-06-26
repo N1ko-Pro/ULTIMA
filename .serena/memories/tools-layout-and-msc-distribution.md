@@ -17,7 +17,12 @@
   `msc-tools-v<версия>`). Приложение скачивает exe ОТТУДА.
 - `Backend/games/mysummercar/toolConfig.js`: DOWNLOAD_URL -> ULTIMA_TOOLS,
   TOOL_VERSION='1.1.0', VERSION_FILE='MscLocTool.version' (sidecar для детекта
-  устаревшей версии). Скачивается в рантайме в `%APPDATA%/ULTIMA/tools/msc`.
+  устаревшей версии). Скачивается в рантайме в `%APPDATA%/ULTIMA/Tools/MSC`
+  (конвенция: `<userData>/Tools/<GAME>` для любых скачиваемых per-game
+  инструментов). РЕШЕНО держать в userData, НЕ в `resources/tools/...`:
+  установщик `perMachine:true` (Program Files) -> resources не доступна на
+  запись обычному пользователю, скачивание туда падало бы. userData всегда
+  writable. MSC initialize: `path.join(userDataPath, 'Tools', 'MSC')`.
 - Воркфлоу `build-msc-tool.yml` в app-репо УДАЛЁН (его место — в ULTIMA_TOOLS).
 
 ## Политика .gitignore (актуальная)

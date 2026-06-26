@@ -11,6 +11,8 @@ export default {
   icon: Car,
   available: true,
   fileTypes: ['DLL', 'ZIP', 'RAR'],
+  // Capability flags — the D&D term dictionary is BG3-specific; MSC has none.
+  features: { dictionary: false },
   accent: {
     gradient:    'from-amber-500/25 via-lime-500/10 to-transparent',
     glow:        '0 0 60px -12px rgba(245,158,11,0.45)',

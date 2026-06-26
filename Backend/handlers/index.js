@@ -21,6 +21,8 @@ function registerWindowHandlers(mainWindow, app) {
     app.quit();
   });
 
+  ipcMain.handle(CH.APP_GET_VERSION, () => app.getVersion());
+
   ipcMain.handle(CH.WIN_OPEN_EXTERNAL, (_event, url) => {
     const win = new BrowserWindow({
       width: 1200,

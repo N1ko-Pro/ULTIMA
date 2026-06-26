@@ -53,7 +53,7 @@ const VARIANT = {
     'border-white/[0.08] hover:border-white/[0.14]',
   ].join(' '),
   'ghost': [
-    'bg-transparent hover:bg-white/[0.06] text-zinc-500 hover:text-zinc-200',
+    'bg-transparent hover:bg-transparent text-zinc-500 hover:text-zinc-200',
     'border-transparent',
   ].join(' '),
   'danger': [

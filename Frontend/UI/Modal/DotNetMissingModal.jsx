@@ -113,7 +113,7 @@ export default function DotNetMissingModal({ isOpen, onInstall, onDismiss }) {
             <ButtonCore variant="secondary" fullWidth size="lg" onClick={handleInstall}>
               {t.dotnet.retry}
             </ButtonCore>
-            <ButtonCore variant="ghost" fullWidth size="lg" onClick={onDismiss}>
+            <ButtonCore variant="ghost" size="lg" className="self-center" onClick={onDismiss}>
               {t.common.close}
             </ButtonCore>
           </>

@@ -7,15 +7,23 @@ import { invoke, subscribe } from './client';
 
 /**
  * @param {string} gameId
- * @returns {Promise<{ success: boolean, ok: boolean, missing: Array<{id,name,version,sizeMb}> } | null>}
+ * @returns {Promise<{
+ *   success: boolean,
+ *   ok: boolean,
+ *   updateAvailable: boolean,
+ *   missing: Array<{ id, name, version, sizeMb, outdated?, installedVersion? }>,
+ *   tools: Array<{ id, name, version, sizeMb, status: 'installed'|'missing'|'update', installedVersion? }>,
+ * } | null>}
  */
 export const check = (gameId) => invoke('depsCheck', gameId);
 
 /**
  * @param {string} gameId
+ * @param {string} [toolId]  Optional — install only this tool. Omit to install
+ *                           every missing/outdated tool for the game.
  * @returns {Promise<{ success: boolean, error?: string } | null>}
  */
-export const install = (gameId) => invoke('depsInstall', gameId);
+export const install = (gameId, toolId) => invoke('depsInstall', gameId, toolId);
 
 /**
  * Subscribe to install progress (0-100).

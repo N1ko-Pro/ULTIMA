@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 //  toolConfig.js — MscLocTool (dnlib) distribution config.
 //  The tool is NOT bundled in the installer; it is downloaded on demand into
-//  %APPDATA%/ULTIMA/tools/msc/ from a GitHub release asset.
+//  %APPDATA%/ULTIMA/Tools/MSC/ from a GitHub release asset.
 //
 //  The asset is built & published by the build-msc-tool.yml workflow in the
 //  N1ko-Pro/ULTIMA_TOOLS repo when a tag `msc-tools-v<TOOL_VERSION>` is pushed
