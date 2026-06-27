@@ -7,10 +7,10 @@
 //
 //    • MscLocTool.exe       — dnlib CLI (extract / inject). Required to open
 //                             and to build (replace mode) any MSC mod.
-//    • UltimaLocPatcher.dll — universal MSCLoader runtime patcher. Required
-//                             only to build a PATCH artifact; bundled into the
-//                             produced zip so end users install it alongside
-//                             the original mod.
+//    • MSCLocAPI.dll        — universal MSCLoader runtime patcher (MSCLoc API).
+//                             Required only to build a PATCH artifact; bundled
+//                             into the produced zip so end users install it
+//                             alongside the original mod.
 //
 //  Each tool records a sidecar `<name>.version` file next to it so the app can
 //  detect an outdated copy and offer an update.
@@ -30,16 +30,16 @@ const MSC_TOOL = Object.freeze({
   downloadUrl: releaseAsset('msc-tools-v1.1.0', 'MscLocTool.exe'),
 });
 
-// ── UltimaLocPatcher (runtime MSCLoader patcher for the patch artifact) ───────
+// ── MSCLoc API (runtime MSCLoader patcher for the patch artifact) ─────────────
 // Published in N1ko-Pro/ULTIMA_TOOLS under the `loc-patcher-v<version>` tag.
 const MSC_PATCHER = Object.freeze({
   id: 'msc-patcher',
-  name: 'UltimaLocPatcher',
-  version: '1.0.4',
-  fileName: 'UltimaLocPatcher.dll',
-  versionFile: 'UltimaLocPatcher.version',
+  name: 'MSCLoc API',
+  version: '1.0.6',
+  fileName: 'MSCLocAPI.dll',
+  versionFile: 'MSCLocAPI.version',
   sizeMb: 1,
-  downloadUrl: releaseAsset('loc-patcher-v1.0.4', 'UltimaLocPatcher.dll'),
+  downloadUrl: releaseAsset('loc-patcher-v1.0.6', 'MSCLocAPI.dll'),
 });
 
 // All MSC tools, in display order (used by checkDependencies / status widget).
