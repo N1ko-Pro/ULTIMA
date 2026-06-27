@@ -217,23 +217,16 @@ function commitAndPushVersionBump({ version, didBump }) {
     return;
   }
 
-  // Make sure we have a clean repo state outside of package.json before we
-  // touch anything. Refuse to auto-commit if the user has unrelated changes.
-  const status = gitCapture(['status', '--porcelain']);
+  // Check whether package.json actually has changes. Scope the status query to
+  // the file itself and test for any output — this avoids parsing porcelain
+  // columns by offset (gitCapture trims stdout, which would strip the leading
+  // status-flag space of the first line and corrupt an offset-based slice).
+  const status = gitCapture(['status', '--porcelain', '--', 'package.json']);
   if (status.status !== 0) {
     console.warn('  ⚠ git status вернул ошибку — пропускаю авто-коммит.');
     return;
   }
-  // `git status --porcelain` formats each entry as `XY <path>` where X+Y are
-  // two status flags and column 3 is a literal space. Trimming the line
-  // before slicing eats those flags and would yield e.g. `ackage.json`, so
-  // we operate on the raw line and slice from offset 3.
-  const dirtyFiles = status.stdout
-    .split(/\r?\n/)
-    .filter((line) => line.length > 3)
-    .map((line) => line.slice(3));
-
-  if (!dirtyFiles.includes('package.json')) {
+  if (!status.stdout) {
     console.log('  ℹ package.json не модифицирован (уже закоммичен) — пропускаю.');
     return;
   }
