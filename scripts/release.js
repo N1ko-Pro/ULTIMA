@@ -193,10 +193,9 @@ async function updateReleaseMetadata({ token, owner, repo, tag, name, body }) {
 }
 
 // ─── Git auto-commit helpers ───────────────────────────────────────────────
-// After a successful release we commit the bumped package.json and push it
-// (plus any tag electron-builder created on the remote). Failures here are
-// non-fatal — the release is already live; the user just needs to push the
-// version bump manually.
+// After a successful release we commit the bumped package.json (and only that
+// file, via pathspec — any other in-progress changes are left untouched) and
+// push it. Failures here are non-fatal — the release is already live.
 function gitCapture(args) {
   const res = spawnSync('git', args, { cwd: ROOT, encoding: 'utf-8', shell: false });
   return { status: res.status, stdout: (res.stdout || '').trim(), stderr: (res.stderr || '').trim() };
@@ -234,14 +233,6 @@ function commitAndPushVersionBump({ version, didBump }) {
     .filter((line) => line.length > 3)
     .map((line) => line.slice(3));
 
-  const unrelated = dirtyFiles.filter((f) => f !== 'package.json');
-  if (unrelated.length > 0) {
-    console.warn('  ⚠ В рабочем дереве есть несвязанные изменения — авто-коммит пропущен.');
-    console.warn('    Закоммить их вручную или сбрось перед следующим релизом:');
-    unrelated.forEach((f) => console.warn(`      • ${f}`));
-    return;
-  }
-
   if (!dirtyFiles.includes('package.json')) {
     console.log('  ℹ package.json не модифицирован (уже закоммичен) — пропускаю.');
     return;
@@ -249,8 +240,9 @@ function commitAndPushVersionBump({ version, didBump }) {
 
   console.log(`  → Коммит и push версии v${version}...`);
 
-  if (!gitRun(['add', 'package.json'], 'git add')) return;
-  if (!gitRun(['commit', '-m', `NEW VERSION: ${version}`], 'git commit')) return;
+  // Commit ONLY package.json (pathspec) — any other in-progress changes in the
+  // working tree are deliberately left untouched and uncommitted.
+  if (!gitRun(['commit', '-m', `NEW VERSION: ${version}`, '--', 'package.json'], 'git commit')) return;
 
   // Determine the current branch so we can push it explicitly. Detached HEAD
   // (e.g. after a manual rebase) is rare here but worth handling — we just
@@ -292,7 +284,14 @@ async function main() {
 
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 
-  const bumpKind = (await ask(rl, 'Bump версии? [patch | minor | major | none] (default: none): ')).toLowerCase() || 'none';
+  // Bump can be passed as a CLI arg (e.g. `node scripts/release.js minor`) or
+  // chosen interactively. Arg wins; falls back to the prompt, default `none`.
+  const argBump = process.argv.slice(2)
+    .map((a) => a.toLowerCase())
+    .find((a) => ['patch', 'minor', 'major', 'none'].includes(a));
+  const bumpKind = argBump
+    || (await ask(rl, 'Bump версии? [patch | minor | major | none] (default: none): ')).toLowerCase()
+    || 'none';
   const nextVersion = bumpKind === 'none' ? currentVersion : bumpVersion(currentVersion, bumpKind);
   const didBump = nextVersion !== currentVersion;
 

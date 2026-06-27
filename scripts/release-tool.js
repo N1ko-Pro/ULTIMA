@@ -338,6 +338,20 @@ function gitTry(cwd, args, label, opts) {
   catch (err) { console.warn(`  ⚠ ${label}: ${err.message}`); return false; }
 }
 
+// Retry a (network) git command a few times — GitHub access can be flaky
+// (VPN/Zapret hiccups). Throws only after the final attempt fails.
+function gitRunRetry(cwd, args, label, opts = {}, attempts = 4) {
+  for (let i = 1; i <= attempts; i++) {
+    try { return gitRun(cwd, args, label, opts); }
+    catch (err) {
+      if (i === attempts) throw err;
+      const delay = 3000 * i;
+      console.warn(`  ⚠ ${label} не удалось (попытка ${i}/${attempts}). Повтор через ${delay / 1000}s...`);
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delay);
+    }
+  }
+}
+
 function authRemoteUrl(token) {
   return `https://x-access-token:${token}@github.com/${GH_OWNER}/${GH_REPO}.git`;
 }
@@ -353,7 +367,7 @@ function ensureClone(token) {
 function syncCloneToRemoteMain() {
   // Make sure the local clone is on a clean, up-to-date main before we layer
   // our source sync on top — avoids pushing on top of a stale tree.
-  gitRun(CLONE_DIR, ['fetch', 'origin', 'main', '--tags'], 'git fetch');
+  gitRunRetry(CLONE_DIR, ['fetch', 'origin', 'main', '--tags'], 'git fetch');
   gitRun(CLONE_DIR, ['checkout', 'main'], 'git checkout main');
   gitRun(CLONE_DIR, ['reset', '--hard', 'origin/main'], 'git reset --hard origin/main');
 }
@@ -430,8 +444,9 @@ function commitAppVersionBump(tool, version) {
   const relFiles = files.map((f) => (path.isAbsolute(f) ? path.relative(ROOT, f) : f));
 
   try {
-    for (const f of relFiles) gitRun(ROOT, ['add', f], 'git add');
-    gitRun(ROOT, ['commit', '-m', `${tool.id}: bump version ${version}`], 'git commit');
+    // Commit ONLY the version files (pathspec) — any other in-progress changes
+    // in the working tree are deliberately left untouched and uncommitted.
+    gitRun(ROOT, ['commit', '-m', `${tool.id}: bump version ${version}`, '--', ...relFiles], 'git commit');
     const branch = gitCapture(ROOT, ['rev-parse', '--abbrev-ref', 'HEAD']);
     if (branch.status === 0 && branch.stdout && branch.stdout !== 'HEAD') {
       gitRun(ROOT, ['push', 'origin', branch.stdout], 'git push');
@@ -500,7 +515,7 @@ async function main() {
   console.log(`  Тек. версия:  ${currentVersion}`);
 
   // ── Version bump ─────────────────────────────────────────────────────────
-  const bumpKind = (argBump || await ask(rl, 'Bump версии? [patch | minor | major | none] (default: patch): ')).toLowerCase() || 'patch';
+  const bumpKind = (argBump || await ask(rl, 'Bump версии? [patch | minor | major | none] (default: none): ')).toLowerCase() || 'none';
   const nextVersion = bumpKind === 'none' ? currentVersion : bumpVersion(currentVersion, bumpKind);
   const didBump = nextVersion !== currentVersion;
   const tag = `${tool.tagPrefix}${nextVersion}`;
