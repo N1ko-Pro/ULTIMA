@@ -28,13 +28,27 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on(CH.DEPS_INSTALL_PROGRESS, handler);
     return () => ipcRenderer.removeListener(CH.DEPS_INSTALL_PROGRESS, handler);
   },
+
+  // Game integration (install patcher / translations straight into the game)
+  gameGetIntegration: (gameId) => ipcRenderer.invoke(CH.GAME_GET_INTEGRATION, gameId),
+  gameDetectPath: (gameId) => ipcRenderer.invoke(CH.GAME_DETECT_PATH, gameId),
+  gameSetPath: (gameId, dir) => ipcRenderer.invoke(CH.GAME_SET_PATH, { gameId, dir }),
+  gameClearPath: (gameId) => ipcRenderer.invoke(CH.GAME_CLEAR_PATH, gameId),
+  gamePickPath: (gameId) => ipcRenderer.invoke(CH.GAME_PICK_PATH, gameId),
+  gameInstallPatcher: (gameId) => ipcRenderer.invoke(CH.GAME_INSTALL_PATCHER, gameId),
+  gameUninstallPatcher: (gameId) => ipcRenderer.invoke(CH.GAME_UNINSTALL_PATCHER, gameId),
   translateStrings: (dataToTranslate, targetLang, options = {}) => ipcRenderer.invoke(CH.TRANSLATE_STRINGS, {
     dataToTranslate,
     targetLang,
     options,
   }),
   abortTranslateStrings: () => ipcRenderer.invoke(CH.TRANSLATE_ABORT),
-  repackMod: (updatedData, modName, targetLanguage) => ipcRenderer.invoke(CH.MOD_REPACK, { updatedData, modName, targetLanguage }),
+  repackMod: (payload) => ipcRenderer.invoke(CH.MOD_REPACK, payload),
+  onRepackProgress: (callback) => {
+    const handler = (_, data) => callback(data);
+    ipcRenderer.on(CH.MOD_REPACK_PROGRESS, handler);
+    return () => ipcRenderer.removeListener(CH.MOD_REPACK_PROGRESS, handler);
+  },
   openModFolder: (gameId) => ipcRenderer.invoke(CH.MOD_OPEN_FOLDER, gameId),
   saveProject: (projectData) => ipcRenderer.invoke(CH.PROJECT_SAVE, projectData),
   loadProjects: () => ipcRenderer.invoke(CH.PROJECT_LOAD_ALL),
@@ -44,6 +58,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // XML Import/Export
   exportXml: (translations, modInfo, targetLanguage) => ipcRenderer.invoke(CH.XML_EXPORT, translations, modInfo, targetLanguage),
   importXml: () => ipcRenderer.invoke(CH.XML_IMPORT),
+  openXmlFolder: () => ipcRenderer.invoke(CH.XML_OPEN_FOLDER),
 
   // Auth
   authGetState: () => ipcRenderer.invoke(CH.AUTH_GET_STATE),
@@ -54,6 +69,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
 
   // Dictionary / Glossary
   dictionaryGetAll: () => ipcRenderer.invoke(CH.DICT_GET_ALL),
+  dictionarySetGame: (gameId) => ipcRenderer.invoke(CH.DICT_SET_GAME, gameId),
   dictionaryAdd: (source, target, tag) => ipcRenderer.invoke(CH.DICT_ADD, { source, target, tag }),
   dictionaryUpdate: (id, source, target, tag) => ipcRenderer.invoke(CH.DICT_UPDATE, { id, source, target, tag }),
   dictionaryDelete: (id) => ipcRenderer.invoke(CH.DICT_DELETE, id),

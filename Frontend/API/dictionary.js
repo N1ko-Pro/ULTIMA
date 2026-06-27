@@ -16,6 +16,9 @@ import { invoke } from './client';
 /** @returns {Promise<{ success: boolean, data?: DictEntry[] } | null>} */
 export const getAll = () => invoke('dictionaryGetAll');
 
+/** Switch the active game's glossary; returns that game's entries. */
+export const setGame = (gameId) => invoke('dictionarySetGame', gameId);
+
 /**
  * @returns {Promise<{ success: boolean, data?: DictEntry } | null>}
  */

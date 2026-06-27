@@ -43,6 +43,17 @@ tools/MSC/*
 !tools/MSC/README.md
 tools_src/
 
+# ── MSC patcher (MSCLoc API). Source (src/, *.csproj, README, tests) is
+#    tracked; build output and the large LOCAL-ONLY reference material (game
+#    DLLs, MSCLoader binaries + source) are ignored. Released from ULTIMA_TOOLS.
+tools/MSC-Patcher/bin/
+tools/MSC-Patcher/obj/
+tools/MSC-Patcher/tests/bin/
+tools/MSC-Patcher/tests/obj/
+tools/MSC-Patcher/Origin Files/
+tools/MSC-Patcher/MSCLoader/
+tools/MSC-Patcher/MSCModLoader-1.4.2/
+
 # ── Logs ─────────────────────────────────────────────────────────────────────
 logs/
 *.log

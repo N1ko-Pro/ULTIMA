@@ -99,36 +99,18 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
           {displayIndex}
         </div>
 
-        <div className={`text-[13px] text-zinc-300 leading-relaxed font-medium break-words [overflow-wrap:anywhere] select-text pl-4 border-r border-white/[0.06] self-center min-w-0 relative ${onToggleTechnical ? 'pr-9' : 'pr-4'}`}>
+        <div className="text-[13px] text-zinc-300 leading-relaxed font-medium [overflow-wrap:anywhere] select-text pl-4 border-r border-white/[0.06] self-center min-w-0 relative pr-4">
           {!isTranslated && (
             <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-orange-400/60 shadow-[0_0_6px_rgba(251,146,60,0.4)]" />
           )}
           <HighlightedText text={row.original} mode="table" searchQuery={searchQuery} />
-
-          {onToggleTechnical && (
-            <button
-              type="button"
-              onClick={() => onToggleTechnical(row.id)}
-              title={techTitle}
-              aria-label={techTitle}
-              className={`absolute top-1/2 -translate-y-1/2 right-1.5 w-6 h-6 flex items-center justify-center rounded-md transition-all duration-150 focus:outline-none ${
-                isTechnical
-                  ? 'text-zinc-300 bg-white/[0.06] hover:text-white hover:bg-white/[0.12]'
-                  : isUncertain
-                    ? 'text-amber-400/80 bg-amber-400/[0.08] hover:text-amber-300 hover:bg-amber-400/[0.16]'
-                    : 'text-zinc-700 opacity-0 group-hover:opacity-100 hover:text-zinc-300 hover:bg-white/[0.06]'
-              }`}
-            >
-              <Wrench className="w-3.5 h-3.5" />
-            </button>
-          )}
         </div>
 
         <div className="relative flex items-stretch min-w-0 self-stretch">
           <div className={`relative flex flex-col flex-1 w-full min-w-0 overflow-hidden rounded-xl border transition-all duration-200 ${editBorder}`}>
             {/* Overlay for search highlighting — sits behind the transparent textarea. */}
             <div
-              className={`pointer-events-none absolute inset-0 z-0 rounded-xl px-4 py-2.5 text-[13px] font-medium leading-relaxed whitespace-pre-wrap break-words [overflow-wrap:anywhere] font-[inherit] ${
+              className={`pointer-events-none absolute inset-0 z-0 rounded-xl px-4 py-2.5 text-[13px] font-medium leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere] font-[inherit] ${
                 isRequiredMissing ? 'text-red-100/90' : 'text-zinc-100'
               }`}
               aria-hidden="true"
@@ -158,7 +140,8 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={() => onToggleBookmark(row.id)}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => { onToggleBookmark(row.id); onDismissHighlight(row.id, isMissingByValidation); }}
               title={isBookmarked ? t.editor.removeBookmark : t.editor.bookmarkRow}
               aria-label={isBookmarked ? t.editor.removeBookmark : t.editor.bookmarkRow}
               className={`w-7 h-7 flex items-center justify-center rounded-lg transition-all duration-200 focus:outline-none ${
@@ -172,6 +155,7 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
 
             <button
               type="button"
+              onMouseDown={(e) => e.preventDefault()}
               onClick={() => onToggleHidden(row.id)}
               title={isHidden ? t.editor.unhideRow : t.editor.hideRow}
               aria-label={isHidden ? t.editor.unhideRow : t.editor.hideRow}
@@ -187,15 +171,37 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
             </button>
           </div>
 
-          <button
-            type="button"
-            onClick={handleClear}
-            title={t.editor.clearRow}
-            aria-label={t.editor.clearRow}
-            className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-700 opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/[0.08] transition-all duration-200 focus:outline-none"
-          >
-            <Trash2 className="w-[15px] h-[15px]" />
-          </button>
+          <div className="flex items-center gap-1">
+            {onToggleTechnical && (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onToggleTechnical(row.id)}
+                title={techTitle}
+                aria-label={techTitle}
+                className={`w-7 h-7 flex items-center justify-center rounded-lg transition-all duration-200 focus:outline-none ${
+                  isTechnical
+                    ? 'text-zinc-300 bg-white/[0.06] hover:text-white hover:bg-white/[0.12]'
+                    : isUncertain
+                      ? 'text-amber-400/80 bg-amber-400/[0.08] hover:text-amber-300 hover:bg-amber-400/[0.16]'
+                      : 'text-zinc-700 opacity-0 group-hover:opacity-100 hover:text-zinc-300 hover:bg-white/[0.06]'
+                }`}
+              >
+                <Wrench className="w-[14px] h-[14px]" />
+              </button>
+            )}
+
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={handleClear}
+              title={t.editor.clearRow}
+              aria-label={t.editor.clearRow}
+              className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-700 opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/[0.08] transition-all duration-200 focus:outline-none"
+            >
+              <Trash2 className="w-[15px] h-[15px]" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

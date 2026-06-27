@@ -7,7 +7,7 @@ import PackModal from '@UI/Modal/PackModal';
 import UnsavedChangesModal from '@UI/Modal/UnsavedChangesModal';
 import AtpAccessModal from '@UI/Modal/AtpAccessModal';
 import TargetLanguagePill from './TargetLanguagePill';
-import { PackButton, SettingsButton, XmlActionGroup, ToolsGroup } from './TopBarButtons';
+import { PackButton, SettingsButton, XmlActionGroup, ToolsGroup, IconButton } from './TopBarButtons';
 import * as appWindow from '@API/appWindow';
 
 // ─── Editor top bar ─────────────────────────────────────────────────────────
@@ -20,6 +20,7 @@ function TopBar({
   onSavePak,
   onExportXml,
   onImportXml,
+  onOpenXmlFolder,
   hasOriginalUuid,
   onValidatePackBeforeOpen,
   isDictionaryOpen,
@@ -102,9 +103,9 @@ function TopBar({
     setIsPackModalOpen(true);
   };
 
-  const confirmPack = useCallback(() => {
+  const confirmPack = useCallback((mode, target) => {
     setIsPackModalOpen(false);
-    if (onSavePak) onSavePak();
+    if (onSavePak) onSavePak(mode, target);
   }, [onSavePak]);
 
   const handleDictionaryClick = useCallback(() => {
@@ -145,65 +146,54 @@ function TopBar({
               }`}
               style={{ transitionDuration: '400ms', transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)' }}
             >
-              <button
-                type="button"
+              <IconButton
+                icon={BookOpen}
                 onClick={handleDictionaryClick}
                 title={canUseDictionary ? t.editor.dictionaryTitle : t.editor.dictionaryGuest}
-                className={`group relative h-[42px] w-[42px] flex items-center justify-center rounded-xl border bg-surface-2 border-white/[0.08] transition-all duration-200 overflow-hidden active:scale-[0.95] ${
-                  canUseDictionary
-                    ? 'text-zinc-400 hover:text-amber-300 hover:border-amber-400/20 hover:bg-amber-400/[0.06] hover:shadow-[0_0_16px_rgba(251,191,36,0.1)]'
-                    : 'text-zinc-600 hover:text-zinc-400 hover:border-white/[0.12] hover:bg-white/[0.03]'
-                }`}
-              >
-                <span className="absolute inset-0 bg-gradient-to-br from-amber-400/0 via-amber-400/[0.05] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                <BookOpen className="relative z-10 w-[18px] h-[18px] transition-all duration-300 group-hover:scale-110 group-hover:-rotate-6" />
-              </button>
+                accent={canUseDictionary ? 'amber' : 'muted'}
+                idleClass={canUseDictionary ? 'text-zinc-400' : 'text-zinc-600'}
+                iconClass="w-[18px] h-[18px] transition-all duration-300 group-hover:scale-110 group-hover:-rotate-6"
+              />
             </div>
             )}
 
             {modData && (
-              <button
-                type="button"
+              <IconButton
+                icon={FolderOpen}
                 onClick={() => appWindow.openModFolder(gameId)}
                 title={t.editor.openModFolder}
-                className="group relative h-[42px] w-[42px] flex items-center justify-center rounded-xl border bg-surface-2 border-white/[0.08] text-zinc-400 hover:text-sky-300 hover:border-sky-400/20 hover:bg-sky-400/[0.06] hover:shadow-[0_0_16px_rgba(56,189,248,0.1)] active:scale-[0.95] transition-all duration-200 overflow-hidden shrink-0"
-              >
-                <span className="absolute inset-0 bg-gradient-to-br from-sky-400/0 via-sky-400/[0.05] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                <FolderOpen className="relative z-10 w-[18px] h-[18px] transition-all duration-200 group-hover:scale-110 group-hover:translate-y-px" />
-              </button>
+                accent="sky"
+                iconClass="w-[18px] h-[18px] transition-all duration-200 group-hover:scale-110 group-hover:translate-y-px"
+              />
             )}
 
             {modData && <div className="w-px h-5 bg-white/[0.08] mx-1 shrink-0" />}
 
             {modData && onSaveProject && (
-              <button
-                type="button"
+              <IconButton
+                icon={Save}
                 onClick={onSaveProject}
                 title={t.editor.saveProject}
-                className="group relative h-[42px] w-[42px] flex items-center justify-center rounded-xl border bg-surface-2 border-white/[0.08] text-zinc-400 hover:text-emerald-300 hover:border-emerald-400/20 hover:bg-emerald-400/[0.06] hover:shadow-[0_0_16px_rgba(52,211,153,0.1)] active:scale-[0.95] transition-all duration-200 overflow-hidden shrink-0"
-              >
-                <span className="absolute inset-0 bg-gradient-to-br from-emerald-400/0 via-emerald-400/[0.05] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                <Save className="relative z-10 w-[18px] h-[18px] transition-all duration-200 group-hover:scale-105 group-hover:translate-y-px" />
-              </button>
+                accent="emerald"
+                iconClass="w-[18px] h-[18px] transition-all duration-200 group-hover:scale-105 group-hover:translate-y-px"
+              />
             )}
 
             {modData && onCloseProject && (
-              <button
-                type="button"
+              <IconButton
+                icon={LogOut}
                 onClick={handleExitClick}
                 title={t.editor.exitProject}
-                className="group relative h-[42px] w-[42px] flex items-center justify-center rounded-xl border bg-surface-2 border-white/[0.08] text-zinc-400 hover:text-red-400 hover:border-red-500/20 hover:bg-red-500/[0.06] hover:shadow-[0_0_16px_rgba(248,113,113,0.1)] active:scale-[0.95] transition-all duration-200 overflow-hidden shrink-0"
-              >
-                <span className="absolute inset-0 bg-gradient-to-br from-red-500/0 via-red-500/[0.05] to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-                <LogOut className="relative z-10 w-[18px] h-[18px] transition-all duration-200 group-hover:scale-105 group-hover:translate-x-0.5" />
-              </button>
+                accent="red"
+                iconClass="w-[18px] h-[18px] transition-all duration-200 group-hover:scale-105 group-hover:translate-x-0.5"
+              />
             )}
           </ToolsGroup>
         </div>
 
         <div className={`flex items-center shrink-0 ${gapCls}`} data-tutorial="editor-toolbar-right">
           <div data-tutorial="editor-xml">
-            <XmlActionGroup onImport={onImportXml} onExport={onExportXml} compact={xmlCompact} />
+            <XmlActionGroup onImport={onImportXml} onExport={onExportXml} onOpenFolder={onOpenXmlFolder} compact={xmlCompact} />
           </div>
 
           <div className={divider} />
@@ -238,6 +228,7 @@ function TopBar({
         onClose={() => setIsPackModalOpen(false)}
         onPack={confirmPack}
         warnings={packWarnings}
+        gameId={gameId}
       />
       <UnsavedChangesModal
         isOpen={isCloseConfirmOpen}

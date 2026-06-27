@@ -55,6 +55,8 @@ async function importXml(mainWindow, app) {
 }
 
 module.exports = {
+  getXmlDir,
+  ensureXmlDir,
   exportXml,
   importXml
 };

@@ -57,6 +57,8 @@ export function useProjectManager({ selectedGame, onDependencyMissing } = {}) {
   const [hasUnsavedChanges,  setHasUnsavedChanges]  = useState(false);
   const [isLoadingPak,       setIsLoadingPak]       = useState(false);
   const [isLoadingProject,   setIsLoadingProject]   = useState(false);
+  const [isPacking,          setIsPacking]          = useState(false);
+  const [packProgress,       setPackProgress]       = useState(0);
   const [showDotNetModal,    setShowDotNetModal]    = useState(false);
   const [projectLoadCounter, setProjectLoadCounter] = useState(0);
 
@@ -274,15 +276,58 @@ export function useProjectManager({ selectedGame, onDependencyMissing } = {}) {
     }
   }, [commitSavedSnapshot, t.projects, t.common.error]);
 
-  const handleSavePak = useCallback(async () => {
+  const handleSavePak = useCallback(async (mode, target) => {
     if (!isAvailable()) return;
-    const result = await pakApi.repack(translations, modInfo?.name, targetLanguage);
+
+    setIsPacking(true);
+    setPackProgress(0);
+    const unsubscribe = pakApi.onProgress(({ percent }) => setPackProgress(percent));
+
+    let result;
+    try {
+      result = await pakApi.repack({
+        gameId: selectedGame,
+        translations,
+        modName: modInfo?.name,
+        targetLanguage,
+        mode,
+        target,
+        originalPakPath,
+      });
+    } finally {
+      unsubscribe?.();
+      setIsPacking(false);
+    }
+
+    // Patch mode (zip target) needs the downloadable patcher: route the user to
+    // the install flow instead of a raw error (parity with open-mod gating).
+    if (result?.error === 'PATCHER_MISSING') {
+      onDependencyMissing?.(selectedGame, result.missing || []);
+      return;
+    }
+
+    // Patch → game prerequisites. The pack modal normally blocks until these
+    // are satisfied, so reaching here means state drifted — surface a clear hint.
+    if (result?.error === 'GAME_PATH_MISSING') {
+      notify.error(t.pack.errGamePathTitle, t.pack.errGamePathDesc);
+      return;
+    }
+    if (result?.error === 'PATCHER_MISSING_GAME') {
+      notify.error(t.pack.errPatcherGameTitle, t.pack.errPatcherGameDesc);
+      return;
+    }
+
     if (result?.success) {
-      notify.success(t.projects.packed, t.projects.packedDesc(result.filePath));
+      // Patch written straight into the game — there is no output file path.
+      if (result.target === 'game') {
+        notify.success(t.pack.installedToGameTitle, t.pack.installedToGameDesc(result.installedTo));
+      } else {
+        notify.success(t.projects.packed, t.projects.packedDesc(result.filePath));
+      }
     } else if (result?.error) {
       notify.error(t.projects.packError, result.error);
     }
-  }, [translations, modInfo?.name, targetLanguage, t.projects]);
+  }, [translations, modInfo?.name, targetLanguage, selectedGame, originalPakPath, onDependencyMissing, t.projects, t.pack]);
 
   // Update the project's target language. Marks the project dirty so the
   // user is reminded to save the change. The actual repack uses whatever
@@ -309,6 +354,8 @@ export function useProjectManager({ selectedGame, onDependencyMissing } = {}) {
     hasUnsavedChanges,
     isLoadingPak,
     isLoadingProject,
+    isPacking,
+    packProgress,
     handleSelectFile,
     handleOpenFile,
     handleSaveProject,

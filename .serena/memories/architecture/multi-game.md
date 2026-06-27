@@ -205,9 +205,123 @@ MSC-моды = управляемые .NET .dll; строки = операнды
 - Версионирование: поднять TOOL_VERSION в `toolConfig.js` (ULTIMA) + запушить
   совпадающий тег `msc-tools-v<версия>` в ULTIMA_TOOLS.
 
-## ОСТАЁТСЯ: репак (write-back в .dll)
-Инструмент умеет `inject`, `mscToolCli.inject` готов, но кнопка `MOD_REPACK`
-в редакторе ещё BG3-only — обобщить через контракт `pack` и подключить MSC.
+## Репак: generic-контракт `pack` + MSC `replace` (ВЫПОЛНЕНО; патч-режим в работе)
+Спека `.kiro/specs/msc-translation-patch/`. Сделано:
+- `MOD_REPACK` обобщён в игро-независимый роутер `Backend/handlers/repackHandlers.js`
+  (зарегистрирован в handlers/index.js): резолвит `games.getGameModule(gameId)`,
+  даёт `ctx = { promptOutputPath(defaultName, filters), onProgress(percent) }`,
+  делегирует в `game.pack(input, ctx)`. `input = { updatedData, modName,
+  targetLanguage, mode, originalPakPath }`. Канал прогресса `MOD_REPACK_PROGRESS`
+  ('repack-progress').
+- BG3 `pack()` перенесён в `games/bg3/index.js` (поведение 1:1 с прежним
+  хендлером, игнорирует mode/originalPakPath). `MOD_REPACK` УДАЛЁН из
+  `games/bg3/handlers/modHandlers.js` (там остались TRANSLATE_*).
+- ВАЖНО (изоляция игр): мета-ключи НЕ фильтруются в общем хендлере — BG3 берёт
+  name/author/uuid/description из updatedData для meta.lsx. Фильтрацию делает
+  КАЖДАЯ игра у себя. Нейтральный помощник `manager/shared_utils/translationData.js`
+  (`stripMetaKeys`) — НЕ под bg3/.
+- MSC: `Backend/games/mysummercar/packManager.js` (`pack` подключён в index.js).
+  Режим `replace` РАБОТАЕТ end-to-end: переразрешает исходный .dll из
+  originalPakPath (read-only; архив → temp), extract → `translationTable.js`
+  buildTranslationTable (только id из extract, непустые после trim, мета
+  отброшены) → `mscToolCli.inject` → zip {<translated>.dll, info.json}. Исходник
+  НЕ мутируется, temp чистится в finally, `pack` не бросает (возвращает
+  {success,error}).
+- Frontend проброс: preload `repackMod(payload)`, `API/pak.js` repack({gameId,
+  translations, modName, targetLanguage, mode, originalPakPath}),
+  `ProjectService.handleSavePak` шлёт gameId+originalPakPath. mode пока undefined
+  → packManager дефолтит на 'replace'. Кнопка pack у MSC теперь работает (replace).
+- Тесты (в `npm test`): translationData.test.js (P1), mscTranslationTable.test.js
+  (P2/P3), mscPackManager.test.js — stubbed пайплайн + guarded реальный round-trip
+  на `Backend/tests/MSCQualityTweaks.dll` (P4/P6, end-to-end). Все зелёные.
+
+### ОСТАЁТСЯ по спеке
+Node-сторона патч-режима ГОТОВА:
+- `dll_utils/assemblyName.js` — чистый JS-ридер CLI-метаданных (.NET), читает
+  имя сборки из таблицы Assembly (проверено: MSCQualityTweaks.dll → "MSCQualityTweaks");
+  `resolveTargetAssembly` с фолбэком на имя файла.
+- `toolConfig.js` — два инструмента (TOOLS: MSC_TOOL + MSC_PATCHER), legacy-экспорты
+  сохранены. `mscToolDownloader` обобщён (`downloadAsset`/`downloadToolById`).
+  `dll_utils/patcherTool.js` — путь/наличие/версия патчера (configure в index.initialize).
+- `packManager.buildPatchArtifact` — zip {Mods/UltimaLocPatcher.dll,
+  Mods/Config/UltimaLoc/<modid>.json (таблица+манифест), info.txt}; patcher absent →
+  {success:false, error:'PATCHER_MISSING', missingTool:'msc-patcher'} (без диалога).
+- `index.checkDependencies` — оба инструмента в `tools[]`; патчер НЕ блокирует
+  открытие (ok = только наличие MscLocTool), НЕ в on-entry missing.
+  `installDependencies(onProgress, toolId)` ставит нужный инструмент.
+- Тесты: mscAssemblyName.test.js, патч-секции в mscPackManager.test.js (вкл.
+  реальный артефакт с настоящим targetAssembly), P7 в mscTranslationTable.test.js.
+  Весь `npm test` зелёный; `npm run lint` чистый.
+
+Patch-режим UI (ВЫПОЛНЕНО) и C#-патчер (ВЫПОЛНЕН исходник+сборка+тесты):
+- Патчер `UltimaLocPatcher` написан в `tools/MSC-Patcher/` (src/LocId, LocStore
+  +LocStore.Io, LocPatch, UltimaLocMod). Собирается реально `dotnet build -c
+  Release` против MSCLoader 1.4.2 + Harmony **1.2** (namespace `Harmony`/
+  `HarmonyInstance`, НЕ HarmonyX!). MSCLoader API: ModSetup()+SetupFunction(
+  Setup.OnMenuLoad, ...). Транспайлер по всем методам targetAssembly меняет
+  ldstr по LocId.Make (== stringId.js/Program.cs). Юнит-тесты: tools/MSC-Patcher/
+  tests (net8, 5 зелёных, golden-векторы из Node). Референсы (Origin Files,
+  MSCLoader, MSCModLoader-1.4.2) + bin/obj — в .gitignore (копирайт/размер),
+  трекается только src/*.cs, *.csproj, README, tests/*.cs.
+
+Релиз патчера ПОДГОТОВЛЕН (CI-собираем без игровых DLL):
+- csproj патчера переведён на net35 через NuGet
+  `Microsoft.NETFramework.ReferenceAssemblies.net35`; зависимости —
+  редистрибутируемые `tools/MSC-Patcher/References/{MSCLoader,0Harmony,
+  Newtonsoft.Json}.dll` (трекаются в git). Игровые DLL не нужны для сборки.
+  Проверено: выход ссылается на mscorlib 2.0.0.0 (грузится в Unity Mono).
+- Workflow `tools/MSC-Patcher/ci/build-loc-patcher.yml` (тег `loc-patcher-v*`,
+  prerelease, тесты+сборка+upload ассета). Инструкция `tools/MSC-Patcher/RELEASE.md`.
+- .gitignore: References/ трекается; Origin Files/MSCLoader/MSCModLoader-1.4.2/
+  bin/obj — игнор.
+
+ФИКС ПЕРЕВОДА НАСТРОЕК (v1.0.2): транспайлер переводит только «живые» строки
+(геттер Name мода). Подписи настроек (Settings.Add* аргументы), элементы
+DropDown/SliderInt и Description мода МАТЕРИАЛИЗУЮТСЯ при загрузке (LoadModsSettings
+→ A_ModSettings.Invoke) ДО нашего OnMenuLoad — транспайлер их не достаёт.
+Решение: `src/LocSettings.cs` — после загрузки рефлексией идём по
+ModLoader.LoadedMods → mod.modSettingsList, переводим ModSetting.Name (через
+internal UpdateName, обновляет и UI), массивы ArrayOfItems (DropDown) и TextValues
+(SliderInt), Placeholder (TextBox), и mod.Description. Вызывается из
+Mod_OnMenuLoad после транспайлера. Ключевые internal-члены MSCLoader берём
+рефлексией (Mod.modSettingsList, ModSetting.Name/UpdateName); ModLoader.LoadedMods
+и Mod.Description — публичные.
+
+ФИКС КРАША ПАТЧЕРА (v1.0.1): в игре падало с "Could not load type
+System.ComponentModel.INotifyPropertyChanging" — Newtonsoft.Json несовместим с
+урезанным Unity-Mono System.dll в MSC. Решение: убрали Newtonsoft из патчера,
+JSON парсится встроенным `src/MiniJson.cs` (без зависимостей). References/ теперь
+только MSCLoader.dll + 0Harmony.dll. Перевыпущен тег `loc-patcher-v1.0.1`;
+`toolConfig.js` MSC_PATCHER.version='1.0.1' + URL на этот тег. ВАЖНО: патчер
+ОСТАЁТСЯ необязательным для открытия мода (пользователь передумал делать его
+обязательным) — checkDependencies гейтит только MscLocTool.
+
+РЕЛИЗ ОПУБЛИКОВАН (N1ko-Pro/ULTIMA_TOOLS):
+- Запушены ветка `feat/loc-patcher` (исходник `UltimaLocPatcher/` +
+  `.github/workflows/build-loc-patcher.yml`) и тег `loc-patcher-v1.0.0`.
+- CI отработал успешно; создан prerelease с ассетом `UltimaLocPatcher.dll`
+  (10 КБ). Скачивание по `MSC_PATCHER.downloadUrl` из toolConfig.js проверено
+  (HTTP 200, managed-сборка: mscorlib 2.0.0.0 / MSCLoader 1.4.2 / 0Harmony 1.2.0.1).
+- Патч-режим MSC теперь полностью рабочий end-to-end в приложении (тул скачается
+  через систему зависимостей при первой patch-сборке).
+
+ОСТАЁТСЯ по желанию:
+- Смержить PR `feat/loc-patcher` → main в ULTIMA_TOOLS (релиз уже существует,
+  не блокирует).
+- Живая проверка BG3 + MSC (replace/patch) в приложении и smoke патчера в игре.
+
+Frontend патч/replace (ВЫПОЛНЕНО):
+- `PackModal` получил `gameId`; для MSC показывает выбор режима (patch
+  «рекомендуется» / replace) с пояснениями; `onPack(mode)` → `confirmPack(mode)`
+  → `handleSavePak(mode)`. BG3 — без выбора (один режим).
+- `ProjectService.handleSavePak(mode)`: state `isPacking`/`packProgress`,
+  подписка на `pakApi.onProgress`, проброс mode; `PATCHER_MISSING` → не ошибка,
+  а `onDependencyMissing(selectedGame, missing)` (открывает deps-модалку патчера).
+- Прогресс/состояние: канал `MOD_REPACK_PROGRESS` → preload `onRepackProgress`
+  → `API/pak.onProgress`; LoadingOverlay показывает «Упаковка… NN%».
+- `ToolStatusWidget` уже многоинструментальный → патчер отображается сам с
+  кнопкой установки. Локали pack.modes.* и common.packing* в ru/en.
+- npm test (79) зелёный, npm run lint чистый, vite build проходит.
 
 ## Generic game-routed ingest (выполнено)
 Путь импорта мода обобщён (был BG3-хардкод):
@@ -228,17 +342,15 @@ MSC-моды = управляемые .NET .dll; строки = операнды
 - `useDragAndDrop({acceptedExtensions})` + DropZone передаёт расширения из
   game.fileTypes → drag принимает .dll для MSC.
 
-## ВАЖНО: репак (write-back в DLL) НЕ реализован
+## (УСТАРЕЛО) Репак — см. раздел «Репак: generic-контракт pack + MSC replace»
 - Сохранение ПРОЕКТА (переводы JSON) работает для MSC через generic-пайплайн.
-- Сборка/репак (MOD_REPACK → bg3Manager.saveAndRepack, кнопка pack в редакторе)
-  всё ещё BG3-only и НЕ обобщена. Для MSC внедрение переводов обратно в .dll
-  (перезапись `#US` + токенов `ldstr` или инструмент на Mono.Cecil) — отдельный
-  сложный шаг. Сейчас кнопка pack у MSC вызовет BG3-логику и упадёт с ошибкой —
-  надо обобщить MOD_REPACK через контракт (`pack`) и реализовать MSC-репак.
+- Репак ОБОБЩЁН через контракт `pack`; MSC `replace` работает end-to-end.
+  Патч-режим MSC (отдельный артефакт + патчер) ещё в работе по спеке
+  `msc-translation-patch`.
 
 ### Следующие фазы (НЕ сделаны)
-- Обобщить MOD_REPACK через контракт `pack`; реализовать запись строк в .dll
-  для MSC (правка `#US`-кучи + `ldstr`-токенов, либо .NET-инструмент Cecil).
+- Патч-режим MSC: artifact + C#-патчер UltimaLocPatcher (Harmony transpiler) в
+  репозитории ULTIMA_TOOLS (см. спеку msc-translation-patch).
 - Фаза 2: выделить `Backend/core/`.
 - Frontend: per-game компоненты воркспейса при необходимости.
 

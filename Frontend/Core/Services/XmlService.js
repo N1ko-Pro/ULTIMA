@@ -21,9 +21,13 @@ import * as xmlApi from '@API/xml';
 export default function useXmlService({ originalStrings, setTranslations, modInfo, targetLanguage }) {
   const t = useLocale();
 
-  const handleExportXml = useCallback(async () => {
-    if (!isAvailable() || !originalStrings) return;
-    const dictionary = toIdValueDictionary(originalStrings, 'original');
+  // Export only the rows the user can currently see. `rowsOverride` is the
+  // editor's visible set (after filters: technical / non-English / hidden /
+  // favorites / search); falls back to the full set when not provided.
+  const handleExportXml = useCallback(async (rowsOverride) => {
+    const rows = Array.isArray(rowsOverride) && rowsOverride.length ? rowsOverride : originalStrings;
+    if (!isAvailable() || !rows) return;
+    const dictionary = toIdValueDictionary(rows, 'original');
     const result = await xmlApi.exportFile(dictionary, modInfo, targetLanguage);
 
     if (result?.success) {
@@ -45,5 +49,11 @@ export default function useXmlService({ originalStrings, setTranslations, modInf
     }
   }, [setTranslations, t.xml]);
 
-  return { handleExportXml, handleImportXml };
+  const handleOpenXmlFolder = useCallback(async () => {
+    if (!isAvailable()) return;
+    const result = await xmlApi.openFolder();
+    if (result?.error) notify.error(t.xml.exportError, result.error);
+  }, [t.xml]);
+
+  return { handleExportXml, handleImportXml, handleOpenXmlFolder };
 }

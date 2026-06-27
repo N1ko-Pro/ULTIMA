@@ -1,7 +1,7 @@
 {
   "name": "bg3-ultima",
   "private": true,
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "ULTIMA — a desktop toolkit for Baldur's Gate 3 mod localization and translation.",
   "author": {
     "name": "ANICKON",
@@ -13,11 +13,12 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "node Backend/tests/markup.test.js",
+    "test": "node Backend/tests/markup.test.js && node Backend/tests/translationData.test.js && node Backend/tests/mscTranslationTable.test.js && node Backend/tests/mscAssemblyName.test.js && node Backend/tests/mscGamePath.test.js && node Backend/tests/mscPackManager.test.js",
     "test:llm": "node Backend/tests/llm_live.js",
     "dist": "vite build && electron-builder --win --x64",
     "dist:dir": "vite build && electron-builder --win --x64 --dir",
-    "release": "node scripts/release.js"
+    "release": "node scripts/release.js",
+    "release:tool": "node scripts/release-tool.js"
   },
   "dependencies": {
     "@vitalets/google-translate-api": "^9.2.1",

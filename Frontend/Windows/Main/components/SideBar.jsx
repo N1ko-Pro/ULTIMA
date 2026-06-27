@@ -204,6 +204,7 @@ function SideBar({
                 isRequiredMissing={missingModDataFields.description}
                 packValidationAttempt={packValidationAttempt}
                 isUserSet={Boolean(translations.description)}
+                targetLanguage={targetLanguage}
               />
             </FieldCard>
           </section>

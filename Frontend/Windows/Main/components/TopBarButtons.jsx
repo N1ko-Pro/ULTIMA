@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { Languages, Package, Settings, DownloadCloud, UploadCloud } from 'lucide-react';
+import { Languages, Package, Settings, DownloadCloud, UploadCloud, FolderOpen } from 'lucide-react';
 import { useLocale } from '@Locales/LocaleProvider';
 
 // ─── Editor top-bar buttons ─────────────────────────────────────────────────
@@ -99,6 +99,41 @@ export function SettingsButton({ onSettings }) {
   );
 }
 
+// Per-accent hover treatment for the shared TOOLS icon button. Mirrors the
+// original colour highlight (tinted text + border + bg + glow) and radial
+// overlay each button had — only the resting container is unified to the
+// top bar's glass base (bg-white/[0.06] + white border).
+const ICON_ACCENTS = {
+  amber:   { hover: 'hover:text-amber-300 hover:border-amber-400/20 hover:bg-amber-400/[0.06] hover:shadow-[0_0_16px_rgba(251,191,36,0.1)]',  overlay: 'from-amber-400/0 via-amber-400/[0.05] to-transparent' },
+  sky:     { hover: 'hover:text-sky-300 hover:border-sky-400/20 hover:bg-sky-400/[0.06] hover:shadow-[0_0_16px_rgba(56,189,248,0.1)]',         overlay: 'from-sky-400/0 via-sky-400/[0.05] to-transparent' },
+  emerald: { hover: 'hover:text-emerald-300 hover:border-emerald-400/20 hover:bg-emerald-400/[0.06] hover:shadow-[0_0_16px_rgba(52,211,153,0.1)]', overlay: 'from-emerald-400/0 via-emerald-400/[0.05] to-transparent' },
+  red:     { hover: 'hover:text-red-400 hover:border-red-500/20 hover:bg-red-500/[0.06] hover:shadow-[0_0_16px_rgba(248,113,113,0.1)]',         overlay: 'from-red-500/0 via-red-500/[0.05] to-transparent' },
+  muted:   { hover: 'hover:text-zinc-400 hover:border-white/[0.12] hover:bg-white/[0.03]',                                                      overlay: 'from-white/0 via-white/[0.03] to-transparent' },
+};
+
+/**
+ * Shared square icon button for the TOOLS group. Resting container matches the
+ * rest of the top bar (glass base), while each button keeps its own accent
+ * highlight (`accent`), idle colour (`idleClass`) and icon animation
+ * (`iconClass`).
+ */
+export function IconButton({ icon: Icon, onClick, title, accent = 'amber', idleClass = 'text-zinc-400', iconClass = '', className = '', ...rest }) {
+  const a = ICON_ACCENTS[accent] || ICON_ACCENTS.amber;
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      title={title}
+      aria-label={title}
+      className={`group relative flex h-[42px] w-[42px] items-center justify-center rounded-xl bg-white/[0.06] border border-white/[0.12] ${idleClass} ${a.hover} transition-all duration-200 overflow-hidden active:scale-[0.95] shrink-0 ${className}`}
+      {...rest}
+    >
+      <span className={`absolute inset-0 bg-gradient-to-br ${a.overlay} opacity-0 group-hover:opacity-100 transition-opacity duration-200`} />
+      <Icon className={`relative z-10 ${iconClass}`} />
+    </button>
+  );
+}
+
 function ExportButton({ onExport, compact = false }) {
   const t = useLocale();
   return (
@@ -133,11 +168,29 @@ function ImportButton({ onImport, compact = false }) {
   );
 }
 
-/** Labelled border-group that frames the XML import/export pair. */
-export function XmlActionGroup({ onImport, onExport, compact = false }) {
+/** Icon-only button that reveals the XML folder in the OS file manager. */
+function OpenFolderButton({ onOpenFolder }) {
+  const t = useLocale();
+  return (
+    <button
+      type="button"
+      onClick={onOpenFolder}
+      title={t.editor.openXmlFolderTitle}
+      aria-label={t.editor.openXmlFolder}
+      className="group relative flex h-[42px] w-[42px] items-center justify-center rounded-xl bg-white/[0.06] border border-white/[0.12] transition-all duration-200 hover:bg-white/[0.1] hover:border-white/[0.2] hover:shadow-[0_0_20px_rgba(255,255,255,0.04)] overflow-hidden active:scale-[0.97] shrink-0"
+    >
+      <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-amber-400/0 via-amber-400/[0.05] to-transparent -translate-x-full group-hover:animate-[shimmer_2s_infinite]" />
+      <FolderOpen className="relative z-10 w-4 h-4 text-amber-300/80 group-hover:text-amber-200 group-hover:-translate-y-0.5 transition-all duration-200" />
+    </button>
+  );
+}
+
+/** Labelled border-group that frames the XML import / open-folder / export trio. */
+export function XmlActionGroup({ onImport, onExport, onOpenFolder, compact = false }) {
   return (
     <GroupFrame label="XML">
       <ImportButton onImport={onImport} compact={compact} />
+      {onOpenFolder && <OpenFolderButton onOpenFolder={onOpenFolder} />}
       <ExportButton onExport={onExport} compact={compact} />
     </GroupFrame>
   );

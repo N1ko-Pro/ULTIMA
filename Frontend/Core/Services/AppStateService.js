@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import * as onboardingApi from '@API/onboarding';
 import * as dotnetApi from '@API/dotnet';
 import * as depsApi from '@API/deps';
+import * as gameIntegrationApi from '@API/gameIntegration';
 
 // ─── App state service ──────────────────────────────────────────────────────
 // Centralised UI state for the app shell: which overlays are visible, which
@@ -37,6 +38,10 @@ export default function useAppState() {
   const [dotnetModalCompleted,   setDotnetModalCompleted]   = useState(false);
   const [pendingEulaLang,        setPendingEulaLang]        = useState(null);
   const [showDotNetModal,        setShowDotNetModal]        = useState(false);
+  // Per-game integration with the installed game (currently MSC only): remembered
+  // game path + whether the runtime patcher is installed straight into the game.
+  // `supported:false` for games without the optional integration contract (BG3).
+  const [gameIntegration,        setGameIntegration]        = useState({ supported: false, status: null });
 
   const handleOpenSettings = useCallback((tab = null) => {
     setSettingsDefaultTab(typeof tab === 'string' ? tab : null);
@@ -132,6 +137,70 @@ export default function useAppState() {
   }, []);
 
   const closeDepsModal = useCallback(() => setDepsModalOpen(false), []);
+
+  // ── Game integration (workspace panel, MSC) ───────────────────────────────
+  // Read the integration snapshot for a game (game path + patcher-in-game). A
+  // game that doesn't expose the optional contract reports `supported:false`,
+  // which simply hides the panel.
+  const refreshGameIntegration = useCallback(async (gameId) => {
+    if (!gameId) return;
+    try {
+      const res = await gameIntegrationApi.getStatus(gameId);
+      setGameIntegration(res?.success
+        ? { supported: !!res.supported, status: res.status || null }
+        : { supported: false, status: null });
+    } catch {
+      setGameIntegration({ supported: false, status: null });
+    }
+  }, []);
+
+  // Auto-detect the game path (Steam) and store the refreshed snapshot.
+  const detectGamePath = useCallback(async (gameId) => {
+    if (!gameId) return null;
+    const res = await gameIntegrationApi.detectPath(gameId);
+    if (res?.success) setGameIntegration({ supported: true, status: res.status || null });
+    return res;
+  }, []);
+
+  // Open a folder picker; on success the validated path is stored + reflected.
+  const pickGamePath = useCallback(async (gameId) => {
+    if (!gameId) return null;
+    const res = await gameIntegrationApi.pickPath(gameId);
+    if (res?.success) setGameIntegration({ supported: true, status: res.status || null });
+    return res;
+  }, []);
+
+  // Forget the remembered game path.
+  const clearGamePath = useCallback(async (gameId) => {
+    if (!gameId) return null;
+    const res = await gameIntegrationApi.clearPath(gameId);
+    if (res?.success) setGameIntegration({ supported: true, status: res.status || null });
+    return res;
+  }, []);
+
+  // Install the runtime patcher straight into the game (downloads it first if
+  // needed). Progress rides the shared deps-install channel.
+  const installPatcherToGame = useCallback(async (gameId, onProgress) => {
+    if (!gameId) return null;
+    const unsubscribe = depsApi.onInstallProgress((percent) => onProgress?.(percent));
+    let res;
+    try {
+      res = await gameIntegrationApi.installPatcher(gameId);
+    } finally {
+      unsubscribe();
+    }
+    if (res?.success) setGameIntegration({ supported: true, status: res.status || null });
+    return res;
+  }, []);
+
+  // Remove the runtime patcher from the game.
+  const uninstallPatcherFromGame = useCallback(async (gameId) => {
+    if (!gameId) return null;
+    const res = await gameIntegrationApi.uninstallPatcher(gameId);
+    if (res?.success) setGameIntegration({ supported: true, status: res.status || null });
+    return res;
+  }, []);
+
 
   const handleInstallDeps = useCallback(async (onProgress, toolId) => {
     const unsubscribe = depsApi.onInstallProgress(onProgress);
@@ -229,6 +298,13 @@ export default function useAppState() {
     checkDeps,
     closeDepsModal,
     handleInstallDeps,
+    gameIntegration,
+    refreshGameIntegration,
+    detectGamePath,
+    pickGamePath,
+    clearGamePath,
+    installPatcherToGame,
+    uninstallPatcherFromGame,
     onboardingReady,
     onboarding,
     setOnboarding,

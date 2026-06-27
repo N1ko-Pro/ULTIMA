@@ -1,21 +1,50 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import { ScrollText } from 'lucide-react';
+import { ScrollText, Sparkles, Loader2 } from 'lucide-react';
 import SidebarFieldWrapper from './SidebarFieldWrapper';
 import { autoResize } from '@Utils/dom/autoResize';
 import { useLocale } from '@Locales/LocaleProvider';
+import { useAuth } from '@Core/Services/AuthService';
+import { notify } from '@Shared/notifications/notifyCore';
+import { DEFAULT_TARGET_LANGUAGE, normalizeLanguageCode } from '@Config/languages.constants';
+import * as translationsApi from '@API/translations';
 
 // ─── Sidebar description field ──────────────────────────────────────────────
 // Multi-line version of InputField. Both textareas auto-resize to content
-// (via `autoResize`) so long descriptions never overflow.
+// (via `autoResize`) so long descriptions never overflow. A small Smart
+// auto-translate button fills the translation from the original description.
 
-function DescriptionField({ original, value, onChange, isRequiredMissing, packValidationAttempt = 0, isUserSet }) {
+function DescriptionField({ original, value, onChange, isRequiredMissing, packValidationAttempt = 0, isUserSet, targetLanguage }) {
   const t = useLocale();
+  const { canUseAutoTranslate } = useAuth();
   const [isFocused, setIsFocused] = useState(false);
+  const [isTranslating, setIsTranslating] = useState(false);
   const [dismissedValidationAttempt, setDismissedValidationAttempt] = useState(null);
 
   const displayValue = value !== undefined ? value : original;
   const isUnknown = original?.includes('Unknown');
   const isValidationHighlighted = isRequiredMissing && dismissedValidationAttempt !== packValidationAttempt;
+
+  const canTranslate = canUseAutoTranslate && Boolean((original || '').trim()) && !(value || '').trim();
+
+  const handleAutoTranslate = useCallback(async () => {
+    const source = (original || '').trim();
+    if (!source || isTranslating) return;
+    setIsTranslating(true);
+    try {
+      const lang = normalizeLanguageCode(targetLanguage || DEFAULT_TARGET_LANGUAGE);
+      const res = await translationsApi.translate({ description: source }, lang, { mode: 'smart' });
+      const out = res?.data || res?.translations;
+      if (res?.success && out && typeof out.description === 'string') {
+        onChange(out.description);
+      } else {
+        notify.error(t.editor.translateError, res?.error || t.editor.translateErrorDesc);
+      }
+    } catch (err) {
+      notify.error(t.editor.translateError, err?.message || t.editor.translateErrorDesc);
+    } finally {
+      setIsTranslating(false);
+    }
+  }, [original, targetLanguage, isTranslating, onChange, t.editor]);
 
   const topRef = useRef(null);
   const editRef = useRef(null);
@@ -99,9 +128,22 @@ function DescriptionField({ original, value, onChange, isRequiredMissing, packVa
             }}
             placeholder={t.sidebar.descPlaceholder}
             rows={1}
-            style={{ overflowY: 'auto', minHeight: '2.25rem', maxHeight: '9rem' }}
-            className={`input-modern px-3 py-1.5 w-full text-[13px] text-zinc-100 resize-none border rounded-lg ${editInputColor}`}
+            style={{ overflowY: 'hidden', minHeight: '2.25rem' }}
+            className={`input-modern px-3 py-1.5 w-full text-[13px] text-zinc-100 resize-none border rounded-lg ${canTranslate ? 'pr-9' : ''} ${editInputColor}`}
           />
+          {canTranslate && (
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={handleAutoTranslate}
+              disabled={isTranslating}
+              title={t.sidebar.autoTranslateDesc}
+              aria-label={t.sidebar.autoTranslateDesc}
+              className="absolute top-1.5 right-1.5 inline-flex items-center justify-center w-6 h-6 rounded-md text-violet-300/80 hover:text-violet-200 hover:bg-violet-400/[0.14] transition-all duration-200 active:scale-[0.92] disabled:opacity-60 disabled:hover:bg-transparent"
+            >
+              {isTranslating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+            </button>
+          )}
         </div>
       </div>
     </SidebarFieldWrapper>

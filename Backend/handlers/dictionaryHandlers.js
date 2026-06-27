@@ -5,6 +5,11 @@ const dictionaryManager = require('../manager/dictionaryManager');
 const CH = require('../ipcChannels');
 
 function registerDictionaryHandlers() {
+  ipcMain.handle(CH.DICT_SET_GAME, wrapHandler(async (_, gameId) => {
+    dictionaryManager.setActiveGame(gameId);
+    return { success: true, data: dictionaryManager.getAll() };
+  }));
+
   ipcMain.handle(CH.DICT_GET_ALL, wrapHandler(async () => {
     return { success: true, data: dictionaryManager.getAll() };
   }));

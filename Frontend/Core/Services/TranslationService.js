@@ -34,7 +34,7 @@ import * as ollamaApi from '@API/ollama';
  *   targetLanguage?: string,
  * }} deps
  */
-export default function useAutoTranslation({ originalStrings, translations, setTranslations, targetLanguage }) {
+export default function useAutoTranslation({ originalStrings, translations, setTranslations, targetLanguage, getRowsToTranslate }) {
   const t = useLocale();
   const tRef = useRef(t);
   useEffect(() => { tRef.current = t; });
@@ -144,9 +144,12 @@ export default function useAutoTranslation({ originalStrings, translations, setT
       let translationFailed = false;
 
       try {
-        const dataToTranslateArray = collectPendingTranslationRows(originalStrings, translations);
+        // Auto-translate only the rows the user is currently looking at — the
+        // active filter / search / limit (favorites, hidden, technical, …).
+        // Falls back to the full set when no visible scope is provided.
+        const visibleRows = (typeof getRowsToTranslate === 'function' && getRowsToTranslate()) || originalStrings;
+        const dataToTranslateArray = collectPendingTranslationRows(visibleRows, translations);
         const totalItems = dataToTranslateArray.length;
-
         if (totalItems === 0) {
           translationModeRef.current = '';
           setIsTranslating(false);
@@ -248,7 +251,7 @@ export default function useAutoTranslation({ originalStrings, translations, setT
         }
       }
     },
-    [originalStrings, translations, setTranslations, targetLanguage, updateProgressSmooth, resetOllamaContext, t.editor],
+    [originalStrings, translations, setTranslations, targetLanguage, getRowsToTranslate, updateProgressSmooth, resetOllamaContext, t.editor],
   );
 
   return {

@@ -17,6 +17,9 @@ import { Footer } from './components/Footer';
 import { StartProfilePanel } from './components/StartProfilePanel';
 import { StartLauncherRail } from './components/StartLauncherRail';
 import ToolStatusWidget from './components/ToolStatusWidget';
+import MscIntegrationPanel from './components/MscIntegrationPanel';
+import StartIconButton from './components/StartIconButton';
+import { Settings } from 'lucide-react';
 import { isAvailable } from '@API/client';
 import * as projectsApi from '@API/projects';
 import * as onboardingApi from '@API/onboarding';
@@ -69,6 +72,12 @@ export default function StartPage({
   onTutorialComplete,
   toolStatus,
   onInstallTools,
+  gameIntegration,
+  onDetectGamePath,
+  onPickGamePath,
+  onClearGamePath,
+  onInstallPatcher,
+  onUninstallPatcher,
 }) {
   const t = useLocale();
   const activeGame = getGameById(selectedGame);
@@ -250,12 +259,28 @@ export default function StartPage({
         profileHeight={profileHeight}
         onOpenGameSelect={onOpenGameSelect}
         onOpenHome={onOpenHome}
-        onSettingsOpen={onSettingsOpen}
       />
 
-      {/* Per-game tool status — top-right corner of the workspace. */}
-      <div className="absolute top-5 right-6 z-30">
-        <ToolStatusWidget tools={toolStatus?.tools || []} onInstall={onInstallTools} />
+      {/* Top-right: app settings + per-game integration / tools, stacked. MSC
+          gets the rich integration panel (game path + in-game patcher + build
+          tools) opening to the side; other games keep the tool-status widget. */}
+      <div className="absolute top-5 right-6 z-30 flex flex-col items-end gap-2">
+        <StartIconButton icon={Settings} label={t.settings.title} onClick={onSettingsOpen} spin />
+        {selectedGame === 'mysummercar' ? (
+          <MscIntegrationPanel
+            tools={toolStatus?.tools || []}
+            onInstallTool={onInstallTools}
+            integration={gameIntegration}
+            gameId={selectedGame}
+            onDetectPath={onDetectGamePath}
+            onPickPath={onPickGamePath}
+            onClearPath={onClearGamePath}
+            onInstallPatcher={onInstallPatcher}
+            onUninstallPatcher={onUninstallPatcher}
+          />
+        ) : (
+          <ToolStatusWidget tools={toolStatus?.tools || []} onInstall={onInstallTools} />
+        )}
       </div>
 
       <div ref={scrollRef} onScroll={handleScroll} className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden">

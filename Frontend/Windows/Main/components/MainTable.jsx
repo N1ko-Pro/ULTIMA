@@ -1,21 +1,18 @@
-import React, { useMemo, useState, useCallback, useRef, useDeferredValue } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Virtuoso } from 'react-virtuoso';
-import { Search, Trash2, Bookmark, EyeOff, Wrench } from 'lucide-react';
+import { Search, Trash2, Bookmark, EyeOff, Wrench, Languages } from 'lucide-react';
 import { useLocale } from '@Locales/LocaleProvider';
 import { useKeyboardShortcuts } from '@Utils/Keyboard/useKeyboardShortcuts';
 import ModalConfirm from '@UI/Modal/ModalConfirm';
 import { AutoTranslateButton } from './TopBarButtons';
 import VirtualTableRow from './VirtualTableRow';
 import { SearchClearButton } from '../MainPageButtons';
+import useMainTable from '@Windows/Main/utils/useMainTable';
 
-// ─── Main editor table ──────────────────────────────────────────────────────
+// ─── Main editor table (presentation) ─────────────────────────────────────────
 // The virtualized list of translatable rows plus the "row strip" above it
-// (progress, auto-translate trigger, search). ClearAll-confirm modal lives
-// here too because it is tightly coupled to the table's state.
-//
-// Stateful plumbing (auto-translation pipeline, validation resets) is owned
-// by `MainPage` and threaded in via props — this component stays focused on
-// presenting and filtering rows.
+// (progress, auto-translate trigger, search, filters). All stateful logic lives
+// in the `useMainTable` hook — this file only lays out and styles the result.
 
 const PROGRESS_BAR_MAX = '200px';
 
@@ -27,226 +24,29 @@ function getProgressGradient(percent) {
   return 'from-emerald-500 to-teal-500';
 }
 
-export default function MainTable({
-  originalStrings,
-  translations,
-  setTranslations,
-  onResetValidation,
-  packValidation,
-  packValidationAttempt = 0,
-  isAtpExpanded,
-  isTranslating,
-  onAutoTranslateOpen,
-}) {
+export default function MainTable(props) {
+  const {
+    originalStrings,
+    translations,
+    packValidationAttempt = 0,
+    isAtpExpanded,
+    isTranslating,
+    onAutoTranslateOpen,
+    onVisibleRowsChange,
+  } = props;
+
   const t = useLocale();
-  const [searchQuery,         setSearchQuery]         = useState('');
-  const [dismissedAttempts,   setDismissedAttempts]   = useState(() => ({}));
-  const [isClearAllOpen,      setIsClearAllOpen]      = useState(false);
-  const [bookmarkFilter,       setBookmarkFilter]       = useState('all'); // 'all' | 'favorites' | 'hidden'
-  const [rowLimit,            setRowLimit]            = useState('all');
-  const [showTechnical,        setShowTechnical]        = useState(false);
+  const table = useMainTable(props);
+
+  // Search input focus (Ctrl+F) — a presentational concern, kept in the view so
+  // the logic hook doesn't expose a raw ref.
   const searchInputRef = useRef(null);
+  useKeyboardShortcuts({ onFocusSearch: () => searchInputRef.current?.focus() });
 
-  // Filter reads the deferred value so typing in the search box never
-  // blocks on re-rendering 1000+ rows.
-  const deferredQuery = useDeferredValue(searchQuery);
-
-  useKeyboardShortcuts({
-    onFocusSearch: () => searchInputRef.current?.focus(),
-  });
-
-  // Reset dismissed validation highlights when the project changes.
-  React.useEffect(() => {
-    setDismissedAttempts({});
-  }, [originalStrings]);
-
-  // ── Technical-string classification (MSC etc.) ────────────────────────────
-  // Rows carry an auto `category` ('text' | 'uncertain' | 'technical') from the
-  // backend classifier. The user can override per-row; overrides persist in the
-  // project under `translations._techOverride`. Technical rows are hidden by
-  // default and excluded from the progress count so the denominator is honest.
-  const techOverride = useMemo(() => translations._techOverride || {}, [translations._techOverride]);
-  const autoCategoryById = useMemo(() => {
-    const map = {};
-    (originalStrings || []).forEach((row) => { map[row.id] = row.category || 'text'; });
-    return map;
-  }, [originalStrings]);
-  const effectiveCategoryOf = useCallback(
-    (id) => techOverride[id] || autoCategoryById[id] || 'text',
-    [techOverride, autoCategoryById],
-  );
-  const hasClassified = useMemo(
-    () => (originalStrings || []).some((row) => (row.category || 'text') !== 'text'),
-    [originalStrings],
-  );
-
-  const countableStrings = useMemo(
-    () => (originalStrings || []).filter((row) => effectiveCategoryOf(row.id) !== 'technical'),
-    [originalStrings, effectiveCategoryOf],
-  );
-  const totalCount = countableStrings.length;
-  const translatedCount = useMemo(
-    () => countableStrings.filter((row) => translations[row.id]?.trim()).length,
-    [countableStrings, translations],
-  );
-
-  const progress = totalCount > 0 ? Math.round((translatedCount / totalCount) * 100) : 0;
-  const missingRowIdSet = useMemo(
-    () => new Set(packValidation?.missingMainTableRowIds || []),
-    [packValidation],
-  );
-
-  // Auto-dismiss red highlights when the user fills in the row (e.g. via auto-translate).
-  React.useEffect(() => {
-    if (!packValidation?.missingMainTableRowIds || packValidationAttempt === 0) return;
-    const newlyTranslated = packValidation.missingMainTableRowIds.filter(
-      (rowId) => translations[rowId]?.trim(),
-    );
-    if (newlyTranslated.length === 0) return;
-    setDismissedAttempts((prev) => {
-      const next = { ...prev };
-      newlyTranslated.forEach((rowId) => { next[rowId] = packValidationAttempt; });
-      return next;
-    });
-  }, [translations, packValidation, packValidationAttempt]);
-
-  // ── Bookmarks — stored in translations._bookmarks as { rowId: true } ──────
-  const bookmarks = useMemo(() => {
-    const raw = translations._bookmarks;
-    if (!raw) return new Set();
-    return new Set(Object.keys(raw));
-  }, [translations._bookmarks]);
-
-  // ── Hidden rows — stored in translations._hidden as { rowId: true } ───────
-  // A manual per-row "hide" (distinct from the auto technical classification).
-  // Hidden rows only appear under the "Скрытые" filter.
-  const hiddenRows = useMemo(() => {
-    const raw = translations._hidden;
-    if (!raw) return new Set();
-    return new Set(Object.keys(raw));
-  }, [translations._hidden]);
-
-  const handleToggleBookmark = useCallback((rowId) => {
-    setTranslations((prev) => {
-      const current = prev._bookmarks || {};
-      const next = { ...current };
-      if (next[rowId]) { delete next[rowId]; } else { next[rowId] = true; }
-      return { ...prev, _bookmarks: next };
-    });
-  }, [setTranslations]);
-
-  const handleToggleHidden = useCallback((rowId) => {
-    setTranslations((prev) => {
-      const current = prev._hidden || {};
-      const next = { ...current };
-      if (next[rowId]) { delete next[rowId]; } else { next[rowId] = true; }
-      return { ...prev, _hidden: next };
-    });
-  }, [setTranslations]);
-
-  // Auto-reset filter when its set empties out (last favorite/hidden removed).
-  React.useEffect(() => {
-    if (bookmarkFilter === 'favorites' && bookmarks.size === 0) setBookmarkFilter('all');
-    if (bookmarkFilter === 'hidden' && hiddenRows.size === 0) setBookmarkFilter('all');
-  }, [bookmarkFilter, bookmarks.size, hiddenRows.size]);
-
-  const filteredStrings = useMemo(() => {
-    if (!deferredQuery) return originalStrings || [];
-    const q = deferredQuery.toLowerCase();
-    return originalStrings.filter((row) =>
-      row.original?.toLowerCase().includes(q) ||
-      translations[row.id]?.toLowerCase().includes(q),
-    );
-  }, [originalStrings, translations, deferredQuery]);
-
-  // Apply row filter (all / favorites / hidden) + technical visibility + limit.
-  const displayedStrings = useMemo(() => {
-    let result = filteredStrings;
-    if (bookmarkFilter === 'hidden') {
-      // Hidden view: only manually-hidden rows, shown regardless of technical.
-      result = result.filter((row) => hiddenRows.has(row.id));
-    } else {
-      // All / favorites: never show hidden rows here.
-      result = result.filter((row) => !hiddenRows.has(row.id));
-      if (bookmarkFilter === 'favorites') result = result.filter((row) => bookmarks.has(row.id));
-      if (!showTechnical) result = result.filter((row) => effectiveCategoryOf(row.id) !== 'technical');
-    }
-    if (rowLimit !== 'all') result = result.slice(0, Number(rowLimit));
-    return result;
-  }, [filteredStrings, bookmarkFilter, bookmarks, hiddenRows, rowLimit, showTechnical, effectiveCategoryOf]);
-
-  // Technical rows currently hidden (within the search-filtered set).
-  const technicalHiddenCount = useMemo(
-    () => filteredStrings.filter((row) => effectiveCategoryOf(row.id) === 'technical').length,
-    [filteredStrings, effectiveCategoryOf],
-  );
-
-  // O(1) lookup of a row's display index in the FULL list. Without this the
-  // Virtuoso itemContent did `originalStrings.indexOf(row)` per visible row
-  // per render — O(n²) on every scroll for big mods.
-  const rowIndexById = useMemo(() => {
-    const map = new Map();
-    if (originalStrings) {
-      for (let i = 0; i < originalStrings.length; i += 1) map.set(originalStrings[i].id, i);
-    }
-    return map;
-  }, [originalStrings]);
-
-  const handleTranslateChange = useCallback(
-    (rowId, value) => setTranslations((prev) => ({ ...prev, [rowId]: value })),
-    [setTranslations],
-  );
-
-  const handleClearTranslation = useCallback(
-    (rowId) => setTranslations((prev) => {
-      const next = { ...prev };
-      delete next[rowId];
-      return next;
-    }),
-    [setTranslations],
-  );
-
-  const handleClearAllTranslations = useCallback(() => {
-    setTranslations((prev) => {
-      const { uuid, name, author, description, _bookmarks, _techOverride, _hidden } = prev;
-      return {
-        uuid, name, author, description,
-        ...(_bookmarks ? { _bookmarks } : {}),
-        ...(_techOverride ? { _techOverride } : {}),
-        ...(_hidden ? { _hidden } : {}),
-      };
-    });
-    setDismissedAttempts({});
-    onResetValidation?.();
-    setIsClearAllOpen(false);
-  }, [setTranslations, onResetValidation]);
-
-  // Per-row reclassification. Toggles between technical (hidden) and text
-  // (visible); an override that matches the auto verdict is dropped so the map
-  // only stores genuine corrections.
-  const handleToggleTechnical = useCallback((rowId) => {
-    setTranslations((prev) => {
-      const auto = autoCategoryById[rowId] || 'text';
-      const current = prev._techOverride || {};
-      const effective = current[rowId] || auto;
-      const target = effective === 'technical' ? 'text' : 'technical';
-      const next = { ...current };
-      if (target === auto) delete next[rowId];
-      else next[rowId] = target;
-      return { ...prev, _techOverride: next };
-    });
-  }, [setTranslations, autoCategoryById]);
-
-  const dismissMissingRowHighlight = useCallback(
-    (rowId, isMissingByValidation) => {
-      if (!isMissingByValidation) return;
-      setDismissedAttempts((prev) => {
-        if (prev[rowId] === packValidationAttempt) return prev;
-        return { ...prev, [rowId]: packValidationAttempt };
-      });
-    },
-    [packValidationAttempt],
-  );
+  // Report the currently-visible rows up so auto-translate can scope to them.
+  useEffect(() => {
+    onVisibleRowsChange?.(table.displayedStrings);
+  }, [table.displayedStrings, onVisibleRowsChange]);
 
   return (
     <div className="flex-1 min-h-0 overflow-hidden p-4 sm:p-8 scroll-smooth z-10 flex flex-col relative">
@@ -265,19 +65,19 @@ export default function MainTable({
                 <div className="h-1.5 bg-surface-2 rounded-full ring-1 ring-white/[0.1] relative flex-1 min-w-0" style={{ maxWidth: PROGRESS_BAR_MAX }}>
                   <div className="absolute inset-0 overflow-hidden rounded-full">
                     <div
-                      className={`h-full bg-gradient-to-r ${getProgressGradient(progress)} rounded-full transition-all duration-700 ease-out`}
-                      style={{ width: `${progress}%` }}
+                      className={`h-full bg-gradient-to-r ${getProgressGradient(table.progress)} rounded-full transition-all duration-700 ease-out`}
+                      style={{ width: `${table.progress}%` }}
                     />
                   </div>
                 </div>
                 <span className="text-xs font-semibold text-zinc-300 shrink-0">
-                  {translatedCount} / {totalCount}
+                  {table.translatedCount} / {table.totalCount}
                 </span>
               </div>
             </div>
           </div>
 
-          <DividerLine isHidden={isAtpExpanded} origin="right" direction="r" />
+          <DividerLine isHidden={isAtpExpanded} direction="r" />
 
           <div
             data-tutorial="editor-btn-translate"
@@ -296,7 +96,7 @@ export default function MainTable({
             />
           </div>
 
-          <DividerLine isHidden={isAtpExpanded} origin="left" direction="l" />
+          <DividerLine isHidden={isAtpExpanded} direction="l" />
 
           <div className="relative group min-w-0 flex-[0_1_300px]" data-tutorial="editor-search">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none z-10">
@@ -306,11 +106,11 @@ export default function MainTable({
               ref={searchInputRef}
               type="text"
               placeholder={t.editor.searchPlaceholderFull}
-              value={searchQuery || ''}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={table.searchQuery || ''}
+              onChange={(e) => table.setSearchQuery(e.target.value)}
               className="w-full bg-surface-2 border border-white/[0.07] [&:not(:focus)]:hover:border-white/[0.12] focus:border-white/[0.4] rounded-2xl py-3 pl-12 pr-10 text-[13px] text-zinc-200 placeholder-zinc-600 outline-none focus:ring-2 focus:ring-white/[0.12] focus:shadow-[0_0_0_3px_rgba(255,255,255,0.04)] focus:bg-surface-3 transition-[border-color,background-color,box-shadow] duration-200"
             />
-            {searchQuery && <SearchClearButton onClick={() => setSearchQuery('')} />}
+            {table.searchQuery && <SearchClearButton onClick={() => table.setSearchQuery('')} />}
           </div>
         </div>
 
@@ -322,58 +122,91 @@ export default function MainTable({
             <div className="flex items-center shrink-0 pr-3">
               {[
                 { value: 'all',       label: t.editor.filterAll,       Icon: null,     count: 0 },
-                { value: 'favorites', label: t.editor.filterFavorites, Icon: Bookmark, count: bookmarks.size },
-                { value: 'hidden',    label: t.editor.filterHidden,    Icon: EyeOff,   count: hiddenRows.size },
-              ].map(({ value: v, label, Icon, count }) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => setBookmarkFilter(v)}
-                  className={`flex items-center gap-1.5 h-6 px-2.5 text-[11px] font-semibold rounded-md transition-all duration-150 ${
-                    bookmarkFilter === v
-                      ? v === 'favorites'
-                        ? 'bg-amber-400/[0.15] text-amber-300'
-                        : 'bg-surface-4/80 text-zinc-200'
-                      : 'text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04]'
-                  }`}
-                >
-                  {Icon && (
-                    <Icon className={`w-[11px] h-[11px] shrink-0 ${
-                      bookmarkFilter === v && v === 'favorites' ? 'fill-amber-400/70' : ''
-                    }`} />
-                  )}
-                  {label}
-                  {count > 0 && (
-                    <span className={`text-[10px] font-bold tabular-nums leading-none px-1 py-px rounded ${
-                      bookmarkFilter === v
-                        ? v === 'favorites' ? 'text-amber-300/70' : 'text-zinc-400'
-                        : 'text-zinc-700'
-                    }`}>{count}</span>
-                  )}
-                </button>
-              ))}
+                { value: 'favorites', label: t.editor.filterFavorites, Icon: Bookmark, count: table.bookmarks.size },
+                { value: 'hidden',    label: t.editor.filterHidden,    Icon: EyeOff,   count: table.hiddenRows.size },
+              ].map(({ value: v, label, Icon, count }) => {
+                const disabled = v !== 'all' && count === 0;
+                return (
+                  <button
+                    key={v}
+                    type="button"
+                    disabled={disabled}
+                    onClick={() => table.handleSelectFilter(v)}
+                    className={`flex items-center gap-1.5 h-6 px-2.5 text-[11px] font-semibold rounded-md transition-all duration-150 ${
+                      disabled
+                        ? 'text-zinc-700 opacity-40 cursor-not-allowed'
+                        : table.bookmarkFilter === v
+                          ? v === 'favorites'
+                            ? 'bg-amber-400/[0.15] text-amber-300'
+                            : 'bg-surface-4/80 text-zinc-200'
+                          : 'text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    {Icon && (
+                      <Icon className={`w-[11px] h-[11px] shrink-0 ${
+                        table.bookmarkFilter === v && v === 'favorites' ? 'fill-amber-400/70' : ''
+                      }`} />
+                    )}
+                    {label}
+                    {count > 0 && (
+                      <span className={`text-[10px] font-bold tabular-nums leading-none px-1 py-px rounded ${
+                        table.bookmarkFilter === v
+                          ? v === 'favorites' ? 'text-amber-300/70' : 'text-zinc-400'
+                          : 'text-zinc-700'
+                      }`}>{count}</span>
+                    )}
+                  </button>
+                );
+              })}
             </div>
             <div className="w-px h-4 bg-white/[0.07] shrink-0" />
 
             {/* Technical-string visibility — only when the classifier ran (MSC). */}
-            {hasClassified && (
+            {table.hasClassified && (
               <>
                 <div className="flex items-center shrink-0 px-3">
                   <button
                     type="button"
-                    onClick={() => setShowTechnical((v) => !v)}
-                    title={showTechnical ? t.editor.techHideTitle : t.editor.techShowTitle}
+                    onClick={table.handleToggleShowTechnical}
+                    title={table.showTechnical ? t.editor.techHideTitle : t.editor.techShowTitle}
                     className={`flex items-center gap-1.5 h-6 px-2.5 text-[11px] font-semibold rounded-md transition-all duration-150 ${
-                      showTechnical
+                      table.showTechnical
                         ? 'bg-sky-400/[0.14] text-sky-300'
                         : 'text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04]'
                     }`}
                   >
                     <Wrench className="w-[12px] h-[12px] shrink-0" />
-                    {showTechnical ? t.editor.techShown : t.editor.techHidden}
-                    {technicalHiddenCount > 0 && !showTechnical && (
+                    {table.showTechnical ? t.editor.techShown : t.editor.techHidden}
+                    {table.technicalHiddenCount > 0 && !table.showTechnical && (
                       <span className="text-[10px] font-bold tabular-nums leading-none px-1 py-px rounded text-zinc-700">
-                        {technicalHiddenCount}
+                        {table.technicalHiddenCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
+                <div className="w-px h-4 bg-white/[0.07] shrink-0" />
+              </>
+            )}
+
+            {/* Non-English visibility — only when foreign strings were detected. */}
+            {table.hasForeign && (
+              <>
+                <div className="flex items-center shrink-0 px-3">
+                  <button
+                    type="button"
+                    onClick={table.handleToggleHideForeign}
+                    title={table.hideForeign ? t.editor.foreignShowTitle : t.editor.foreignHideTitle}
+                    className={`flex items-center gap-1.5 h-6 px-2.5 text-[11px] font-semibold rounded-md transition-all duration-150 ${
+                      table.hideForeign
+                        ? 'bg-violet-400/[0.14] text-violet-300'
+                        : 'text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04]'
+                    }`}
+                  >
+                    <Languages className="w-[12px] h-[12px] shrink-0" />
+                    {table.hideForeign ? t.editor.foreignHidden : t.editor.foreignShown}
+                    {table.foreignCount > 0 && table.hideForeign && (
+                      <span className="text-[10px] font-bold tabular-nums leading-none px-1 py-px rounded text-violet-300/70">
+                        {table.foreignCount}
                       </span>
                     )}
                   </button>
@@ -385,10 +218,10 @@ export default function MainTable({
             <div className="flex-1 min-w-0" />
 
             {/* Row count when not showing full set */}
-            {displayedStrings.length < filteredStrings.length && bookmarkFilter === 'all' && (
+            {table.displayedStrings.length < table.filteredStrings.length && table.bookmarkFilter === 'all' && (
               <>
                 <span className="text-[11px] text-zinc-600 font-medium tabular-nums shrink-0 pr-3">
-                  {displayedStrings.length} {t.editor.ofTotal} {filteredStrings.length}
+                  {table.displayedStrings.length} {t.editor.ofTotal} {table.filteredStrings.length}
                 </span>
                 <div className="w-px h-4 bg-white/[0.07] shrink-0" />
               </>
@@ -404,9 +237,9 @@ export default function MainTable({
                   <button
                     key={value}
                     type="button"
-                    onClick={() => setRowLimit(value)}
+                    onClick={() => table.setRowLimit(value)}
                     className={`h-[22px] px-2 text-[11px] font-semibold rounded-md transition-all duration-150 ${
-                      rowLimit === value
+                      table.rowLimit === value
                         ? 'bg-surface-4/80 text-zinc-200 shadow-sm'
                         : 'text-zinc-600 hover:text-zinc-300 hover:bg-white/[0.04]'
                     }`}
@@ -433,7 +266,7 @@ export default function MainTable({
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-white/[0.08] to-transparent min-w-4" />
               <button
                 type="button"
-                onClick={() => setIsClearAllOpen(true)}
+                onClick={() => table.setIsClearAllOpen(true)}
                 title={t.editor.clearAllTitle}
                 className="relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg border bg-surface-3 border-white/[0.08] text-zinc-500 hover:text-red-300 active:scale-[0.97] transition-colors duration-200 shrink-0"
               >
@@ -447,36 +280,39 @@ export default function MainTable({
         {/* Virtualized rows */}
         <div className="flex-1 min-h-0 relative pr-[14px]" data-tutorial="editor-table-rows">
           <Virtuoso
+            key={`${table.bookmarkFilter}:${table.loadKey}`}
+            initialTopMostItemIndex={table.applyIndex}
+            rangeChanged={table.handleRangeChanged}
             style={{ height: '100%' }}
             overscan={400}
             computeItemKey={(_, row) => row.id}
             components={{ Footer: () => <div style={{ height: '80px' }} /> }}
-            data={displayedStrings}
+            data={table.displayedStrings}
             itemContent={(_, row) => {
-              const displayIndex = (rowIndexById.get(row.id) ?? 0) + 1;
-              const isMissingByValidation = missingRowIdSet.has(row.id);
+              const displayIndex = (table.rowIndexById.get(row.id) ?? 0) + 1;
+              const isMissingByValidation = table.missingRowIdSet.has(row.id);
               const isRequiredMissing =
-                isMissingByValidation && dismissedAttempts[row.id] !== packValidationAttempt;
+                isMissingByValidation && table.dismissedAttempts[row.id] !== packValidationAttempt;
 
               return (
                 <VirtualTableRow
                   key={row.id}
                   row={row}
                   translation={translations[row.id]}
-                  searchQuery={searchQuery}
+                  searchQuery={table.searchQuery}
                   displayIndex={displayIndex}
                   isMissingByValidation={isMissingByValidation}
                   isRequiredMissing={isRequiredMissing}
-                  isBookmarked={bookmarks.has(row.id)}
-                  isHidden={hiddenRows.has(row.id)}
-                  techState={effectiveCategoryOf(row.id)}
+                  isBookmarked={table.bookmarks.has(row.id)}
+                  isHidden={table.hiddenRows.has(row.id)}
+                  techState={table.effectiveCategoryOf(row.id)}
                   techReasons={row.techReasons}
-                  onTranslateChange={handleTranslateChange}
-                  onClearTranslation={handleClearTranslation}
-                  onToggleBookmark={handleToggleBookmark}
-                  onToggleHidden={handleToggleHidden}
-                  onToggleTechnical={hasClassified ? handleToggleTechnical : undefined}
-                  onDismissHighlight={dismissMissingRowHighlight}
+                  onTranslateChange={table.handleTranslateChange}
+                  onClearTranslation={table.handleClearTranslation}
+                  onToggleBookmark={table.handleToggleBookmark}
+                  onToggleHidden={table.handleToggleHidden}
+                  onToggleTechnical={table.hasClassified ? table.handleToggleTechnical : undefined}
+                  onDismissHighlight={table.dismissMissingRowHighlight}
                 />
               );
             }}
@@ -485,9 +321,9 @@ export default function MainTable({
       </div>
 
       <ModalConfirm
-        isOpen={isClearAllOpen}
-        onCancel={() => setIsClearAllOpen(false)}
-        onConfirm={handleClearAllTranslations}
+        isOpen={table.isClearAllOpen}
+        onCancel={() => table.setIsClearAllOpen(false)}
+        onConfirm={table.handleClearAllTranslations}
         title={t.editor.clearAllTitle}
         subtitle={t.projects.deleteSubtitle}
         icon={Trash2}
@@ -497,7 +333,7 @@ export default function MainTable({
         cancelLabel={t.common.cancel}
       >
         <p className="text-zinc-300 text-sm leading-relaxed">
-          {t.editor.clearAllConfirm(translatedCount)}
+          {t.editor.clearAllConfirm(table.translatedCount)}
         </p>
       </ModalConfirm>
     </div>

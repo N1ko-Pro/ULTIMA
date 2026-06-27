@@ -22,6 +22,7 @@
 
 const { RULES, THRESHOLDS, TECHNICAL_REASONS } = require('./rules');
 const { scoreContext } = require('./context');
+const { detectForeignLanguage } = require('./language');
 
 /**
  * Classify a single string.
@@ -55,7 +56,12 @@ function classifyString(text, context) {
 
   // Surface only the reasons that justify a "technical" lean — negative
   // (text) signals would be noise in the UI explanation.
-  return { category, score, reasons: reasons.filter((r) => TECHNICAL_REASONS.has(r)) };
+  return {
+    category,
+    score,
+    reasons: reasons.filter((r) => TECHNICAL_REASONS.has(r)),
+    foreign: detectForeignLanguage(value),
+  };
 }
 
 // Escalate 'uncertain' strings that share a `Prefix_` namespace with ≥2 strings
@@ -99,7 +105,7 @@ function classifyStrings(items) {
 
   const meta = {};
   for (const r of results) {
-    meta[r.id] = { category: r.category, score: r.score, reasons: r.reasons };
+    meta[r.id] = { category: r.category, score: r.score, reasons: r.reasons, foreign: r.foreign };
   }
   return meta;
 }

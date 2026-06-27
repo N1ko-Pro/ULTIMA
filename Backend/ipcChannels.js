@@ -17,6 +17,7 @@ const MOD_SELECT_PAK       = 'select-pak-file';
 const MOD_UNPACK_PAK       = 'unpack-pak-file';
 const MOD_UNPACK_ARCHIVE   = 'unpack-archive-file';
 const MOD_REPACK           = 'repack-mod';
+const MOD_REPACK_PROGRESS  = 'repack-progress';
 const MOD_OPEN_FOLDER      = 'open-mod-folder';
 
 // ── Generic mod ingest (game-routed) ─────────────────────────────────────────
@@ -27,6 +28,15 @@ const MOD_INGEST           = 'mod-ingest';
 const DEPS_CHECK           = 'deps-check';
 const DEPS_INSTALL         = 'deps-install';
 const DEPS_INSTALL_PROGRESS = 'deps-install-progress';
+
+// ── Game integration (install patcher / translations straight into the game) ──
+const GAME_GET_INTEGRATION = 'game-get-integration';
+const GAME_DETECT_PATH     = 'game-detect-path';
+const GAME_SET_PATH        = 'game-set-path';
+const GAME_CLEAR_PATH      = 'game-clear-path';
+const GAME_PICK_PATH       = 'game-pick-path';
+const GAME_INSTALL_PATCHER = 'game-install-patcher';
+const GAME_UNINSTALL_PATCHER = 'game-uninstall-patcher';
 
 // ── Translation ──────────────────────────────────────────────────────────────
 const TRANSLATE_STRINGS         = 'translate-strings';
@@ -42,6 +52,7 @@ const PROJECT_LOAD         = 'load-project';
 // ── XML ──────────────────────────────────────────────────────────────────────
 const XML_EXPORT           = 'export-xml';
 const XML_IMPORT           = 'import-xml';
+const XML_OPEN_FOLDER      = 'open-xml-folder';
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 const AUTH_GET_STATE       = 'auth-get-state';
@@ -52,6 +63,7 @@ const AUTH_SAVE_LOCAL_NAME = 'auth-save-local-name';
 
 // ── Dictionary / Glossary ────────────────────────────────────────────────────
 const DICT_GET_ALL         = 'dictionary-get-all';
+const DICT_SET_GAME        = 'dictionary-set-game';
 const DICT_ADD             = 'dictionary-add';
 const DICT_UPDATE          = 'dictionary-update';
 const DICT_DELETE          = 'dictionary-delete';
@@ -103,14 +115,15 @@ const OLLAMA_STATUS_CHANGED    = 'ollama-status-changed';
 module.exports = {
   WIN_MIN, WIN_MAX, WIN_CLOSE, WIN_OS_CLOSE, WIN_OPEN_EXTERNAL,
   APP_GET_VERSION,
-  MOD_SELECT_FILE, MOD_SELECT_PAK, MOD_UNPACK_PAK, MOD_UNPACK_ARCHIVE, MOD_REPACK, MOD_OPEN_FOLDER,
+  MOD_SELECT_FILE, MOD_SELECT_PAK, MOD_UNPACK_PAK, MOD_UNPACK_ARCHIVE, MOD_REPACK, MOD_REPACK_PROGRESS, MOD_OPEN_FOLDER,
   MOD_SELECT, MOD_INGEST,
   DEPS_CHECK, DEPS_INSTALL, DEPS_INSTALL_PROGRESS,
+  GAME_GET_INTEGRATION, GAME_DETECT_PATH, GAME_SET_PATH, GAME_CLEAR_PATH, GAME_PICK_PATH, GAME_INSTALL_PATCHER, GAME_UNINSTALL_PATCHER,
   TRANSLATE_STRINGS, TRANSLATE_ABORT, TRANSLATE_ITEM_PROGRESS,
   PROJECT_SAVE, PROJECT_LOAD_ALL, PROJECT_DELETE, PROJECT_LOAD,
-  XML_EXPORT, XML_IMPORT,
+  XML_EXPORT, XML_IMPORT, XML_OPEN_FOLDER,
   AUTH_GET_STATE, AUTH_LOGIN, AUTH_LOGOUT, AUTH_REFRESH, AUTH_SAVE_LOCAL_NAME,
-  DICT_GET_ALL, DICT_ADD, DICT_UPDATE, DICT_DELETE, DICT_EXPORT, DICT_IMPORT, DICT_RESET,
+  DICT_GET_ALL, DICT_ADD, DICT_UPDATE, DICT_DELETE, DICT_EXPORT, DICT_IMPORT, DICT_RESET, DICT_SET_GAME,
   SETTINGS_SET_METHOD, SETTINGS_SET_SETTINGS, SETTINGS_SET_PROXY_POOL,
   SETTINGS_SET_PROXY_CONFIG, SETTINGS_CLEAR_PROXY_POOL, SETTINGS_GET,
   ONBOARDING_GET, ONBOARDING_UPDATE,

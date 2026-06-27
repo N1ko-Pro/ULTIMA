@@ -20,3 +20,9 @@ export const exportFile = (translations, modInfo, targetLanguage) =>
  * @returns {Promise<{ success: boolean, items?: Array<{ id: string, value: string }>, error?: string } | null>}
  */
 export const importFile = () => invoke('importXml');
+
+/**
+ * Reveal the XML working folder in the OS file manager.
+ * @returns {Promise<{ success: boolean, path?: string, error?: string } | null>}
+ */
+export const openFolder = () => invoke('openXmlFolder');

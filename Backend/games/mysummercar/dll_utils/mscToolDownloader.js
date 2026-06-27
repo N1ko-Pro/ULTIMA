@@ -6,7 +6,7 @@
 const fs = require('fs');
 const path = require('path');
 const https = require('https');
-const { DOWNLOAD_URL, EXE_NAME, VERSION_FILE, TOOL_VERSION } = require('../toolConfig');
+const { MSC_TOOL, getTool } = require('../toolConfig');
 
 const MAX_REDIRECTS = 5;
 
@@ -66,19 +66,41 @@ function fetchTo(url, destPath, onProgress, redirects = 0) {
 }
 
 /**
- * Download the tool into `toolDir`, reporting 0-100 progress.
+ * Download a single tool asset into `toolDir`, reporting 0-100 progress, and
+ * record its version sidecar so an outdated copy can be detected later.
+ * @param {string} toolDir
+ * @param {{ fileName: string, versionFile: string, version: string, downloadUrl: string }} tool
+ * @param {(percent: number) => void} [onProgress]
+ */
+async function downloadAsset(toolDir, tool, onProgress) {
+  fs.mkdirSync(toolDir, { recursive: true });
+  const dest = path.join(toolDir, tool.fileName);
+  await fetchTo(tool.downloadUrl, dest, onProgress);
+  // Non-fatal version marker (the binaries expose no version themselves).
+  try {
+    fs.writeFileSync(path.join(toolDir, tool.versionFile), tool.version, 'utf8');
+  } catch { /* ignore */ }
+}
+
+/**
+ * Download MscLocTool into `toolDir` (kept for existing callers).
  * @param {string} toolDir
  * @param {(percent: number) => void} [onProgress]
  */
 async function downloadTool(toolDir, onProgress) {
-  fs.mkdirSync(toolDir, { recursive: true });
-  const dest = path.join(toolDir, EXE_NAME);
-  await fetchTo(DOWNLOAD_URL, dest, onProgress);
-  // Record the installed version so checkDependencies() can later detect an
-  // outdated tool and offer an update. Non-fatal if it can't be written.
-  try {
-    fs.writeFileSync(path.join(toolDir, VERSION_FILE), TOOL_VERSION, 'utf8');
-  } catch { /* ignore */ }
+  await downloadAsset(toolDir, MSC_TOOL, onProgress);
 }
 
-module.exports = { downloadTool };
+/**
+ * Download a specific MSC tool by its id ('msc-tool' | 'msc-patcher').
+ * @param {string} toolDir
+ * @param {string} toolId
+ * @param {(percent: number) => void} [onProgress]
+ */
+async function downloadToolById(toolDir, toolId, onProgress) {
+  const tool = getTool(toolId);
+  if (!tool) throw new Error(`Неизвестный инструмент MSC: "${toolId}".`);
+  await downloadAsset(toolDir, tool, onProgress);
+}
+
+module.exports = { downloadTool, downloadToolById, downloadAsset };

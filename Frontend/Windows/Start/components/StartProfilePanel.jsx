@@ -17,7 +17,7 @@ import { ExpandedProfileEditor } from '@Core/Profile/ExpandedProfileEditor';
 // overlay can anchor to a stable rect even before the real panel animates open.
 
 const EXPANDED_WIDTH   = '320px';
-const COLLAPSED_SIZE   = '40px';
+const COLLAPSED_SIZE   = '48px';
 const EXPANDED_HEIGHT  = '64px';
 const GHOST_HEIGHT_IN  = '482px';
 const GHOST_HEIGHT_OUT = '262px';
@@ -81,7 +81,7 @@ export function StartProfilePanel({ isExpanded, onToggle, onClose, onHeightChang
       />
 
       <div
-        className="relative overflow-hidden rounded-xl border border-white/[0.08] bg-surface-2/85"
+        className="relative overflow-hidden rounded-2xl border border-white/[0.08] bg-surface-2/85"
         style={{
           width:      isExpanded ? EXPANDED_WIDTH : COLLAPSED_SIZE,
           height:     isExpanded ? EXPANDED_HEIGHT : COLLAPSED_SIZE,
@@ -104,9 +104,9 @@ export function StartProfilePanel({ isExpanded, onToggle, onClose, onHeightChang
         >
           <div className="relative">
             {auth.user?.avatar ? (
-              <img src={auth.user.avatar} alt="" className="w-6 h-6 rounded-full object-cover" />
+              <img src={auth.user.avatar} alt="" className="w-7 h-7 rounded-full object-cover" />
             ) : (
-              <User className={`w-5 h-5 transition-colors duration-200 ${auth.isLoggedIn ? 'text-zinc-400 group-hover:text-zinc-200' : 'text-zinc-500 group-hover:text-zinc-300'}`} />
+              <User className={`w-[22px] h-[22px] transition-colors duration-200 ${auth.isLoggedIn ? 'text-zinc-400 group-hover:text-zinc-200' : 'text-zinc-500 group-hover:text-zinc-300'}`} />
             )}
             {auth.isLoggedIn && (
               <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-surface-0 ${dot}`} />

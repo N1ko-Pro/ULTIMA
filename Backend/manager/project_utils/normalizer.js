@@ -23,6 +23,12 @@ function normalizeTranslations(value) {
   const normalized = {};
 
   for (const [key, raw] of Object.entries(source)) {
+    // Meta maps (_bookmarks, _hidden, _techOverride, _view) are objects and must
+    // survive verbatim — stringifying them corrupts the data (→ "[object Object]").
+    if (raw && typeof raw === 'object') {
+      normalized[key] = raw;
+      continue;
+    }
     normalized[key] = typeof raw === 'string' ? raw : String(raw ?? '');
   }
 

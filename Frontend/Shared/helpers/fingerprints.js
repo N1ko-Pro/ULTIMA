@@ -13,8 +13,12 @@
  */
 export function buildTranslationsFingerprint(translations) {
   const entries = Object.entries(translations || {})
-    .map(([key, value]) => [key, typeof value === 'string' ? value : String(value ?? '')])
-    .filter(([, value]) => value !== '')
+    // `_view` is transient UI state (active filter + scroll position); it must
+    // not mark the project dirty. Everything else (including object meta maps
+    // like _bookmarks / _hidden / _techOverride) counts toward the fingerprint.
+    .filter(([key]) => key !== '_view')
+    .map(([key, value]) => [key, typeof value === 'string' ? value : JSON.stringify(value ?? '')])
+    .filter(([, value]) => value !== '' && value !== '{}' && value !== 'null')
     .sort(([a], [b]) => a.localeCompare(b));
 
   return JSON.stringify(entries);

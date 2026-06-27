@@ -1,0 +1,63 @@
+name: Publish to Nexus Mods
+
+# Publishes the ULTIMA installer to a Nexus Mods page when a GitHub Release is
+# published (the release is created by `npm run release` → electron-builder),
+# using the official Nexus Upload API action (Nexus-Mods/upload-action).
+#
+# ── Disabled until configured ────────────────────────────────────────────────
+# The job is skipped unless the repository variable NEXUSMODS_FILE_ID is set, so
+# existing releases are never affected until you opt in.
+#
+# ── One-time setup ───────────────────────────────────────────────────────────
+#   1. Create the mod page on Nexus and upload the first installer manually.
+#   2. Copy that file's File ID.
+#   Repository VARIABLE:  NEXUSMODS_FILE_ID = <that file id>
+#   Repository SECRET:    NEXUSMODS_API_KEY = <personal API key>
+#                         (nexusmods.com → Settings → API keys)
+#
+# Each new GitHub release then adds a new version to that file automatically.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to publish (e.g. v1.1.0)'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  upload-to-nexusmods:
+    if: ${{ vars.NEXUSMODS_FILE_ID != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Resolve tag & version
+        id: meta
+        run: |
+          tag="${{ github.event.inputs.tag || github.event.release.tag_name }}"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "version=${tag#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Download installer from the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${{ steps.meta.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --pattern "*.exe" --dir ./dist-nexus
+          installer=$(ls ./dist-nexus/*.exe | head -n1)
+          echo "file=$installer" >> "$GITHUB_OUTPUT"
+        id: dl
+
+      - name: Upload to Nexus Mods
+        uses: Nexus-Mods/upload-action@main
+        with:
+          api_key: ${{ secrets.NEXUSMODS_API_KEY }}
+          file_id: ${{ vars.NEXUSMODS_FILE_ID }}
+          filename: ${{ steps.dl.outputs.file }}
+          display_name: ULTIMA ${{ steps.meta.outputs.version }}
+          description: Automated release from GitHub (${{ steps.meta.outputs.tag }}).
+          version: ${{ steps.meta.outputs.version }}

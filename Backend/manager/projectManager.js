@@ -16,11 +16,12 @@ const { GAMES, getGameFolder, DEFAULT_GAME_ID, isValidGameId } = require('../gam
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  projectManager — generic, game-agnostic CRUD over project JSON records.
-//  Records are physically separated per game: <userData>/projects/<FOLDER>/<id>.json
-//  (FOLDER = BG3, MSC, …). The game is taken from each record's `game` field;
-//  lookups that only have an id scan every game folder (ids are UUIDs, unique).
-//  Legacy flat records (<userData>/projects/<id>.json) are still read and are
-//  relocated into their game folder by `migrateLegacyProjects`.
+//  Records are physically separated per game inside the workspace:
+//  <userData>/workspace/<FOLDER>/<id>.json (FOLDER = BG3, MSC, …), sitting next
+//  to that game's working files. The game is taken from each record's `game`
+//  field; lookups that only have an id scan every game folder (ids are UUIDs).
+//  Older builds stored records under a separate <userData>/projects root (flat
+//  or per-game); both are relocated into the workspace by migrateLegacyProjects.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Candidate directories to scan, in priority order: each game folder, then the
@@ -157,8 +158,10 @@ function deleteProjectRecord(userDataPath, projectId) {
 
 // One-time, best-effort relocation of legacy flat records into their per-game
 // folder (based on the record's `game`, defaulting to BG3 for pre-multi-game
-// data). Safe to run on every boot — it only touches files in the flat root.
+// data). Also relocates records from the old <userData>/projects root into the
+// workspace. Safe to run on every boot — it only moves *.json records.
 function migrateLegacyProjects(userDataPath) {
+  migrateProjectsRootToWorkspace(userDataPath);
   try {
     const root = ensureProjectsRoot(userDataPath);
     for (const filePath of listProjectJsonFiles(root)) {
@@ -178,6 +181,45 @@ function migrateLegacyProjects(userDataPath) {
       }
     }
   } catch { /* migration is best-effort, never block startup */ }
+}
+
+// Relocate project records from the obsolete <userData>/projects root (flat or
+// per-game subfolders) into <userData>/workspace/<GAME>/, then drop the now-empty
+// old tree. Records are matched by `game`; unrecognized subfolders keep their
+// name. Best-effort: never throws, never overwrites an existing target.
+function migrateProjectsRootToWorkspace(userDataPath) {
+  const oldRoot = path.join(userDataPath, 'projects');
+  if (!fs.existsSync(oldRoot)) return;
+
+  const moveRecord = (srcPath, folder) => {
+    const destDir = ensureProjectsDirectory(userDataPath, folder);
+    const destPath = path.join(destDir, path.basename(srcPath));
+    if (fs.existsSync(destPath) || path.resolve(destPath) === path.resolve(srcPath)) return;
+    try {
+      fs.renameSync(srcPath, destPath);
+    } catch {
+      try { fs.copyFileSync(srcPath, destPath); fs.unlinkSync(srcPath); } catch { /* keep original */ }
+    }
+  };
+
+  try {
+    for (const entry of fs.readdirSync(oldRoot, { withFileTypes: true })) {
+      const srcPath = path.join(oldRoot, entry.name);
+      if (entry.isDirectory()) {
+        // Per-game subfolder (BG3, MSC, …) → same-named workspace subfolder.
+        for (const filePath of listProjectJsonFiles(srcPath)) moveRecord(filePath, entry.name);
+        try { fs.rmdirSync(srcPath); } catch { /* not empty / ignore */ }
+      } else if (entry.isFile() && entry.name.endsWith('.json')) {
+        // Flat legacy record → resolve its game from the file content.
+        const raw = readProjectFile(srcPath);
+        const game = raw && isValidGameId(raw.game) ? raw.game : DEFAULT_GAME_ID;
+        moveRecord(srcPath, getGameFolder(game));
+      }
+    }
+    try { fs.rmdirSync(oldRoot); } catch { /* not empty / ignore */ }
+  } catch (e) {
+    console.warn('[migration] projects→workspace skipped:', e?.message);
+  }
 }
 
 module.exports = {

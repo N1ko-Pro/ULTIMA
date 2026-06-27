@@ -2,7 +2,9 @@ const { ipcMain, BrowserWindow } = require('electron');
 const CH = require('../ipcChannels');
 const { registerProjectHandlers } = require('./projectHandlers');
 const { registerIngestHandlers } = require('./ingestHandlers');
+const { registerRepackHandlers } = require('./repackHandlers');
 const { registerDependencyHandlers } = require('./dependencyHandlers');
+const { registerGameIntegrationHandlers } = require('./gameIntegrationHandlers');
 const { registerTranslatorHandlers } = require('./translatorHandlers');
 const { registerDictionaryHandlers } = require('./dictionaryHandlers');
 const { registerOllamaHandlers } = require('./ollamaHandlers');
@@ -54,7 +56,9 @@ function registerAllHandlers({ app, mainWindow, getUserDataPath, games, services
 
   registerProjectHandlers(getUserDataPath, { projectManager, games });
   registerIngestHandlers(mainWindow, { games });
+  registerRepackHandlers(mainWindow, { games });
   registerDependencyHandlers(mainWindow, { games });
+  registerGameIntegrationHandlers(mainWindow, { games });
   registerTranslatorHandlers({ smartManager, aiManager });
   registerDictionaryHandlers();
   registerOllamaHandlers({ mainWindow });

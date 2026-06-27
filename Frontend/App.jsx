@@ -9,6 +9,7 @@ import { resolveProjectDisplayName } from '@Shared/helpers/projectShape';
 import { LocaleProvider, ru, en } from '@Locales/LocaleProvider';
 import { useAuth } from '@Core/Services/AuthService';
 import { notify } from '@Shared/notifications/notifyCore';
+import * as dictionaryApi from '@API/dictionary';
 import OfflineBanner from '@Windows/Main/components/OfflineBanner';
 import { useEscapeBlur } from '@Utils/Keyboard/useEscapeBlur';
 import TitleBarCore from '@Core/TitleBar/TitleBarCore';
@@ -168,6 +169,8 @@ export default function App() {
     const gameId = appState.selectedGame;
     if (!gameId || !appState.eulaAccepted) return;
     appState.checkDeps(gameId);
+    appState.refreshGameIntegration(gameId);
+    dictionaryApi.setGame(gameId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [appState.selectedGame, appState.eulaAccepted]);
 
@@ -226,9 +229,13 @@ export default function App() {
     <LocaleProvider lang={appLang}>
       <div className="flex flex-col h-screen w-full bg-surface-0 overflow-hidden text-zinc-300 antialiased font-sans">
         <LoadingOverlay
-          isVisible={project.isLoadingPak || project.isLoadingProject}
-          message={project.isLoadingPak ? t.common.loadingMod : t.common.loadingProject}
-          description={project.isLoadingPak ? t.common.loadingModDesc : t.common.loadingProjectDesc}
+          isVisible={project.isLoadingPak || project.isLoadingProject || project.isPacking}
+          message={project.isPacking ? t.common.packing : project.isLoadingPak ? t.common.loadingMod : t.common.loadingProject}
+          description={
+            project.isPacking
+              ? `${t.common.packingDesc}${project.packProgress ? ` ${Math.round(project.packProgress)}%` : ''}`
+              : project.isLoadingPak ? t.common.loadingModDesc : t.common.loadingProjectDesc
+          }
         />
 
         <TitleBarCore
@@ -376,6 +383,13 @@ function ActivePage({
           onTutorialComplete={appState.handleTutorialComplete}
           toolStatus={appState.depsStatus}
           onInstallTools={appState.handleInstallDeps}
+          gameIntegration={appState.gameIntegration}
+          onDetectGamePath={appState.detectGamePath}
+          onPickGamePath={appState.pickGamePath}
+          onClearGamePath={appState.clearGamePath}
+          onInstallPatcher={appState.installPatcherToGame}
+          onUninstallPatcher={appState.uninstallPatcherFromGame}
+          onRefreshIntegration={appState.refreshGameIntegration}
         />
     );
   }
@@ -396,6 +410,7 @@ function ActivePage({
           onSavePak={project.handleSavePak}
           onExportXml={xml.handleExportXml}
           onImportXml={xml.handleImportXml}
+          onOpenXmlFolder={xml.handleOpenXmlFolder}
           onSaveProject={project.handleSaveProject}
           onCloseProject={project.handleCloseProject}
           onValidatePackBeforeOpen={validation.handleValidatePackBeforeOpen}

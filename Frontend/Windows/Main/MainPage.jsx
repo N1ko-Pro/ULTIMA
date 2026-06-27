@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { useAuth } from '@Core/Services/AuthService';
 import useAutoTranslation from '@Core/Services/TranslationService';
 import useAutoTranslateModePicker from '@Core/Services/AutoTranslateService';
@@ -89,6 +89,7 @@ export default function MainPage({
   onSavePak,
   onExportXml,
   onImportXml,
+  onOpenXmlFolder,
   onSaveProject,
   onCloseProject,
   onValidatePackBeforeOpen,
@@ -111,6 +112,21 @@ export default function MainPage({
   const [isAtpAccessModalOpen,    setIsAtpAccessModalOpen]    = useState(false);
 
   // ── Auto-translate pipeline ──────────────────────────────────────────────
+  // The editor's currently-visible rows (after the active filter / search /
+  // limit) are reported up by MainTable into this ref, so auto-translate only
+  // processes what the user can actually see.
+  const visibleRowsRef = useRef(null);
+  const getRowsToTranslate = useCallback(() => visibleRowsRef.current, []);
+  const handleVisibleRowsChange = useCallback((rows) => { visibleRowsRef.current = rows; }, []);
+
+  // Scope XML export to the currently-visible rows (same set auto-translate
+  // uses), so hidden / technical / non-English / filtered-out rows aren't
+  // written. Falls back to the full set inside the service when none are shown.
+  const handleExportXmlScoped = useCallback(() => {
+    const rows = visibleRowsRef.current;
+    return onExportXml?.(Array.isArray(rows) ? rows : undefined);
+  }, [onExportXml]);
+
   const {
     isTranslating,
     triggerAutoTranslation,
@@ -123,6 +139,7 @@ export default function MainPage({
     translations,
     setTranslations,
     targetLanguage,
+    getRowsToTranslate,
   });
 
   const {
@@ -248,8 +265,9 @@ export default function MainPage({
           onSettingsOpen={onSettingsOpen}
           onSavePak={onSavePak}
           hasOriginalUuid={hasOriginalUuid}
-          onExportXml={onExportXml}
+          onExportXml={handleExportXmlScoped}
           onImportXml={onImportXml}
+          onOpenXmlFolder={onOpenXmlFolder}
           onValidatePackBeforeOpen={onValidatePackBeforeOpen}
           isDictionaryOpen={isDictionaryOpen}
           onToggleDictionary={handleToggleDictionary}
@@ -291,6 +309,7 @@ export default function MainPage({
           isAtpExpanded={isAtpExpanded}
           isTranslating={isTranslating}
           onAutoTranslateOpen={handleAutoTranslateOpen}
+          onVisibleRowsChange={handleVisibleRowsChange}
         />
       </div>
 
