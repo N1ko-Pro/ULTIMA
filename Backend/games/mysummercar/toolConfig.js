@@ -25,7 +25,7 @@ const releaseAsset = (tag, file) =>
 // pinned fallback/floor used when GitHub is unreachable.
 const GH_TOOLS_OWNER = 'N1ko-Pro';
 const GH_TOOLS_REPO = 'ULTIMA_TOOLS';
-const PATCHER_TAG_PREFIX = 'loc-patcher-v';
+const PATCHER_TAG_PREFIX = 'MSCLoc-API-v';
 
 // ── MscLocTool (dnlib extract/inject) ────────────────────────────────────────
 const MSC_TOOL = Object.freeze({
@@ -39,15 +39,15 @@ const MSC_TOOL = Object.freeze({
 });
 
 // ── MSCLoc API (runtime MSCLoader patcher for the patch artifact) ─────────────
-// Published in N1ko-Pro/ULTIMA_TOOLS under the `loc-patcher-v<version>` tag.
+// Published in N1ko-Pro/ULTIMA_TOOLS under the `MSCLoc-API-v<version>` tag.
 const MSC_PATCHER = Object.freeze({
   id: 'msc-patcher',
   name: 'MSCLoc API',
-  version: '1.0.12',
+  version: '1.1.0',
   fileName: 'MSCLocAPI.dll',
   versionFile: 'MSCLocAPI.version',
   sizeMb: 1,
-  downloadUrl: releaseAsset('loc-patcher-v1.0.12', 'MSCLocAPI.dll'),
+  downloadUrl: releaseAsset('MSCLoc-API-v1.1.0', 'MSCLocAPI.dll'),
 });
 
 // All MSC tools, in display order (used by checkDependencies / status widget).
