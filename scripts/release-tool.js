@@ -4,15 +4,15 @@
 //  One-command release for the external C# tools hosted in N1ko-Pro/ULTIMA_TOOLS
 //  (MSCLocAPI.dll и MscLocTool.exe).
 //
-//      npm run release:tool loc-patcher patch   <------- КОММАНАД ДЛЯ ЗАПУСКА
+//      npm run release:tool msc-loc-api patch   <------- КОММАНАД ДЛЯ ЗАПУСКА
 //
 //  Unlike the app (scripts/release.js builds + publishes the installer itself),
 //  the tools are built by GitHub Actions in the ULTIMA_TOOLS repo. A release is
-//  triggered by pushing a tag (`loc-patcher-v*` / `msc-tools-v*`); CI then builds
+//  triggered by pushing a tag (`MSCLoc-API-v*` / `msc-tools-v*`); CI then builds
 //  the asset and attaches it to a pre-release. This script automates everything
 //  around that:
 //
-//    1. Picks a tool (loc-patcher | msc-tool) and a version bump.
+//    1. Picks a tool (msc-loc-api | msc-tool) and a version bump.
 //    2. Bumps the version in this repo's sources:
 //         • the tool's .csproj  <Version>
 //         • (patcher only) src/MSCLocAPI.cs  Version => "x.y.z"
@@ -31,7 +31,7 @@
 //
 //  Usage:
 //    node scripts/release-tool.js                 (fully interactive)
-//    node scripts/release-tool.js loc-patcher patch
+//    node scripts/release-tool.js msc-loc-api patch
 //    node scripts/release-tool.js msc-tool minor --skip-build
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -53,10 +53,10 @@ const GH_REPO = 'ULTIMA_TOOLS';
 // Each tool maps its source in THIS repo to a subfolder in the ULTIMA_TOOLS
 // clone, and lists every place its version lives so a bump stays consistent.
 const TOOLS = {
-  'loc-patcher': {
-    id: 'loc-patcher',
+  'msc-loc-api': {
+    id: 'msc-loc-api',
     displayName: 'MSCLoc API — патчер перевода (.dll)',
-    tagPrefix: 'loc-patcher-v',
+    tagPrefix: 'MSCLoc-API-v',
     assetFile: 'MSCLocAPI.dll',
     appDir: path.join('tools', 'MSC-Patcher'),
     destDir: 'MSCLocAPI',
@@ -498,8 +498,8 @@ async function main() {
   if (!TOOLS[toolId]) {
     console.log('  Доступные инструменты:');
     Object.values(TOOLS).forEach((t, i) => console.log(`    ${i + 1}) ${t.id} — ${t.displayName}`));
-    const ans = (await ask(rl, '  Выбери инструмент [loc-patcher | msc-tool] (или номер): ')).toLowerCase();
-    if (ans === '1') toolId = 'loc-patcher';
+    const ans = (await ask(rl, '  Выбери инструмент [msc-loc-api | msc-tool] (или номер): ')).toLowerCase();
+    if (ans === '1') toolId = 'msc-loc-api';
     else if (ans === '2') toolId = 'msc-tool';
     else toolId = ans;
   }

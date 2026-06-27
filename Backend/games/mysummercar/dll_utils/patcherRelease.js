@@ -4,9 +4,9 @@
 //  version pinned into the app at build time (toolConfig.MSC_PATCHER).
 //
 //  Why: the pinned version goes stale between app releases, so a freshly
-//  published patcher (e.g. loc-patcher-v1.0.13) was invisible to already-shipped
+//  published patcher (e.g. MSCLoc-API-v1.0.13) was invisible to already-shipped
 //  app builds. This queries GitHub, picks the highest semver among
-//  `loc-patcher-v*` releases that actually carry the MSCLocAPI.dll asset, and
+//  `MSCLoc-API-v*` releases that actually carry the MSCLocAPI.dll asset, and
 //  returns its real download URL.
 //
 //  Safety:
@@ -84,7 +84,7 @@ function fetchReleasesJson() {
   });
 }
 
-// Scan releases → highest semver `loc-patcher-v*` that ships MSCLocAPI.dll.
+// Scan releases → highest semver `MSCLoc-API-v*` that ships MSCLocAPI.dll.
 function pickBest(releases) {
   const pinned = parseSemver(MSC_PATCHER.version);
   let best = null; // { sem, version, downloadUrl, tag }

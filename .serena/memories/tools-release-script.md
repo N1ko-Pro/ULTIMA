@@ -6,7 +6,8 @@ electron-builder локально).
 
 ## Запуск
 - `npm run release:tool` (интерактив) или
-- `node scripts/release-tool.js <loc-patcher|msc-tool> <patch|minor|major|none> [--skip-build]`
+- `node scripts/release-tool.js <msc-loc-api|msc-tool> <patch|minor|major|none> [--skip-build]`
+  (ПЕРЕИМЕНОВАНО: бывший `loc-patcher` теперь `msc-loc-api`, тег `MSCLoc-API-v<ver>`.)
 - Подтверждение релиза читается со stdin (можно `"y`n" | node ...`).
 - Нужен `GH_TOKEN`/`GITHUB_TOKEN` в `.env` (scope `repo`). Пуш в ULTIMA_TOOLS
   идёт по URL `https://x-access-token:<token>@github.com/N1ko-Pro/ULTIMA_TOOLS.git`
@@ -46,6 +47,16 @@ electron-builder локально).
   make_latest:false).
 - `build-msc-tool.yml` — тег `msc-tools-v*` → `MscLocTool.exe` (self-contained
   single-file win-x64, prerelease).
+
+## Обновление (rename + Latest)
+- 28.06.2026: тег патчера переименован `loc-patcher-v*` → `MSCLoc-API-v*`,
+  CLI-id `loc-patcher` → `msc-loc-api`. Все старые `loc-patcher-*` релизы/теги
+  удалены, выпущен `MSCLoc-API-v1.1.0`. CI теперь `prerelease:false, make_latest:true`
+  (свежий тег = Latest на GitHub).
+- Приложение определяет версию патчера ДИНАМИЧЕСКИ с GitHub
+  (`Backend/games/mysummercar/dll_utils/patcherRelease.js`): max semver среди
+  `MSCLoc-API-v*` с ассетом `MSCLocAPI.dll`, фолбэк/пол — закреплённая
+  `MSC_PATCHER.version` в toolConfig.js.
 
 ## История
 - Патчер `loc-patcher-v1.0.3` выпущен этим скриптом (фикс перевода кейбиндов
