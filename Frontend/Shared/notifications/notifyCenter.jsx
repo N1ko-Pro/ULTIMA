@@ -115,6 +115,7 @@ export default function NotifyCenter({ onUpdatePillClick, onAtpModalClick, onDep
         onClick={() => setIsOpen((v) => !v)}
         title="Уведомления"
         data-tutorial="titlebar-notifications"
+        data-floating-layer
         className={`group relative flex items-center justify-center w-6 h-6 rounded-md border transition-all duration-200 active:scale-[0.95] ${
           isOpen
             ? 'border-white/[0.16] bg-white/[0.06]'
@@ -138,6 +139,7 @@ export default function NotifyCenter({ onUpdatePillClick, onAtpModalClick, onDep
         <div
           ref={panelRef}
           className="fixed z-[300]"
+          data-floating-layer
           style={{
             top:   bellRect.bottom + 6,
             right: window.innerWidth - bellRect.right,

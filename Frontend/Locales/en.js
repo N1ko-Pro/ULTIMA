@@ -40,6 +40,8 @@ export default {
     soon:     'Soon',
     current:  'Selected',
     change:   'Change game',
+    search:    'Search games…',
+    noResults: 'No games found',
     cards: {
       bg3:         { desc: 'Translate and manage Baldur\'s Gate 3 mod localizations.' },
       mysummercar: { desc: 'Translate and manage My Summer Car mod localizations.' },
@@ -87,7 +89,7 @@ export default {
   // ─── Game integration (MSC workspace panel) ─────────────────────────────
   integration: {
     title:                  'Game integration',
-    allReady:               'All set — you can patch straight into the game',
+    allReady:               'Everything works',
     setupHint:              'Set up integration to patch into the game',
     // Game folder
     gameSection:            'Game folder',
@@ -610,6 +612,7 @@ export default {
     aiDescEnabled:    'High quality',
     aiDescLocked:     'Subscription required',
     aiDescLanguageLocked: 'Russian only',
+    aiDescGameLocked: 'Not available yet',
     selectModeTitle:  'Select mode',
     selectModeSub:    'to configure',
     smartHeader:      'Smart',
@@ -655,6 +658,7 @@ export default {
     error:        'Error',
     save:         'Save',
     cancel:       'Cancel',
+    clear:        'Clear',
     back:         'Back',
     copied:       'Copied',
     clickToCopy:  'Click to copy',

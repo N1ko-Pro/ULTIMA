@@ -29,6 +29,7 @@ function AutoTranslatePanel({
   isTranslating,
   translationSettings,
   targetLanguage,
+  gameId,
   onSelectMode,
   onStart,
   onClose,
@@ -44,7 +45,10 @@ function AutoTranslatePanel({
   // target language is anything else, we block AI selection and surface a
   // helpful tooltip via the locked-card description.
   const aiLockedByLanguage = Boolean(targetLanguage && targetLanguage !== 'ru');
-  const aiAvailable = canUseAI && !aiLockedByLanguage;
+  // AI translation isn't wired up for some games yet (e.g. My Summer Car) —
+  // only the Smart mode is available there.
+  const aiLockedByGame = gameId === 'mysummercar';
+  const aiAvailable = canUseAI && !aiLockedByLanguage && !aiLockedByGame;
 
   const isSmartSelected = selectedModeId === AUTO_TRANSLATION_MODE.SMART;
   const isLocalSelected = selectedModeId === AUTO_TRANSLATION_MODE.LOCAL;
@@ -83,13 +87,13 @@ function AutoTranslatePanel({
   }, [isTranslating, isExpanded, onClose]);
 
   // Auto-deselect AI mode if the target language switches to something AI
-  // can't handle. Done here rather than in TranslationService so the user
-  // visually sees the deselection happen alongside the language change.
+  // can't handle, or the game doesn't support AI. Done here rather than in
+  // TranslationService so the user visually sees the deselection happen.
   useEffect(() => {
-    if (isLocalSelected && aiLockedByLanguage) {
+    if (isLocalSelected && (aiLockedByLanguage || aiLockedByGame)) {
       onSelectMode(AUTO_TRANSLATION_MODE.SMART);
     }
-  }, [aiLockedByLanguage, isLocalSelected, onSelectMode]);
+  }, [aiLockedByLanguage, aiLockedByGame, isLocalSelected, onSelectMode]);
 
   const isStartEnabled = canStart && canStartActual && !isTranslating;
   const startBtnClass = isStartEnabled
@@ -134,14 +138,17 @@ function AutoTranslatePanel({
                       icon={Bot}
                       label={t.atp.aiLabel}
                       description={
-                        aiLockedByLanguage
-                          ? t.atp.aiDescLanguageLocked
-                          : (canUseAI ? t.atp.aiDescEnabled : t.atp.aiDescLocked)
+                        aiLockedByGame
+                          ? t.atp.aiDescGameLocked
+                          : aiLockedByLanguage
+                            ? t.atp.aiDescLanguageLocked
+                            : (canUseAI ? t.atp.aiDescEnabled : t.atp.aiDescLocked)
                       }
                       isSelected={isLocalSelected}
                       hasError={hasLocalError}
                       locked={!aiAvailable}
                       onClick={() => {
+                        if (aiLockedByGame) return;
                         if (aiLockedByLanguage) return;
                         if (!canUseAI) return onAuthRequired?.();
                         onSelectMode(AUTO_TRANSLATION_MODE.LOCAL);

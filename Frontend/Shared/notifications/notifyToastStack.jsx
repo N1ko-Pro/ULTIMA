@@ -6,8 +6,9 @@ import { TOAST } from '@Config/timings.constants';
 
 // ─── Toast stack ────────────────────────────────────────────────────────────
 // Mounts at app root and listens to the `app-notification` window event.
-// Renders up to TOAST.MAX_VISIBLE toasts at the top-right of the viewport.
-// Newest on top; the oldest beyond the limit is animated out automatically.
+// Renders up to TOAST.MAX_VISIBLE toasts at the top-center of the viewport,
+// sliding in from the top. Newest on top; older ones stack below and the oldest
+// beyond the limit animates out automatically.
 
 export default function NotifyToastStack() {
   const [toasts, setToasts] = useState([]);
@@ -79,7 +80,7 @@ export default function NotifyToastStack() {
   }, []);
 
   return (
-    <div className="fixed top-28 right-6 z-[9999] flex flex-col gap-3 items-end pointer-events-none">
+    <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-3 items-center pointer-events-none" data-floating-layer>
       {toasts.map((t) => (
         <NotifyToastItem key={t.id} toast={t} onRemove={removeToast} />
       ))}

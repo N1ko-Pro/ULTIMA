@@ -82,6 +82,9 @@ export default function ToolStatusWidget({ tools = [], onInstall }) {
     if (!isOpen) return undefined;
     const handler = (e) => {
       if (rootRef.current && !rootRef.current.contains(e.target)) {
+        // Keep open when clicking inside another floating layer
+        // (notifications, profile, etc.).
+        if (e.target?.closest?.('[data-floating-layer]')) return;
         if (!isBusy) setIsOpen(false);
       }
     };
@@ -176,7 +179,7 @@ export default function ToolStatusWidget({ tools = [], onInstall }) {
   };
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative" data-floating-layer>
       {/* Collapsed pill */}
       <button
         type="button"

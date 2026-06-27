@@ -40,6 +40,8 @@ export default {
     soon:     'Скоро',
     current:  'Выбрано',
     change:   'Сменить игру',
+    search:    'Поиск игры…',
+    noResults: 'Ничего не найдено',
     cards: {
       bg3:         { desc: 'Перевод и управление локализацией модов Baldur\'s Gate 3.' },
       mysummercar: { desc: 'Перевод и управление локализацией модов My Summer Car.' },
@@ -87,7 +89,7 @@ export default {
   // ─── Интеграция с игрой (панель MSC на рабочем пространстве) ─────────────
   integration: {
     title:                  'Интеграция с игрой',
-    allReady:               'Всё готово — можно патчить прямо в игру',
+    allReady:               'Всё работает',
     setupHint:              'Настройте интеграцию для патчинга в игру',
     // Папка игры
     gameSection:            'Папка игры',
@@ -616,6 +618,7 @@ export default {
     aiDescEnabled:    'Качественный',
     aiDescLocked:     'Требуется подписка',
     aiDescLanguageLocked: 'Только для русского',
+    aiDescGameLocked: 'Пока недоступно',
     selectModeTitle:  'Выберите режим',
     selectModeSub:    'для настройки',
     smartHeader:      'Smart',
@@ -662,6 +665,7 @@ export default {
     save:         'Сохранить',
     cancel:       'Отмена',
     back:         'Назад',
+    clear:        'Очистить',
     copied:       'Скопировано',
     clickToCopy:  'Нажмите, чтобы скопировать',
     delete:       'Удалить',

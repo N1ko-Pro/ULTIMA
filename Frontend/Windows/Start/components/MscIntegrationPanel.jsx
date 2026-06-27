@@ -1,15 +1,20 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   Blocks, FolderSearch, FolderOpen, Search, Puzzle, Wrench, Eraser,
-  CheckCircle2, AlertTriangle, Download, RefreshCw, Loader2, MapPin, Trash2,
+  CheckCircle2, Loader2, MapPin, ChevronRight,
 } from 'lucide-react';
 import { notify } from '@Shared/notifications/notifyCore';
 import { useLocale } from '@Locales/LocaleProvider';
+import { Section, PatcherCard, ToolRow } from './MscIntegrationCards';
 
 // ─── MscIntegrationPanel ──────────────────────────────────────────────────────
 // Top-right workspace control for My Summer Car (sits under the settings
-// button). A squircle trigger that drops a side panel down-left, folding three
-// things into one card:
+// button). A squircle trigger that MORPHS into the panel: pressing it dissolves
+// the icon button into the panel header (width/height grow, right-anchored) and
+// the body slides down underneath; the collapse chevron reverses it back into
+// the button — mirroring the mini-profile's open/close choreography.
+//
+// Folds three things into one card:
 //
 //   1. Папка игры       — auto-detected (Steam) / user-picked install path,
 //                         with the ability to change or clear it.
@@ -22,20 +27,19 @@ import { useLocale } from '@Locales/LocaleProvider';
 // The collapsed glyph + dot reflect overall readiness: red when a REQUIRED build
 // tool is missing, amber when patch-mode setup is incomplete (no game path /
 // patcher absent or outdated), green when everything is ready.
+//
+// The presentational cards (Section / PatcherCard / ToolRow) live in
+// `./MscIntegrationCards`; this file owns the state, actions and aggregation.
 
 const PATCHER_TOOL_ID = 'msc-patcher';
 
-const TOOL_STATUS = {
-  installed: { icon: CheckCircle2, text: 'text-emerald-400', dot: 'bg-emerald-400',
-    pill: 'text-emerald-300 bg-emerald-500/[0.10] border-emerald-500/20' },
-  update: { icon: RefreshCw, text: 'text-amber-400', dot: 'bg-amber-400',
-    pill: 'text-amber-300 bg-amber-500/[0.10] border-amber-500/20',
-    btn: 'border-amber-500/25 bg-amber-500/[0.08] text-amber-300 hover:bg-amber-500/[0.14] hover:border-amber-400/40' },
-  missing: { icon: AlertTriangle, text: 'text-red-400', dot: 'bg-red-400',
-    pill: 'text-red-300 bg-red-500/[0.10] border-red-500/20',
-    btn: 'border-emerald-500/25 bg-emerald-500/[0.08] text-emerald-300 hover:bg-emerald-500/[0.14] hover:border-emerald-400/40' },
-};
+// Morph geometry + shared easing for the open/close choreography.
+const COLLAPSED_SIZE = '48px';
+const PANEL_WIDTH    = '340px';
+const HEADER_HEIGHT  = '58px';
+const EASE           = 'cubic-bezier(0.4,0,0.2,1)';
 
+// Collapsed-trigger visuals for the aggregate readiness state.
 const AGG = {
   installed: { text: 'text-zinc-300', dot: 'bg-emerald-400', glow: '', ring: '', tint: '' },
   update: {
@@ -79,7 +83,12 @@ export default function MscIntegrationPanel({
   useEffect(() => {
     if (!isOpen) return undefined;
     const onDown = (e) => {
-      if (rootRef.current && !rootRef.current.contains(e.target) && !isBusy) setIsOpen(false);
+      if (rootRef.current && !rootRef.current.contains(e.target) && !isBusy) {
+        // Don't close when the click lands in another floating layer
+        // (notifications, profile, etc.).
+        if (e.target?.closest?.('[data-floating-layer]')) return;
+        setIsOpen(false);
+      }
     };
     const onKey = (e) => { if (e.key === 'Escape' && !isBusy) setIsOpen(false); };
     document.addEventListener('mousedown', onDown, true);
@@ -178,34 +187,89 @@ export default function MscIntegrationPanel({
   };
 
   return (
-    <div ref={rootRef} className="relative">
-      {/* Collapsed trigger */}
-      <button
-        type="button"
-        onClick={() => setIsOpen((v) => !v)}
-        title={t.integration.title}
-        className={`group relative flex items-center justify-center w-12 h-12 rounded-2xl border border-white/[0.1] bg-surface-2/85 active:scale-[0.95] transition-transform duration-150 ${aggCfg.glow}`}
+    <div ref={rootRef} className="relative flex flex-col items-end" data-floating-layer>
+      {/* Morph surface: the collapsed icon button and the expanded panel header
+          are the SAME bordered box — it grows right-anchored from 48px square to
+          the full-width header, dissolving one layer into the other. */}
+      <div
+        className={`relative overflow-hidden rounded-2xl border border-white/[0.1] bg-surface-2/85 ${!isOpen ? aggCfg.glow : ''}`}
+        style={{
+          width:  isOpen ? PANEL_WIDTH : COLLAPSED_SIZE,
+          height: isOpen ? HEADER_HEIGHT : COLLAPSED_SIZE,
+          transition: isOpen
+            ? `width 460ms ${EASE}, height 460ms ${EASE}`
+            : `width 460ms ${EASE} 200ms, height 460ms ${EASE} 200ms`,
+        }}
       >
-        {actionable && <span className={`pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br ${aggCfg.tint} to-transparent`} />}
-        {actionable && <span className={`pointer-events-none absolute inset-0 rounded-2xl border ${aggCfg.ring} ${anyMissing ? 'animate-pulse' : ''}`} />}
-        <span className={`pointer-events-none absolute inset-0 rounded-2xl bg-white/[0.05] transition-opacity duration-200 ${isOpen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
-        <Blocks className={`relative w-[22px] h-[22px] transition-colors duration-200 ${actionable ? aggCfg.text : 'text-zinc-300'}`} />
-        <span className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border-[2.5px] border-surface-0 ${aggCfg.dot} ${anyMissing ? 'animate-pulse' : ''}`} />
-      </button>
-
-      {/* Dropdown */}
-      {isOpen && (
-        <div
-          className="absolute top-full right-0 mt-2 w-[340px] origin-top-right"
-          style={{ animation: 'notify-center-in 200ms cubic-bezier(0.22,1,0.36,1) both' }}
+        {/* Collapsed layer — the status glyph + dot. Fades out as we expand. */}
+        <button
+          type="button"
+          onClick={() => setIsOpen(true)}
+          title={t.integration.title}
+          className="group absolute inset-0 flex items-center justify-center active:scale-[0.95] transition-transform duration-150"
+          style={{
+            opacity:         isOpen ? 0 : 1,
+            pointerEvents:   isOpen ? 'none' : 'auto',
+            transition:      `opacity 200ms ${EASE}`,
+            transitionDelay: isOpen ? '0ms' : '230ms',
+          }}
         >
-          <div className="rounded-xl border border-white/[0.08] bg-surface-2/85 p-4 space-y-4 shadow-[0_20px_56px_rgba(0,0,0,0.5)]">
-            {/* Header */}
-            <div>
-              <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase">{t.integration.title}</p>
-              <p className={`text-[12px] font-medium mt-1 ${actionable ? aggCfg.text : 'text-emerald-400'}`}>{headerSub}</p>
-            </div>
+          {actionable && <span className={`pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-br ${aggCfg.tint} to-transparent`} />}
+          {actionable && <span className={`pointer-events-none absolute inset-0 rounded-2xl border ${aggCfg.ring} ${anyMissing ? 'animate-pulse' : ''}`} />}
+          <span className="pointer-events-none absolute inset-0 rounded-2xl bg-white/[0.05] opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+          <Blocks className={`relative w-[22px] h-[22px] transition-colors duration-200 ${actionable ? aggCfg.text : 'text-zinc-300'}`} />
+          <span className={`absolute bottom-1.5 right-1.5 w-2.5 h-2.5 rounded-full ${aggCfg.dot} ${anyMissing ? 'animate-pulse' : ''}`} />
+        </button>
 
+        {/* Expanded layer — header row (title + status + collapse chevron).
+            Fades in once the box has begun widening. */}
+        <div
+          className="absolute inset-0 pl-4 pr-2.5 flex items-center justify-between gap-2"
+          style={{
+            opacity:         isOpen ? 1 : 0,
+            pointerEvents:   isOpen ? 'auto' : 'none',
+            transition:      `opacity 220ms ${EASE}`,
+            transitionDelay: isOpen ? '180ms' : '0ms',
+          }}
+        >
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold tracking-widest text-zinc-400 uppercase truncate">{t.integration.title}</p>
+            <p className={`text-[12px] font-medium mt-0.5 truncate ${actionable ? aggCfg.text : 'text-emerald-400'}`}>{headerSub}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => !isBusy && setIsOpen(false)}
+            aria-label={t.common.back}
+            className="w-7 h-7 rounded-lg flex items-center justify-center text-zinc-500 hover:text-zinc-200 hover:bg-white/[0.08] transition-all duration-200 active:scale-[0.92] shrink-0 disabled:opacity-40"
+            disabled={isBusy}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+
+      {/* Body drawer — slides down/up under the header, scaling from the top
+          edge. Right-anchored so it tucks back into the button on close. */}
+      <div
+        className="overflow-hidden"
+        style={{
+          maxHeight:       isOpen ? '660px' : '0px',
+          marginTop:       isOpen ? '8px' : '0px',
+          transition:      `max-height 460ms ${EASE}, margin-top 460ms ${EASE}`,
+          transitionDelay: isOpen ? '120ms' : '0ms',
+        }}
+      >
+        <div
+          className="w-[340px] rounded-xl border border-white/[0.08] bg-surface-2/85 shadow-[0_20px_56px_rgba(0,0,0,0.5)]"
+          style={{
+            transform:       isOpen ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.97)',
+            transformOrigin: 'top right',
+            opacity:         isOpen ? 1 : 0,
+            transition:      `transform 460ms ${EASE}, opacity 300ms ${EASE}`,
+            transitionDelay: isOpen ? '150ms' : '0ms',
+          }}
+        >
+          <div className="p-4 space-y-4">
             {/* ── Game folder ─────────────────────────────────────────────── */}
             <Section icon={MapPin} label={t.integration.gameSection}>
               {gameFound ? (
@@ -305,160 +369,7 @@ export default function MscIntegrationPanel({
             )}
           </div>
         </div>
-      )}
-    </div>
-  );
-}
-
-function Section({ icon: Icon, label, children }) {
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center gap-1.5 px-0.5">
-        <Icon className="w-3 h-3 text-zinc-600" />
-        <p className="text-[10px] font-bold tracking-widest text-zinc-500 uppercase">{label}</p>
       </div>
-      {children}
-    </div>
-  );
-}
-
-function PatcherCard({ t, patcherName, patcherItem, status, installed, upToDate, gameFound, busy, progress, isBusy, onInstall, onUninstall }) {
-  const installing = busy === 'patcher';
-  const removing = busy === 'uninstall';
-  const cardCls = !installed
-    ? 'border-white/[0.06] bg-white/[0.02]'
-    : upToDate ? 'border-emerald-500/15 bg-emerald-500/[0.04]' : 'border-amber-500/20 bg-amber-500/[0.05]';
-  const StateIcon = !installed ? Puzzle : upToDate ? CheckCircle2 : RefreshCw;
-  const stateIconCls = !installed ? 'text-zinc-500' : upToDate ? 'text-emerald-400' : 'text-amber-400';
-
-  const sub = installing ? `${t.integration.installingPatcher} · ${Math.round(progress)}%`
-    : removing ? t.integration.removingPatcher
-    : !installed ? `${t.deps.statusMissing}${patcherItem?.sizeMb ? ` · ≈${patcherItem.sizeMb} ${t.deps.mb}` : ''}`
-    : upToDate ? `v${status.patcherInstalledVersion || status.patcherVersion}`
-    : status.patcherInstalledVersion ? `v${status.patcherInstalledVersion} → v${status.patcherVersion}` : `${t.deps.statusUpdate} · v${status.patcherVersion}`;
-
-  return (
-    <div className={`rounded-xl border p-3 ${cardCls}`}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <StateIcon className={`w-4 h-4 shrink-0 ${stateIconCls}`} />
-          <div className="min-w-0">
-            <p className="text-[12.5px] font-medium text-zinc-100 truncate">{patcherName}</p>
-            <p className="text-[11px] text-zinc-500 truncate mt-0.5">{sub}</p>
-          </div>
-        </div>
-        {installed && upToDate && !installing && !removing && (
-          <span className="shrink-0 inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border text-emerald-300 bg-emerald-500/[0.10] border-emerald-500/20">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            {t.deps.statusUpToDate}
-          </span>
-        )}
-      </div>
-
-      {installing && (
-        <div className="mt-2.5 h-1.5 bg-surface-3/60 rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 transition-all duration-300" style={{ width: `${progress}%` }} />
-        </div>
-      )}
-
-      {!installing && !removing && (
-        <div className="mt-2.5 flex gap-1.5">
-          {!installed ? (
-            <button
-              type="button" disabled={isBusy || !gameFound} onClick={onInstall}
-              title={gameFound ? t.integration.installPatcher : t.integration.needGameFirst}
-              className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-lg border border-emerald-500/25 bg-emerald-500/[0.08] text-emerald-300 text-[11.5px] font-medium hover:bg-emerald-500/[0.14] transition-all active:scale-[0.98] disabled:opacity-40 disabled:hover:bg-emerald-500/[0.08]"
-            >
-              <Download className="w-3.5 h-3.5" />
-              {t.integration.install}
-            </button>
-          ) : (
-            <>
-              {!upToDate && (
-                <button
-                  type="button" disabled={isBusy} onClick={onInstall} title={t.deps.updateAction}
-                  className="flex-1 inline-flex items-center justify-center gap-1.5 h-8 rounded-lg border border-amber-500/25 bg-amber-500/[0.08] text-amber-300 text-[11.5px] font-medium hover:bg-amber-500/[0.14] transition-all active:scale-[0.98] disabled:opacity-40"
-                >
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  {t.deps.updateAction}
-                </button>
-              )}
-              <button
-                type="button" disabled={isBusy} onClick={onUninstall} title={t.integration.removePatcher}
-                className={`inline-flex items-center justify-center gap-1.5 h-8 rounded-lg border border-white/[0.1] text-zinc-400 hover:text-red-300 hover:border-red-500/30 hover:bg-red-500/[0.08] transition-all active:scale-[0.98] disabled:opacity-40 ${upToDate ? 'flex-1' : 'px-3'}`}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                {upToDate && t.integration.remove}
-              </button>
-            </>
-          )}
-        </div>
-      )}
-
-      {!installed && !gameFound && !installing && (
-        <p className="text-[10.5px] text-zinc-600 mt-2">{t.integration.needGameFirst}</p>
-      )}
-    </div>
-  );
-}
-
-function ToolRow({ tool, t, busy, progress, isBusy, isError, onInstall }) {
-  const cfg = TOOL_STATUS[tool.status] || TOOL_STATUS.installed;
-  const RowIcon = cfg.icon;
-  const installing = busy === tool.id;
-  const cardCls = tool.status === 'installed'
-    ? 'border-emerald-500/15 bg-emerald-500/[0.04]'
-    : 'border-white/[0.06] bg-white/[0.02]';
-
-  const versionLine = tool.status === 'update'
-    ? (tool.installedVersion ? `v${tool.installedVersion} → v${tool.version}` : `${t.deps.statusUpdate} · v${tool.version}`)
-    : tool.status === 'missing'
-      ? `${t.deps.statusMissing}${tool.sizeMb ? ` · ≈${tool.sizeMb} ${t.deps.mb}` : ''}`
-      : `v${tool.version}`;
-
-  return (
-    <div className={`rounded-xl border p-3 ${cardCls}`}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <RowIcon className={`w-4 h-4 shrink-0 ${cfg.text}`} />
-          <div className="min-w-0">
-            <p className="text-[12.5px] font-medium text-zinc-100 truncate">{tool.name}</p>
-            <p className="text-[11px] text-zinc-500 truncate mt-0.5">
-              {installing ? `${t.deps.downloadingLabel} · ${Math.round(progress)}%` : versionLine}
-            </p>
-          </div>
-        </div>
-        <div className="shrink-0">
-          {tool.status === 'installed' ? (
-            <span className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded-full border ${cfg.pill}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
-              {t.deps.statusUpToDate}
-            </span>
-          ) : installing ? (
-            <span className="inline-flex items-center justify-center w-8 h-8 text-zinc-400">
-              <Loader2 className="w-4 h-4 animate-spin" />
-            </span>
-          ) : (
-            <button
-              type="button"
-              disabled={isBusy}
-              title={tool.status === 'update' ? t.deps.updateAction : t.deps.installAction}
-              onClick={onInstall}
-              className={`inline-flex items-center justify-center w-8 h-8 rounded-lg border transition-all duration-200 active:scale-[0.94] disabled:opacity-40 ${
-                isError ? 'border-white/[0.1] text-zinc-300 hover:bg-white/[0.05]' : cfg.btn
-              }`}
-            >
-              {tool.status === 'update' || isError ? <RefreshCw className="w-4 h-4" /> : <Download className="w-4 h-4" />}
-            </button>
-          )}
-        </div>
-      </div>
-
-      {installing && (
-        <div className="mt-2.5 h-1.5 bg-surface-3/60 rounded-full overflow-hidden">
-          <div className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 transition-all duration-300" style={{ width: `${progress}%` }} />
-        </div>
-      )}
     </div>
   );
 }

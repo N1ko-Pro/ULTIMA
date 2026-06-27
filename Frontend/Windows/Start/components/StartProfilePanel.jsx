@@ -21,6 +21,7 @@ const COLLAPSED_SIZE   = '48px';
 const EXPANDED_HEIGHT  = '64px';
 const GHOST_HEIGHT_IN  = '482px';
 const GHOST_HEIGHT_OUT = '262px';
+const EASE             = 'cubic-bezier(0.4,0,0.2,1)';
 
 /**
  * @param {{ isExpanded: boolean, onToggle: () => void, onClose: () => void, onHeightChange?: (height: number) => void }} props
@@ -46,6 +47,9 @@ export function StartProfilePanel({ isExpanded, onToggle, onClose, onHeightChang
     if (!isExpanded) return undefined;
     const handleMouseDown = (e) => {
       if (e._layerConsumed) return;
+      // Ignore clicks that land inside any other floating layer (notifications,
+      // integration panel, etc.) so interacting with them never closes us.
+      if (e.target?.closest?.('[data-floating-layer]')) return;
       if (panelRef.current && !panelRef.current.contains(e.target)) {
         onClose?.();
       }
@@ -73,7 +77,7 @@ export function StartProfilePanel({ isExpanded, onToggle, onClose, onHeightChang
 
   return (
     <>
-      <div ref={panelRef} className="absolute z-30 top-5 left-6" data-tutorial="profile">
+      <div ref={panelRef} className="absolute z-30 top-5 left-6" data-tutorial="profile" data-floating-layer>
       <div
         data-tutorial="profile-full"
         className="absolute top-0 left-0 pointer-events-none"
@@ -86,8 +90,8 @@ export function StartProfilePanel({ isExpanded, onToggle, onClose, onHeightChang
           width:      isExpanded ? EXPANDED_WIDTH : COLLAPSED_SIZE,
           height:     isExpanded ? EXPANDED_HEIGHT : COLLAPSED_SIZE,
           transition: isExpanded
-            ? 'width 500ms cubic-bezier(0.4,0,0.2,1), height 500ms cubic-bezier(0.4,0,0.2,1)'
-            : 'width 500ms cubic-bezier(0.4,0,0.2,1) 280ms, height 500ms cubic-bezier(0.4,0,0.2,1) 280ms',
+            ? `width 460ms ${EASE}, height 460ms ${EASE}`
+            : `width 460ms ${EASE} 200ms, height 460ms ${EASE} 200ms`,
         }}
       >
         <button
@@ -98,8 +102,8 @@ export function StartProfilePanel({ isExpanded, onToggle, onClose, onHeightChang
           style={{
             opacity:       isExpanded ? 0 : 1,
             pointerEvents: isExpanded ? 'none' : 'auto',
-            transition:    'opacity 250ms cubic-bezier(0.4,0,0.2,1)',
-            transitionDelay: isExpanded ? '0ms' : '280ms',
+            transition:    `opacity 200ms ${EASE}`,
+            transitionDelay: isExpanded ? '0ms' : '230ms',
           }}
         >
           <div className="relative">
@@ -120,8 +124,8 @@ export function StartProfilePanel({ isExpanded, onToggle, onClose, onHeightChang
           style={{
             opacity:         isExpanded ? 1 : 0,
             pointerEvents:   isExpanded ? 'auto' : 'none',
-            transition:      'opacity 250ms cubic-bezier(0.4,0,0.2,1)',
-            transitionDelay: isExpanded ? '200ms' : '280ms',
+            transition:      `opacity 220ms ${EASE}`,
+            transitionDelay: isExpanded ? '180ms' : '0ms',
           }}
         >
           <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -186,18 +190,21 @@ export function StartProfilePanel({ isExpanded, onToggle, onClose, onHeightChang
       </div>
 
       <div
-        className="overflow-hidden transition-[max-height,margin-top] duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
+        className="overflow-hidden"
         style={{
-          maxHeight: isExpanded ? '600px' : '0px',
-          marginTop: isExpanded ? '8px' : '0px',
+          maxHeight:       isExpanded ? '660px' : '0px',
+          marginTop:       isExpanded ? '8px' : '0px',
+          transition:      `max-height 460ms ${EASE}, margin-top 460ms ${EASE}`,
           transitionDelay: isExpanded ? '120ms' : '0ms',
         }}
       >
         <div
-          className="w-[320px] rounded-xl border border-white/[0.08] bg-surface-2/85 relative overflow-hidden transition-transform duration-500 ease-[cubic-bezier(0.4,0,0.2,1)]"
+          className="w-[320px] rounded-xl border border-white/[0.08] bg-surface-2/85 relative overflow-hidden"
           style={{
-            transform: isExpanded ? 'translateY(0) scale(1)' : 'translateY(-12px) scale(0.97)',
-            transformOrigin: 'top center',
+            transform:       isExpanded ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.97)',
+            transformOrigin: 'top left',
+            opacity:         isExpanded ? 1 : 0,
+            transition:      `transform 460ms ${EASE}, opacity 300ms ${EASE}`,
             transitionDelay: isExpanded ? '150ms' : '0ms',
           }}
         >

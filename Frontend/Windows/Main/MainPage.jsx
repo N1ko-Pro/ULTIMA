@@ -291,6 +291,7 @@ export default function MainPage({
           isTranslating={isTranslating}
           translationSettings={translationSettings}
           targetLanguage={targetLanguage}
+          gameId={gameId}
           onSelectMode={selectMode}
           onStart={startAtp}
           onClose={closeAtp}
