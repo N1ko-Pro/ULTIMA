@@ -1,24 +1,64 @@
 // ─────────────────────────────────────────────────────────────────────────────
-//  toolConfig.js — MscLocTool (dnlib) distribution config.
-//  The tool is NOT bundled in the installer; it is downloaded on demand into
-//  %APPDATA%/ULTIMA/Tools/MSC/ from a GitHub release asset.
+//  toolConfig.js — My Summer Car downloadable tooling.
 //
-//  The asset is built & published by the build-msc-tool.yml workflow in the
-//  N1ko-Pro/ULTIMA_TOOLS repo when a tag `msc-tools-v<TOOL_VERSION>` is pushed
-//  there. Bump TOOL_VERSION here and push a matching tag in ULTIMA_TOOLS to
-//  ship a new tool build.
+//  MSC needs two per-game tools, neither bundled in the installer. Both are
+//  downloaded on demand into %APPDATA%/ULTIMA/Tools/MSC/ from GitHub release
+//  assets published by the N1ko-Pro/ULTIMA_TOOLS repo:
+//
+//    • MscLocTool.exe       — dnlib CLI (extract / inject). Required to open
+//                             and to build (replace mode) any MSC mod.
+//    • UltimaLocPatcher.dll — universal MSCLoader runtime patcher. Required
+//                             only to build a PATCH artifact; bundled into the
+//                             produced zip so end users install it alongside
+//                             the original mod.
+//
+//  Each tool records a sidecar `<name>.version` file next to it so the app can
+//  detect an outdated copy and offer an update.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const TOOL_VERSION = '1.1.0';
-const EXE_NAME = 'MscLocTool.exe';
-// Sidecar file recording the version actually downloaded, so the app can detect
-// an outdated tool and prompt an update (the exe itself exposes no version).
-const VERSION_FILE = 'MscLocTool.version';
+const releaseAsset = (tag, file) =>
+  `https://github.com/N1ko-Pro/ULTIMA_TOOLS/releases/download/${tag}/${file}`;
 
-const DOWNLOAD_URL =
-  `https://github.com/N1ko-Pro/ULTIMA_TOOLS/releases/download/msc-tools-v${TOOL_VERSION}/${EXE_NAME}`;
+// ── MscLocTool (dnlib extract/inject) ────────────────────────────────────────
+const MSC_TOOL = Object.freeze({
+  id: 'msc-tool',
+  name: 'MscLocTool',
+  version: '1.1.0',
+  fileName: 'MscLocTool.exe',
+  versionFile: 'MscLocTool.version',
+  sizeMb: 65,
+  downloadUrl: releaseAsset('msc-tools-v1.1.0', 'MscLocTool.exe'),
+});
 
-// Approx download size shown in the dependency modal.
-const SIZE_MB = 65;
+// ── UltimaLocPatcher (runtime MSCLoader patcher for the patch artifact) ───────
+// Published in N1ko-Pro/ULTIMA_TOOLS under the `loc-patcher-v<version>` tag.
+const MSC_PATCHER = Object.freeze({
+  id: 'msc-patcher',
+  name: 'UltimaLocPatcher',
+  version: '1.0.4',
+  fileName: 'UltimaLocPatcher.dll',
+  versionFile: 'UltimaLocPatcher.version',
+  sizeMb: 1,
+  downloadUrl: releaseAsset('loc-patcher-v1.0.4', 'UltimaLocPatcher.dll'),
+});
 
-module.exports = { TOOL_VERSION, EXE_NAME, VERSION_FILE, DOWNLOAD_URL, SIZE_MB };
+// All MSC tools, in display order (used by checkDependencies / status widget).
+const TOOLS = Object.freeze([MSC_TOOL, MSC_PATCHER]);
+
+function getTool(id) {
+  return TOOLS.find((t) => t.id === id) || null;
+}
+
+module.exports = {
+  MSC_TOOL,
+  MSC_PATCHER,
+  TOOLS,
+  getTool,
+
+  // ── Legacy exports (MscLocTool) kept for existing imports ─────────────────
+  TOOL_VERSION: MSC_TOOL.version,
+  EXE_NAME: MSC_TOOL.fileName,
+  VERSION_FILE: MSC_TOOL.versionFile,
+  DOWNLOAD_URL: MSC_TOOL.downloadUrl,
+  SIZE_MB: MSC_TOOL.sizeMb,
+};
