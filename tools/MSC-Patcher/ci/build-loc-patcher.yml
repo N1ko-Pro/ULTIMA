@@ -92,5 +92,5 @@ jobs:
           file_id: ${{ vars.NEXUSMODS_FILE_ID }}
           filename: out/MSCLocAPI-${{ steps.ver.outputs.version }}.zip
           display_name: MSCLoc API ${{ steps.ver.outputs.version }}
-          description: Automated release from ULTIMA_TOOLS (loc-patcher-v${{ steps.ver.outputs.version }}).
+          description: Пожалуйста, ознакомьтесь с описанием, чтобы узнать больше деталей.
           version: ${{ steps.ver.outputs.version }}

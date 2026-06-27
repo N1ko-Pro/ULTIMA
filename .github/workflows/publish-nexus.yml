@@ -31,7 +31,7 @@ permissions:
 
 jobs:
   upload-to-nexusmods:
-    if: ${{ vars.NEXUSMODS_FILE_ID != '' }}
+    if: ${{ vars.NEXUSMODS_FILE_ID != '' || vars.NEXUSMODS_FILE_ID_MSC != '' }}
     runs-on: ubuntu-latest
     steps:
       - name: Resolve tag & version
@@ -52,12 +52,24 @@ jobs:
           echo "file=$installer" >> "$GITHUB_OUTPUT"
         id: dl
 
-      - name: Upload to Nexus Mods
+      - name: Upload to Nexus Mods (Baldur's Gate 3 page)
+        if: ${{ vars.NEXUSMODS_FILE_ID != '' }}
         uses: Nexus-Mods/upload-action@main
         with:
           api_key: ${{ secrets.NEXUSMODS_API_KEY }}
           file_id: ${{ vars.NEXUSMODS_FILE_ID }}
           filename: ${{ steps.dl.outputs.file }}
           display_name: ULTIMA ${{ steps.meta.outputs.version }}
-          description: Automated release from GitHub (${{ steps.meta.outputs.tag }}).
+          description: Пожалуйста, ознакомьтесь с описанием, чтобы узнать больше деталей.
+          version: ${{ steps.meta.outputs.version }}
+
+      - name: Upload to Nexus Mods (My Summer Car page)
+        if: ${{ vars.NEXUSMODS_FILE_ID_MSC != '' }}
+        uses: Nexus-Mods/upload-action@main
+        with:
+          api_key: ${{ secrets.NEXUSMODS_API_KEY }}
+          file_id: ${{ vars.NEXUSMODS_FILE_ID_MSC }}
+          filename: ${{ steps.dl.outputs.file }}
+          display_name: ULTIMA ${{ steps.meta.outputs.version }}
+          description: Пожалуйста, ознакомьтесь с описанием, чтобы узнать больше деталей.
           version: ${{ steps.meta.outputs.version }}
