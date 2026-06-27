@@ -52,13 +52,25 @@ jobs:
           echo "file=$installer" >> "$GITHUB_OUTPUT"
         id: dl
 
+      # Nexus runs an antivirus scan on uploaded files and rejects a bare .exe;
+      # wrapping the installer in a .zip passes the scan (mirrors the manual
+      # upload flow that works). The zip is flat (-j) so it contains just the
+      # installer with no nested directories.
+      - name: Package installer into a zip (Nexus AV-friendly)
+        id: zip
+        run: |
+          installer="${{ steps.dl.outputs.file }}"
+          zipname="./dist-nexus/ULTIMA-${{ steps.meta.outputs.version }}.zip"
+          zip -j "$zipname" "$installer"
+          echo "file=$zipname" >> "$GITHUB_OUTPUT"
+
       - name: Upload to Nexus Mods (Baldur's Gate 3 page)
         if: ${{ vars.NEXUSMODS_FILE_ID != '' }}
         uses: Nexus-Mods/upload-action@main
         with:
           api_key: ${{ secrets.NEXUSMODS_API_KEY }}
           file_id: ${{ vars.NEXUSMODS_FILE_ID }}
-          filename: ${{ steps.dl.outputs.file }}
+          filename: ${{ steps.zip.outputs.file }}
           display_name: ULTIMA ${{ steps.meta.outputs.version }}
           description: Пожалуйста, ознакомьтесь с описанием, чтобы узнать больше деталей.
           version: ${{ steps.meta.outputs.version }}
@@ -69,7 +81,7 @@ jobs:
         with:
           api_key: ${{ secrets.NEXUSMODS_API_KEY }}
           file_id: ${{ vars.NEXUSMODS_FILE_ID_MSC }}
-          filename: ${{ steps.dl.outputs.file }}
+          filename: ${{ steps.zip.outputs.file }}
           display_name: ULTIMA ${{ steps.meta.outputs.version }}
           description: Пожалуйста, ознакомьтесь с описанием, чтобы узнать больше деталей.
           version: ${{ steps.meta.outputs.version }}

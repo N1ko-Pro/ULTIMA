@@ -72,13 +72,15 @@ function fetchTo(url, destPath, onProgress, redirects = 0) {
  * @param {{ fileName: string, versionFile: string, version: string, downloadUrl: string }} tool
  * @param {(percent: number) => void} [onProgress]
  */
-async function downloadAsset(toolDir, tool, onProgress) {
+async function downloadAsset(toolDir, tool, onProgress, override = {}) {
   fs.mkdirSync(toolDir, { recursive: true });
   const dest = path.join(toolDir, tool.fileName);
-  await fetchTo(tool.downloadUrl, dest, onProgress);
+  const url = override.downloadUrl || tool.downloadUrl;
+  const version = override.version || tool.version;
+  await fetchTo(url, dest, onProgress);
   // Non-fatal version marker (the binaries expose no version themselves).
   try {
-    fs.writeFileSync(path.join(toolDir, tool.versionFile), tool.version, 'utf8');
+    fs.writeFileSync(path.join(toolDir, tool.versionFile), version, 'utf8');
   } catch { /* ignore */ }
 }
 
@@ -96,11 +98,13 @@ async function downloadTool(toolDir, onProgress) {
  * @param {string} toolDir
  * @param {string} toolId
  * @param {(percent: number) => void} [onProgress]
+ * @param {{ version?: string, downloadUrl?: string }} [override] - override the
+ *   pinned version/URL (used for the dynamically-resolved latest patcher).
  */
-async function downloadToolById(toolDir, toolId, onProgress) {
+async function downloadToolById(toolDir, toolId, onProgress, override) {
   const tool = getTool(toolId);
   if (!tool) throw new Error(`Неизвестный инструмент MSC: "${toolId}".`);
-  await downloadAsset(toolDir, tool, onProgress);
+  await downloadAsset(toolDir, tool, onProgress, override);
 }
 
 module.exports = { downloadTool, downloadToolById, downloadAsset };

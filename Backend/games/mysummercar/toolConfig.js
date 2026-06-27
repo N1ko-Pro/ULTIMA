@@ -19,6 +19,14 @@
 const releaseAsset = (tag, file) =>
   `https://github.com/N1ko-Pro/ULTIMA_TOOLS/releases/download/${tag}/${file}`;
 
+// ── GitHub coordinates (for dynamic "latest patcher" resolution) ─────────────
+// The patcher's published version is resolved live from the ULTIMA_TOOLS
+// releases (see dll_utils/patcherRelease.js); MSC_PATCHER.version below is the
+// pinned fallback/floor used when GitHub is unreachable.
+const GH_TOOLS_OWNER = 'N1ko-Pro';
+const GH_TOOLS_REPO = 'ULTIMA_TOOLS';
+const PATCHER_TAG_PREFIX = 'loc-patcher-v';
+
 // ── MscLocTool (dnlib extract/inject) ────────────────────────────────────────
 const MSC_TOOL = Object.freeze({
   id: 'msc-tool',
@@ -54,6 +62,11 @@ module.exports = {
   MSC_PATCHER,
   TOOLS,
   getTool,
+
+  // ── GitHub coordinates for dynamic patcher version resolution ─────────────
+  GH_TOOLS_OWNER,
+  GH_TOOLS_REPO,
+  PATCHER_TAG_PREFIX,
 
   // ── Legacy exports (MscLocTool) kept for existing imports ─────────────────
   TOOL_VERSION: MSC_TOOL.version,

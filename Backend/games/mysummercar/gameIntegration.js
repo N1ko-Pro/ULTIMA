@@ -121,7 +121,7 @@ function getInstalledPatcherVersion(dir = getGamePath()) {
  * downloaded (Tools/MSC).
  * @returns {{ ok: boolean, installedTo?: string, error?: string }}
  */
-function installPatcher() {
+function installPatcher(targetVersion) {
   const dir = getGamePath();
   if (!dir) return { ok: false, error: 'GAME_PATH_MISSING' };
 
@@ -132,8 +132,9 @@ function installPatcher() {
     const dest = patcherDestPath(dir);
     fs.mkdirSync(path.dirname(dest), { recursive: true });
     fs.copyFileSync(src, dest);
-    // Stamp the installed version so updates can be detected later.
-    const version = patcherTool.getInstalledVersion() || MSC_PATCHER.version;
+    // Stamp the installed version so updates can be detected later. Prefer the
+    // explicit target (resolved latest), then the downloaded sidecar, then pin.
+    const version = targetVersion || patcherTool.getInstalledVersion() || MSC_PATCHER.version;
     try { fs.writeFileSync(patcherVersionPath(dir), version, 'utf8'); } catch { /* non-fatal */ }
     return { ok: true, installedTo: dest };
   } catch (e) {
@@ -179,8 +180,10 @@ function installTable(modId, json) {
   }
 }
 
-// Snapshot for the workspace integration panel.
-function getStatus() {
+// Snapshot for the workspace integration panel. `latestVersion` is the
+// effective "available" version (resolved live from GitHub by the caller, with
+// the pinned MSC_PATCHER.version as fallback).
+function getStatus(latestVersion = MSC_PATCHER.version) {
   const dir = getGamePath();
   const installed = isPatcherInstalled(dir);
   const installedVersion = installed ? getInstalledPatcherVersion(dir) : null;
@@ -190,9 +193,9 @@ function getStatus() {
     valid: Boolean(dir),
     patcherInstalled: installed,
     patcherName: MSC_PATCHER.name,
-    patcherVersion: MSC_PATCHER.version,
+    patcherVersion: latestVersion,
     patcherInstalledVersion: installedVersion,
-    patcherUpToDate: installed && installedVersion === MSC_PATCHER.version,
+    patcherUpToDate: installed && installedVersion === latestVersion,
   };
 }
 

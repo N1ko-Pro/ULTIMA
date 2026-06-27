@@ -14,6 +14,7 @@ const mscToolCli = require('./dll_utils/mscToolCli');
 const patcherTool = require('./dll_utils/patcherTool');
 const gameIntegration = require('./gameIntegration');
 const { downloadToolById } = require('./dll_utils/mscToolDownloader');
+const patcherRelease = require('./dll_utils/patcherRelease');
 const { MSC_TOOL, MSC_PATCHER } = require('./toolConfig');
 
 let toolDir = null;
@@ -70,12 +71,16 @@ module.exports = {
         ? { ...toolItem, status: 'installed', installedVersion: toolVersion }
         : { ...toolItem, status: 'update', installedVersion: toolVersion || null };
 
-    // MSCLoc API (needed only for patch builds — non-blocking here).
+    // MSCLoc API (needed only for patch builds — non-blocking here). The
+    // "available" version is resolved live from GitHub (latest published
+    // release), falling back to the pinned MSC_PATCHER when offline.
+    const patcherTarget = await patcherRelease.resolveTarget();
+    const patcherLatest = patcherTarget.version;
     const patcherPresent = patcherTool.isPresent();
     const patcherVersion = patcherTool.getInstalledVersion();
-    const patcherUpToDate = patcherPresent && patcherVersion === MSC_PATCHER.version;
+    const patcherUpToDate = patcherPresent && patcherVersion === patcherLatest;
 
-    const patcherItem = { id: MSC_PATCHER.id, name: MSC_PATCHER.name, version: MSC_PATCHER.version, sizeMb: MSC_PATCHER.sizeMb };
+    const patcherItem = { id: MSC_PATCHER.id, name: MSC_PATCHER.name, version: patcherLatest, sizeMb: MSC_PATCHER.sizeMb };
     const patcherStatus = !patcherPresent
       ? { ...patcherItem, status: 'missing' }
       : patcherUpToDate
@@ -101,7 +106,10 @@ module.exports = {
     if (!toolDir) throw new Error('Каталог инструментов MSC не инициализирован.');
     // Install the requested tool; default to MscLocTool when unspecified.
     const id = toolId === MSC_PATCHER.id ? MSC_PATCHER.id : MSC_TOOL.id;
-    await downloadToolById(toolDir, id, onProgress);
+    // For the patcher, download the dynamically-resolved latest release (pinned
+    // fallback inside resolveTarget); MscLocTool uses its pinned URL.
+    const override = id === MSC_PATCHER.id ? await patcherRelease.resolveTarget() : undefined;
+    await downloadToolById(toolDir, id, onProgress, override);
   },
 
   // ── Project pipeline ──────────────────────────────────────────────────────
@@ -153,23 +161,26 @@ module.exports = {
   // They let ULTIMA install the patcher once into the game and write patch
   // translations straight into it, instead of bundling the patcher per artifact.
   getGameIntegration() {
-    return gameIntegration.getStatus();
+    // Resolve the latest published patcher version (live) so the panel reflects
+    // releases made after this app build; pinned fallback when offline.
+    return patcherRelease.resolveLatest().then(() =>
+      gameIntegration.getStatus(patcherRelease.peekLatestVersion()));
   },
 
   detectGamePath() {
     gameIntegration.detectAndStore();
-    return gameIntegration.getStatus();
+    return gameIntegration.getStatus(patcherRelease.peekLatestVersion());
   },
 
   setGamePath(dir) {
     const res = gameIntegration.setGamePath(dir);
-    return { ...res, status: gameIntegration.getStatus() };
+    return { ...res, status: gameIntegration.getStatus(patcherRelease.peekLatestVersion()) };
   },
 
   // Forget the remembered game path.
   clearGamePath() {
     gameIntegration.clearGamePath();
-    return { success: true, status: gameIntegration.getStatus() };
+    return { success: true, status: gameIntegration.getStatus(patcherRelease.peekLatestVersion()) };
   },
 
   // Install the patcher engine into the game's Mods folder, downloading it
@@ -179,23 +190,26 @@ module.exports = {
     if (!gameIntegration.getGamePath()) {
       return { success: false, error: 'GAME_PATH_MISSING' };
     }
+    // Resolve the latest published patcher (pinned fallback) and ensure the
+    // tools cache holds exactly that version before copying it into the game.
+    const target = await patcherRelease.resolveTarget();
     const needDownload = !patcherTool.isPresent()
-      || patcherTool.getInstalledVersion() !== MSC_PATCHER.version;
+      || patcherTool.getInstalledVersion() !== target.version;
     if (needDownload) {
       if (!toolDir) return { success: false, error: 'Каталог инструментов MSC не инициализирован.' };
-      await downloadToolById(toolDir, MSC_PATCHER.id, onProgress);
+      await downloadToolById(toolDir, MSC_PATCHER.id, onProgress, target);
     } else {
       onProgress?.(100);
     }
-    const res = gameIntegration.installPatcher();
+    const res = gameIntegration.installPatcher(target.version);
     if (!res.ok) return { success: false, error: res.error };
-    return { success: true, installedTo: res.installedTo, status: gameIntegration.getStatus() };
+    return { success: true, installedTo: res.installedTo, status: gameIntegration.getStatus(target.version) };
   },
 
   // Remove the patcher from the game's Mods folder.
   uninstallPatcherFromGame() {
     const res = gameIntegration.uninstallPatcher();
     if (!res.ok) return { success: false, error: res.error };
-    return { success: true, status: gameIntegration.getStatus() };
+    return { success: true, status: gameIntegration.getStatus(patcherRelease.peekLatestVersion()) };
   },
 };

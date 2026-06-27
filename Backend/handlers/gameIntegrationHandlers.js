@@ -10,7 +10,7 @@ function registerGameIntegrationHandlers(mainWindow, { games }) {
   ipcMain.handle(CH.GAME_GET_INTEGRATION, wrapHandler(async (_, gameId) => {
     const game = games.getGameModule(gameId);
     if (!game?.getGameIntegration) return { success: true, supported: false };
-    return { success: true, supported: true, status: game.getGameIntegration() };
+    return { success: true, supported: true, status: await game.getGameIntegration() };
   }));
 
   ipcMain.handle(CH.GAME_DETECT_PATH, wrapHandler(async (_, gameId) => {
