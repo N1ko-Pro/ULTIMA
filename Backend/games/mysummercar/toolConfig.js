@@ -43,11 +43,11 @@ const MSC_TOOL = Object.freeze({
 const MSC_PATCHER = Object.freeze({
   id: 'msc-patcher',
   name: 'MSCLoc API',
-  version: '1.1.0',
+  version: '1.1.1',
   fileName: 'MSCLocAPI.dll',
   versionFile: 'MSCLocAPI.version',
   sizeMb: 1,
-  downloadUrl: releaseAsset('MSCLoc-API-v1.1.0', 'MSCLocAPI.dll'),
+  downloadUrl: releaseAsset('MSCLoc-API-v1.1.1', 'MSCLocAPI.dll'),
 });
 
 // All MSC tools, in display order (used by checkDependencies / status widget).
