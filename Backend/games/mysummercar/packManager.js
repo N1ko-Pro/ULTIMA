@@ -164,12 +164,13 @@ async function buildPatchArtifact(input, ctx) {
     const targetAssembly = resolveTargetAssembly(source.dllPath);
     const literals = await mscToolCli.extract(source.dllPath);
     const originalIds = new Set(literals.map((l) => l.id));
+    const sourceTextById = new Map(literals.map((l) => [l.id, l.text]));
     const table = buildTranslationTable(updatedData, originalIds, {
       targetAssembly,
       originalModName: modName || '',
       language: targetLanguage || '',
       appVersion: TOOL_VERSION,
-    });
+    }, sourceTextById);
     ctx.onProgress?.(55);
 
     const modId = makeModId(targetAssembly, stem);

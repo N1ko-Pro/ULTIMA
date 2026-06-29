@@ -107,6 +107,7 @@ const ICON_ACCENTS = {
   amber:   { hover: 'hover:text-amber-300 hover:border-amber-400/20 hover:bg-amber-400/[0.06] hover:shadow-[0_0_16px_rgba(251,191,36,0.1)]',  overlay: 'from-amber-400/0 via-amber-400/[0.05] to-transparent' },
   sky:     { hover: 'hover:text-sky-300 hover:border-sky-400/20 hover:bg-sky-400/[0.06] hover:shadow-[0_0_16px_rgba(56,189,248,0.1)]',         overlay: 'from-sky-400/0 via-sky-400/[0.05] to-transparent' },
   emerald: { hover: 'hover:text-emerald-300 hover:border-emerald-400/20 hover:bg-emerald-400/[0.06] hover:shadow-[0_0_16px_rgba(52,211,153,0.1)]', overlay: 'from-emerald-400/0 via-emerald-400/[0.05] to-transparent' },
+  violet:  { hover: 'hover:text-violet-300 hover:border-violet-400/20 hover:bg-violet-400/[0.06] hover:shadow-[0_0_16px_rgba(167,139,250,0.12)]', overlay: 'from-violet-400/0 via-violet-400/[0.05] to-transparent' },
   red:     { hover: 'hover:text-red-400 hover:border-red-500/20 hover:bg-red-500/[0.06] hover:shadow-[0_0_16px_rgba(248,113,113,0.1)]',         overlay: 'from-red-500/0 via-red-500/[0.05] to-transparent' },
   muted:   { hover: 'hover:text-zinc-400 hover:border-white/[0.12] hover:bg-white/[0.03]',                                                      overlay: 'from-white/0 via-white/[0.03] to-transparent' },
 };

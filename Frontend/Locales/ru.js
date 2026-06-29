@@ -117,6 +117,7 @@ export default {
     patcherRemovedTitle:    'Патчер удалён',
     patcherRemovedMsg:      'Патчер перевода удалён из игры.',
     needGameFirst:          'Сначала укажите папку игры.',
+    patcherLocked:          'Файл патчера занят. Закройте игру и попробуйте снова.',
     patcherInstalledTitle:  'Патчер установлен',
     patcherInstalledMsg:    'Патчер перевода установлен в игру — режим патчинга готов к работе.',
     // Инструменты
@@ -457,10 +458,10 @@ export default {
     techShown:          'Технические видны',
     techShowTitle:      'Показать технические строки',
     techHideTitle:      'Скрыть технические строки',
-    foreignHidden:      'Не-английские',
-    foreignShown:       'Не-английские видны',
-    foreignHideTitle:   'Скрыть не-английские строки',
-    foreignShowTitle:   'Показать не-английские строки',
+    foreignHidden:      'Другой язык',
+    foreignShown:       'Другой язык виден',
+    foreignHideTitle:   'Скрыть строки на другом языке',
+    foreignShowTitle:   'Показать строки на другом языке',
     markTechnical:      'Скрыть как техническую',
     markTranslatable:   'Вернуть в перевод',
     techReasons: {
@@ -539,8 +540,16 @@ export default {
     // Очистка
     clearAll:           'Очистить всё',
     clearAllTitle:      'Очистить все переводы',
-    clearAllConfirm:    (n) => `Вы уверены, что хотите очистить все переводы? Это удалит ${n} переведенных строк.`,
+    clearAllConfirm:    (n) => `Очистить перевод у ${n} видимых строк? Технические и скрытые строки не затрагиваются.`,
     clearRow:           'Очистить перевод',
+    deleteRow:          'Удалить строку',
+    // Свои строки (MSC) — массовые действия
+    clearAllCustom:        'Очистить свои',
+    clearAllCustomTitle:   'Очистить свои строки',
+    clearAllCustomConfirm: (n) => `Это очистит перевод у ${n} своих строк. Сами строки останутся.`,
+    deleteAllCustom:        'Удалить свои',
+    deleteAllCustomTitle:   'Удалить свои строки',
+    deleteAllCustomConfirm: (n) => `Это удалит все свои строки (${n}). Действие необратимо.`,
     bookmarkRow:        'В избранное',
     removeBookmark:     'Убрать из избранного',
     bookmarksLabel:     'избранное',
@@ -549,6 +558,7 @@ export default {
     filterAll:          'Все',
     filterFavorites:    'Избранные',
     filterHidden:       'Скрытые',
+    filterCustom:       'Свои строки',
     showRows:           'Строк',
     ofTotal:            'из',
   },
@@ -657,6 +667,21 @@ export default {
   // ─── TitleBar ──────────────────────────────────────────────────────────────
   titleBar: {
     projects: 'Проекты',
+  },
+
+  // ─── Свои строки (MSC) ────────────────────────────────────────────────────
+  customStrings: {
+    button:               'Свои строки',
+    title:                'Свои строки',
+    subtitle:             'Перевод строк, которых нет в моде',
+    hint:                 'Добавьте строки, которые не извлекаются из мода (например, надписи из его меню). Укажите оригинал ровно как в игре и перевод — они применятся в рантайме.',
+    sourceLabel:          'Оригинал',
+    translationLabel:     'Перевод',
+    sourcePlaceholder:    'PROGRESS',
+    translationPlaceholder: 'ПРОГРЕСС',
+    add:                  'Добавить строку',
+    addRow:               'Добавить свою строку',
+    empty:                'Здесь появятся ваши строки. Нажмите «Добавить свою строку», чтобы создать первую.',
   },
 
   // ─── Общие / переиспользуемые ─────────────────────────────────────────────

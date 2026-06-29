@@ -12,7 +12,9 @@ export default {
   available: true,
   fileTypes: ['DLL', 'ZIP', 'RAR'],
   // Capability flags — MSC has its own (separate) glossary, distinct from BG3.
-  features: { dictionary: true },
+  // `classifier` enables the technical / other-language string filters, and
+  // `customStrings` enables adding source→translation pairs directly in-table.
+  features: { dictionary: true, classifier: true, customStrings: true },
   accent: {
     gradient:    'from-amber-500/25 via-lime-500/10 to-transparent',
     glow:        '0 0 60px -12px rgba(245,158,11,0.45)',

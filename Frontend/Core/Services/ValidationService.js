@@ -32,8 +32,33 @@ export function validatePackRequirements({ originalStrings, translations, modInf
   const rows = Array.isArray(originalStrings) ? originalStrings : [];
   const safeTranslations = translations || {};
 
+  // Only rows the user actually sees/works with in the main table are required:
+  // skip manually-hidden rows and anything that's effectively "technical"
+  // (structural-technical, or a non-target-language row while the "Другой язык"
+  // toggle is off). This mirrors the editor's `effectiveCategoryOf` using state
+  // persisted inside `translations`, so the red highlight matches the visible
+  // set and isn't thrown off by hidden/technical/foreign rows.
+  const techOverride = (safeTranslations._techOverride && typeof safeTranslations._techOverride === 'object') ? safeTranslations._techOverride : {};
+  const hiddenRows = (safeTranslations._hidden && typeof safeTranslations._hidden === 'object') ? safeTranslations._hidden : {};
+  const showForeign = Boolean(safeTranslations._view?.showForeign);
+
+  const isRequiredRow = (row) => {
+    if (hiddenRows[row.id]) return false;
+    const override = techOverride[row.id];
+    let category;
+    if (override) {
+      category = override;
+    } else {
+      const auto = row.category || 'text';
+      if (auto === 'technical') category = 'technical';
+      else if (!showForeign && row.foreign) category = 'technical';
+      else category = auto;
+    }
+    return category !== 'technical';
+  };
+
   const missingMainTableRowIds = rows
-    .filter((row) => !hasText(safeTranslations[row.id]))
+    .filter((row) => isRequiredRow(row) && !hasText(safeTranslations[row.id]))
     .map((row) => row.id);
 
   const resolvedFields = {

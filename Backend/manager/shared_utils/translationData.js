@@ -19,6 +19,7 @@ const META_KEYS = Object.freeze([
   '_techOverride',
   '_hidden',
   '_view',
+  '_custom',
   'name',
   'author',
   'uuid',

@@ -14,7 +14,7 @@ namespace UltimaLoc
     {
         public override string ID => "MSCLocAPI";
         public override string Name => "MSCLoc API";
-        public override string Version => "1.1.1";
+        public override string Version => "1.1.2";
         public override string Author => "ANICKON";
 
         public MSCLocAPI()

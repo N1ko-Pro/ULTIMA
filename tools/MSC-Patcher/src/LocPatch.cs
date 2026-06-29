@@ -84,7 +84,13 @@ namespace UltimaLoc
                 if (ins.opcode == OpCodes.Ldstr && ins.operand is string original)
                 {
                     string translated;
-                    if (LocStore.TryTranslate(original, out translated))
+                    // Block translation, not just whole-literal: a single code
+                    // literal can be a multi-line block (e.g. "TOP SPEED\n" +
+                    // "ACCELERATION <color=red>...</color>") that the app extracted
+                    // and the user translated as separate lines. TryTranslateBlock
+                    // translates each line and rejoins, while still doing the exact
+                    // whole-string match first for ordinary single-line literals.
+                    if (LocStore.TryTranslateBlock(original, out translated))
                     {
                         ins.operand = translated;
                     }

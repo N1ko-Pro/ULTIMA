@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Trash2, Bookmark, Wrench, Eye, EyeOff } from 'lucide-react';
+import { Trash2, CircleX, Bookmark, Wrench, Eye, EyeOff } from 'lucide-react';
 import HighlightedText from '@UI/Highlight/HighlightedText';
 import { useLocale } from '@Locales/LocaleProvider';
 
@@ -20,6 +20,9 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
   isRequiredMissing,
   isBookmarked,
   isHidden,
+  isCustom = false,
+  appearClassName,
+  appearStyle,
   techState = 'text',
   techReasons,
   onTranslateChange,
@@ -27,6 +30,8 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
   onToggleBookmark,
   onToggleHidden,
   onToggleTechnical,
+  onCustomSourceChange,
+  onDeleteCustomRow,
   onDismissHighlight,
   searchQuery,
 }) {
@@ -87,7 +92,7 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
       : 'border-white/[0.06] [&:not(:focus-within)]:hover:border-white/[0.1] bg-surface-2/60 focus-within:border-white/[0.4] focus-within:bg-surface-4/60 focus-within:ring-2 focus-within:ring-white/[0.1] focus-within:shadow-[0_0_0_3px_rgba(255,255,255,0.03)]';
 
   return (
-    <div className="pb-1.5">
+    <div className={`pb-1.5 ${appearClassName || ''}`} style={appearStyle}>
       <div className={`group grid grid-cols-[40px_minmax(0,1fr)_minmax(0,1fr)_68px] gap-4 p-3 px-6 rounded-2xl items-center transition-all duration-200 border relative ${rowBorder} ${isTechnical ? 'opacity-60 hover:opacity-100' : ''}`}>
 
         {/* Amber accent bar for bookmarked rows */}
@@ -100,10 +105,28 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
         </div>
 
         <div className="text-[13px] text-zinc-300 leading-relaxed font-medium [overflow-wrap:anywhere] select-text pl-4 border-r border-white/[0.06] self-center min-w-0 relative pr-4">
-          {!isTranslated && (
-            <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-orange-400/60 shadow-[0_0_6px_rgba(251,146,60,0.4)]" />
+          {isCustom ? (
+            <div className="flex items-center gap-2">
+              <span className="shrink-0 inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-bold uppercase tracking-wider text-violet-300 bg-violet-400/[0.12] border border-violet-400/20">
+                custom
+              </span>
+              <textarea
+                value={row.original || ''}
+                onChange={(e) => onCustomSourceChange?.(row.id, e.target.value)}
+                placeholder={t.customStrings.sourcePlaceholder}
+                rows={1}
+                className="flex-1 min-w-0 resize-none overflow-hidden bg-surface-2/60 border border-white/[0.08] rounded-lg px-3 py-2 text-[13px] text-zinc-200 placeholder-zinc-600 outline-none [&:not(:focus)]:hover:border-white/[0.14] focus:border-white/[0.3] focus:bg-surface-3/70 transition-colors duration-150 [overflow-wrap:anywhere]"
+                style={{ fieldSizing: 'content', minHeight: '36px' }}
+              />
+            </div>
+          ) : (
+            <>
+              {!isTranslated && (
+                <span className="absolute -left-1 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-orange-400/60 shadow-[0_0_6px_rgba(251,146,60,0.4)]" />
+              )}
+              <HighlightedText text={row.original} mode="table" searchQuery={searchQuery} />
+            </>
           )}
-          <HighlightedText text={row.original} mode="table" searchQuery={searchQuery} />
         </div>
 
         <div className="relative flex items-stretch min-w-0 self-stretch">
@@ -138,6 +161,7 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
         {/* Quick actions: favorite + hide (top row), clear (centered below) */}
         <div className="flex flex-col items-center justify-center gap-1">
           <div className="flex items-center gap-1">
+            {onToggleBookmark && (
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
@@ -152,7 +176,9 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
             >
               <Bookmark className={`w-[14px] h-[14px] transition-all duration-150 ${isBookmarked ? 'fill-amber-400/80 scale-110' : ''}`} />
             </button>
+            )}
 
+            {onToggleHidden && (
             <button
               type="button"
               onMouseDown={(e) => e.preventDefault()}
@@ -169,6 +195,7 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
                 ? <Eye className="w-[14px] h-[14px]" />
                 : <EyeOff className="w-[14px] h-[14px]" />}
             </button>
+            )}
           </div>
 
           <div className="flex items-center gap-1">
@@ -197,10 +224,27 @@ const VirtualTableRow = React.memo(function VirtualTableRow({
               onClick={handleClear}
               title={t.editor.clearRow}
               aria-label={t.editor.clearRow}
-              className="w-7 h-7 flex items-center justify-center rounded-lg text-zinc-700 opacity-0 group-hover:opacity-100 hover:text-red-400 hover:bg-red-500/[0.08] transition-all duration-200 focus:outline-none"
+              className={`w-7 h-7 flex items-center justify-center rounded-lg transition-all duration-200 focus:outline-none hover:text-red-400 hover:bg-red-500/[0.08] ${
+                isCustom ? 'text-zinc-500' : 'text-zinc-700 opacity-0 group-hover:opacity-100'
+              }`}
             >
               <Trash2 className="w-[15px] h-[15px]" />
             </button>
+
+            {/* Custom rows: dedicated delete icon — removes the row entirely
+                (the trash above only clears the translation). */}
+            {isCustom && onDeleteCustomRow && (
+              <button
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => onDeleteCustomRow(row.id)}
+                title={t.editor.deleteRow}
+                aria-label={t.editor.deleteRow}
+                className="w-7 h-7 flex items-center justify-center rounded-lg transition-all duration-200 focus:outline-none text-zinc-500 hover:text-red-400 hover:bg-red-500/[0.08]"
+              >
+                <CircleX className="w-[15px] h-[15px]" />
+              </button>
+            )}
           </div>
         </div>
       </div>

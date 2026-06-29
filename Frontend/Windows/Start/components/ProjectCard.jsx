@@ -44,7 +44,7 @@ export function ProjectCard({ project, index, onLoad, onDelete, onEdit }) {
 
   return (
     <div
-      className={`${reduceMotion ? '' : 'start-card-appear'} h-full`}
+      className={`${reduceMotion ? '' : 'start-card-appear'} relative h-full hover:z-20 focus-within:z-20`}
       style={reduceMotion ? undefined : { animationDelay: `${delay}ms` }}
     >
       <div

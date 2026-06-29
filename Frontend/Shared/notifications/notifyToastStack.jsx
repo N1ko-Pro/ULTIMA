@@ -6,11 +6,15 @@ import { TOAST } from '@Config/timings.constants';
 
 // ─── Toast stack ────────────────────────────────────────────────────────────
 // Mounts at app root and listens to the `app-notification` window event.
-// Renders up to TOAST.MAX_VISIBLE toasts at the top-center of the viewport,
-// sliding in from the top. Newest on top; older ones stack below and the oldest
-// beyond the limit animates out automatically.
+// Renders up to TOAST.MAX_VISIBLE toasts, sliding in from the top. Newest on
+// top; older ones stack below and the oldest beyond the limit animates out
+// automatically.
+//
+// `placement` controls where the stack anchors: 'top-center' is used on the
+// "Рабочее пространство" (StartPage) view, 'top-right' everywhere else
+// (editor, game-select, home) — the historic spot.
 
-export default function NotifyToastStack() {
+export default function NotifyToastStack({ placement = 'top-right' }) {
   const [toasts, setToasts] = useState([]);
   const timersRef = useRef(new Map());
 
@@ -79,8 +83,13 @@ export default function NotifyToastStack() {
     };
   }, []);
 
+  const positionCls =
+    placement === 'top-center'
+      ? 'top-12 left-1/2 -translate-x-1/2 items-center'
+      : 'top-12 right-6 items-end';
+
   return (
-    <div className="fixed top-12 left-1/2 -translate-x-1/2 z-[9999] flex flex-col gap-3 items-center pointer-events-none" data-floating-layer>
+    <div className={`fixed ${positionCls} z-[9999] flex flex-col gap-3 pointer-events-none`} data-floating-layer>
       {toasts.map((t) => (
         <NotifyToastItem key={t.id} toast={t} onRemove={removeToast} />
       ))}

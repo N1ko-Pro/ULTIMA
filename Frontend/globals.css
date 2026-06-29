@@ -86,6 +86,15 @@
     animation: appSlideUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
   }
 
+  /* Custom-strings mode: rows assemble brick-by-brick (top→bottom cascade) */
+  .cs-brick {
+    animation: csBrick 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+  /* "Add custom string" button materialises out of thin air after the cascade */
+  .cs-pop {
+    animation: csPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
   /* ── Decorative ─────────────────────────────────────────────────────────── */
   .dot-grid {
     background-image: radial-gradient(circle, rgba(255,255,255,0.06) 1px, transparent 1px);
@@ -189,6 +198,17 @@
 @keyframes appSlideUp {
   0%   { opacity: 0; transform: translateY(10px); }
   100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes csBrick {
+  0%   { opacity: 0; transform: translateY(-18px) scale(0.98); }
+  60%  { opacity: 1; }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes csPop {
+  0%   { opacity: 0; transform: translateY(8px) scale(0.94); filter: blur(3px); }
+  100% { opacity: 1; transform: translateY(0) scale(1);    filter: blur(0); }
 }
 
 @keyframes modalOverlayIn {

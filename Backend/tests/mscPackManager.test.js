@@ -246,7 +246,11 @@ async function runPatchStubbedTests() {
       assert.equal(table.language, "ru");
       assert.deepEqual(table.entries, {
         [makeStringId("Hello")]: "Привет",
+        [makeStringId("HELLO")]: "Привет",
+        [makeStringId("hello")]: "Привет",
         [makeStringId("World")]: "Мир",
+        [makeStringId("WORLD")]: "Мир",
+        [makeStringId("world")]: "Мир",
       });
       // targetAssembly falls back to file stem for our fake (non-PE) dll.
       assert.equal(table.targetAssembly, "SomeMod");

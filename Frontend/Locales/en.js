@@ -117,6 +117,7 @@ export default {
     patcherRemovedTitle:    'Patcher removed',
     patcherRemovedMsg:      'The translation patcher was removed from the game.',
     needGameFirst:          'Point us to the game folder first.',
+    patcherLocked:          'The patcher file is in use. Close the game and try again.',
     patcherInstalledTitle:  'Patcher installed',
     patcherInstalledMsg:    'The translation patcher is installed in the game — patch mode is ready.',
     // Tools
@@ -451,10 +452,10 @@ export default {
     techShown:          'Technical shown',
     techShowTitle:      'Show technical strings',
     techHideTitle:      'Hide technical strings',
-    foreignHidden:      'Non-English',
-    foreignShown:       'Non-English shown',
-    foreignHideTitle:   'Hide non-English strings',
-    foreignShowTitle:   'Show non-English strings',
+    foreignHidden:      'Other language',
+    foreignShown:       'Other language shown',
+    foreignHideTitle:   'Hide other-language strings',
+    foreignShowTitle:   'Show other-language strings',
     markTechnical:      'Hide as technical',
     markTranslatable:   'Restore to translation',
     techReasons: {
@@ -533,8 +534,16 @@ export default {
     // Clear
     clearAll:           'Clear all',
     clearAllTitle:      'Clear all translations',
-    clearAllConfirm:    (n) => `Are you sure you want to clear all translations? This will delete ${n} translated strings.`,
+    clearAllConfirm:    (n) => `Clear the translation of ${n} visible rows? Technical and hidden rows are left untouched.`,
     clearRow:           'Clear translation',
+    deleteRow:          'Delete row',
+    // Custom strings (MSC) — bulk actions
+    clearAllCustom:        'Clear custom',
+    clearAllCustomTitle:   'Clear custom strings',
+    clearAllCustomConfirm: (n) => `This will clear the translation of ${n} custom strings. The strings themselves will remain.`,
+    deleteAllCustom:        'Delete custom',
+    deleteAllCustomTitle:   'Delete custom strings',
+    deleteAllCustomConfirm: (n) => `This will delete all custom strings (${n}). This cannot be undone.`,
     bookmarkRow:        'Add to favorites',
     removeBookmark:     'Remove from favorites',
     bookmarksLabel:     'favorites',
@@ -543,6 +552,7 @@ export default {
     filterAll:          'All',
     filterFavorites:    'Favorites',
     filterHidden:       'Hidden',
+    filterCustom:       'Custom strings',
     showRows:           'Rows',
     ofTotal:            'of',
   },
@@ -651,6 +661,21 @@ export default {
   // ─── TitleBar ──────────────────────────────────────────────────────────────
   titleBar: {
     projects: 'Projects',
+  },
+
+  // ─── Custom strings (MSC) ─────────────────────────────────────────────────
+  customStrings: {
+    button:               'Custom strings',
+    title:                'Custom strings',
+    subtitle:             'Translate strings not present in the mod',
+    hint:                 'Add strings that aren\'t extracted from the mod (e.g. labels from its own menu). Enter the source exactly as shown in-game and its translation — they are applied at runtime.',
+    sourceLabel:          'Source',
+    translationLabel:     'Translation',
+    sourcePlaceholder:    'PROGRESS',
+    translationPlaceholder: 'ПРОГРЕСС',
+    add:                  'Add string',
+    addRow:               'Add custom string',
+    empty:                'Your custom strings will appear here. Click "Add custom string" to create the first one.',
   },
 
   // ─── Common / Shared ───────────────────────────────────────────────────────

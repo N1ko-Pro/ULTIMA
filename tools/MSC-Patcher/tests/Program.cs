@@ -97,6 +97,20 @@ Test("a miss leaves the original (out is null)", () =>
     Assert(tr == null, "miss must yield null translation");
 });
 
+Test("case-insensitive: a runtime string in another case resolves via variant keys", () =>
+{
+    LocStore.Reset();
+    // The app emits UPPER/lower variant keys for each entry; the patcher folds
+    // case on lookup so any runtime casing matches.
+    LocStore.Map[LocId.Make("SETTINGS")] = "НАСТРОЙКИ"; // UPPER variant key
+    LocStore.Map[LocId.Make("settings")] = "НАСТРОЙКИ"; // lower variant key
+
+    Assert(LocStore.TryTranslate("Settings", out var a) && a == "НАСТРОЙКИ", "title-case must fold to UPPER key");
+    Assert(LocStore.TryTranslate("SETTINGS", out var b) && b == "НАСТРОЙКИ", "exact UPPER must match");
+    Assert(LocStore.TryTranslate("settings", out var c) && c == "НАСТРОЙКИ", "exact lower must match");
+    Assert(!LocStore.TryTranslate("Options", out _), "unrelated string must still miss");
+});
+
 Console.WriteLine("\nLocStore.TryTranslateBlock — multi-line concat fallback");
 
 Test("translates a runtime-concatenated multi-line block line-by-line", () =>
@@ -132,6 +146,61 @@ Test("single-line block with no id is a no-op", () =>
     LocStore.Reset();
     Assert(!LocStore.TryTranslateBlock("nothing here", out var tr), "no-op expected");
     Assert(tr == "nothing here", "must leave original");
+});
+
+Test("one code literal split across lines by the app translates each line (TOP SPEED case)", () =>
+{
+    LocStore.Reset();
+    // The real mod literal is "TOP SPEED\nACCELERATION\n<color=red>...</color>".
+    // The app grouped it as two rows: "TOP SPEED" and the 2-line
+    // "ACCELERATION\n<color=red>...</color>" — so one key itself spans a newline.
+    // Maximal-munch must rebuild that 2-line key instead of splitting every line.
+    LocStore.Map[LocId.Make("TOP SPEED")] = "МАКС. СКОРОСТЬ";
+    LocStore.Map[LocId.Make("ACCELERATION\n<color=red>This will overwrite your custom values!</color>")] =
+        "РАЗГОН <color=red>Это перезапишет ваши пользовательские значения!</color>";
+
+    string literal = "TOP SPEED\nACCELERATION\n<color=red>This will overwrite your custom values!</color>";
+    Assert(!LocStore.TryTranslate(literal, out _), "the combined 3-line literal must NOT have its own id");
+    Assert(LocStore.TryTranslateBlock(literal, out var tr), "must translate via maximal-munch");
+    string expected = "МАКС. СКОРОСТЬ\nРАЗГОН <color=red>Это перезапишет ваши пользовательские значения!</color>";
+    Assert(tr == expected, "got: " + tr);
+});
+
+Test("maximal-munch prefers the longest matching span", () =>
+{
+    LocStore.Reset();
+    // Both a 2-line key and its first line alone exist; the longer key wins.
+    LocStore.Map[LocId.Make("HEAD")] = "ГОЛОВА";
+    LocStore.Map[LocId.Make("HEAD\nBODY")] = "ГОЛОВА+ТЕЛО";
+    Assert(LocStore.TryTranslateBlock("HEAD\nBODY", out var tr), "should match");
+    Assert(tr == "ГОЛОВА+ТЕЛО", "longest span must win, got: " + tr);
+});
+
+Test("space-padded concat (TOP SPEED + N spaces + ACCELERATION\\n<warn>) translates", () =>
+{
+    LocStore.Reset();
+    // Real FifthGear case: AddText("TOP SPEED" + new string(' ',90) + "ACCELERATION\n<color=red>...").
+    LocStore.Map[LocId.Make("TOP SPEED")] = "МАКС. СКОРОСТЬ";
+    LocStore.Map[LocId.Make("ACCELERATION\n<color=red>This will overwrite your custom values!</color>")] =
+        "РАЗГОН <color=red>Это перезапишет ваши пользовательские значения!</color>";
+
+    string pad = new string(' ', 90);
+    string runtime = "TOP SPEED" + pad + "ACCELERATION\n<color=red>This will overwrite your custom values!</color>";
+    Assert(!LocStore.TryTranslate(runtime, out _), "the padded whole string must NOT have an id");
+    Assert(LocStore.TryTranslateBlock(runtime, out var tr), "must translate across the space padding");
+    string expected = "МАКС. СКОРОСТЬ" + pad + "РАЗГОН <color=red>Это перезапишет ваши пользовательские значения!</color>";
+    Assert(tr == expected, "padding must be preserved; got len=" + tr.Length);
+});
+
+Test("line-ending fallback: CRLF/CR runtime text matches an LF-keyed entry", () =>
+{
+    LocStore.Reset();
+    // The app keyed this from "...\n..."; the runtime may deliver "...\r\n...".
+    LocStore.Map[LocId.Make("ACCELERATION\n<color=red>warn</color>")] = "РАЗГОН <color=red>пред</color>";
+    Assert(LocStore.TryTranslate("ACCELERATION\r\n<color=red>warn</color>", out var a) && a == "РАЗГОН <color=red>пред</color>",
+        "CRLF must fold to the LF key, got: " + a);
+    Assert(LocStore.TryTranslate("ACCELERATION\r<color=red>warn</color>", out var b) && b == "РАЗГОН <color=red>пред</color>",
+        "CR must fold to the LF key, got: " + b);
 });
 
 Console.WriteLine("\nMiniJson + LocStore.LoadFromDirectory");

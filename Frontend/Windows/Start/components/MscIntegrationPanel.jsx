@@ -169,7 +169,10 @@ export default function MscIntegrationPanel({
     try {
       const res = await onInstallPatcher?.(gameId, (p) => setProgress(p));
       if (res?.success) notify.success(t.integration.patcherInstalledTitle, t.integration.patcherInstalledMsg);
-      else setError({ scope: 'patcher', msg: res?.error === 'GAME_PATH_MISSING' ? t.integration.needGameFirst : (res?.error || t.deps.errorDesc) });
+      else setError({ scope: 'patcher', msg:
+        res?.error === 'GAME_PATH_MISSING' ? t.integration.needGameFirst
+        : res?.error === 'PATCHER_LOCKED' ? t.integration.patcherLocked
+        : (res?.error || t.deps.errorDesc) });
     } catch (err) {
       setError({ scope: 'patcher', msg: err?.message || t.deps.errorDesc });
     } finally { setBusy(null); }

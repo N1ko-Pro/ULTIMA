@@ -112,12 +112,12 @@ export default function NotifyToastItem({ toast, onRemove }) {
         <Icon className={`mt-0.5 w-[22px] h-[22px] shrink-0 ${variant.iconColor}`} />
         <div className="flex-1 min-w-0 pr-5">
           {toast.title && (
-            <h4 className="text-[13px] font-semibold text-white leading-snug tracking-[0.01em]">
+            <h4 className="text-[13px] font-semibold text-white leading-snug tracking-[0.01em] line-clamp-1 break-words">
               {toast.title}
             </h4>
           )}
           {toast.message && (
-            <p className="text-[11.5px] text-zinc-400 mt-1 leading-relaxed">
+            <p className="text-[11.5px] text-zinc-400 mt-1 leading-relaxed line-clamp-2 break-words">
               {toast.message}
             </p>
           )}

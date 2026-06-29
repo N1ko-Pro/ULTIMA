@@ -25,7 +25,18 @@ export const WorkspaceBackdrop = forwardRef(function WorkspaceBackdrop({ image }
     <div
       ref={ref}
       className="absolute inset-x-0 top-0 z-0 pointer-events-none overflow-hidden"
-      style={{ height: VIEW_H, willChange: 'transform', transform: 'translate3d(0,0,0)' }}
+      style={{
+        height: VIEW_H,
+        willChange: 'transform',
+        transform: 'translate3d(0,0,0)',
+        // Fade the whole artwork band out vertically before the project grid
+        // begins, so the cards' frosted backdrop-blur only ever samples the
+        // uniform page background (dot grid) — never the artwork's torn fade
+        // edge, which would otherwise show as a vertical seam (and flash when
+        // a modal's backdrop-filter forces a recomposite).
+        maskImage: 'linear-gradient(to bottom, #000 0%, #000 32%, transparent 58%)',
+        WebkitMaskImage: 'linear-gradient(to bottom, #000 0%, #000 32%, transparent 58%)',
+      }}
       aria-hidden="true"
     >
       <svg

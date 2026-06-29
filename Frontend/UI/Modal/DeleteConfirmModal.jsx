@@ -18,6 +18,7 @@ export function DeleteConfirmModal({ project, onConfirm, onCancel }) {
       iconBorderClass="border-red-500/20"
       closeOnOverlayClick={true}
       showCloseIcon
+      overlayGradient="radial-gradient(ellipse 75% 80% at 50% 50%, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.8) 55%, rgba(0,0,0,0.62) 100%)"
       footer={
         <div className="flex items-center gap-3 w-full">
           <ButtonCore variant="secondary" className="flex-1" onClick={onCancel}>

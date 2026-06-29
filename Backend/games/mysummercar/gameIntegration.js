@@ -138,6 +138,13 @@ function installPatcher(targetVersion) {
     try { fs.writeFileSync(patcherVersionPath(dir), version, 'utf8'); } catch { /* non-fatal */ }
     return { ok: true, installedTo: dest };
   } catch (e) {
+    // A locked destination (the game is running, so MSCLoader has the DLL
+    // loaded) surfaces on Windows as EBUSY / EPERM / EACCES / UNKNOWN. Map it to
+    // a clear, actionable code instead of a raw "copyfile UNKNOWN" message.
+    const code = e && e.code;
+    if (code === 'EBUSY' || code === 'EPERM' || code === 'EACCES' || code === 'UNKNOWN') {
+      return { ok: false, error: 'PATCHER_LOCKED' };
+    }
     return { ok: false, error: e?.message || String(e) };
   }
 }

@@ -72,32 +72,17 @@ export function toIdValueDictionary(items, valueKey) {
  */
 export function collectPendingTranslationRows(rows, translations) {
   const overrides = translations?._techOverride || {};
-  // Foreign-language rows are skipped only when "hide non-English" is effective
-  // (explicit toggle, or the smart default for mods that are mostly English).
-  const explicit = translations?._view?.hideForeign;
-  const hideForeign = typeof explicit === 'boolean' ? explicit : shouldHideForeignByDefault(rows);
+  // Foreign-language rows are skipped unless the user turned on the "Другой
+  // язык" toggle (which reveals them). Default is OFF → foreign rows skipped,
+  // mirroring how they're hidden in the editor table.
+  const showForeign = Boolean(translations?._view?.showForeign);
   return (rows || [])
     // Skip strings classified (or marked) as technical — they aren't meant for
     // translation, so they shouldn't consume auto-translate budget.
     .filter((row) => (overrides[row.id] || row.category || 'text') !== 'technical')
-    .filter((row) => !(hideForeign && row.foreign && overrides[row.id] !== 'text'))
+    .filter((row) => !(!showForeign && row.foreign && overrides[row.id] !== 'text'))
     .filter((row) => !hasText(translations?.[row.id]))
     .map((row) => ({ id: row.id, text: row.original }));
-}
-
-/**
- * Smart default for the "hide non-English" toggle. When foreign-language rows
- * DOMINATE the mod (>50%), the mod's ORIGINAL language is non-English — hiding
- * them would leave nothing to translate, so default the toggle OFF. Otherwise
- * the foreign rows are duplicate twins the author bundled → default ON.
- * @param {Array<{ foreign?: boolean }> | null | undefined} rows
- * @returns {boolean}
- */
-export function shouldHideForeignByDefault(rows) {
-  const list = rows || [];
-  if (list.length === 0) return true;
-  const foreign = list.reduce((n, r) => n + (r.foreign ? 1 : 0), 0);
-  return foreign / list.length < 0.5;
 }
 
 function resolveTranslatedModName(modName, targetLanguage) {

@@ -205,6 +205,12 @@ export default function MainPage({
   // game so it never appears for games that don't have one (e.g. My Summer Car).
   const hasDictionary = getGameById(gameId)?.features?.dictionary ?? false;
 
+  // MSC capabilities: the string classifier (technical / other-language
+  // filters) and user-defined custom strings, added directly in the table.
+  const gameFeatures = getGameById(gameId)?.features ?? {};
+  const classifierEnabled = gameFeatures.classifier ?? false;
+  const customStringsEnabled = gameFeatures.customStrings ?? false;
+
   return (
     <div className="flex-1 flex min-h-0 relative overflow-hidden bg-surface-0">
       {/* Profile / dictionary panels — in flex flow. Opening one expands its
@@ -311,6 +317,8 @@ export default function MainPage({
           isTranslating={isTranslating}
           onAutoTranslateOpen={handleAutoTranslateOpen}
           onVisibleRowsChange={handleVisibleRowsChange}
+          customStringsEnabled={customStringsEnabled}
+          classifierEnabled={classifierEnabled}
         />
       </div>
 

@@ -177,6 +177,11 @@ export default function App() {
   // ── Derived state ───────────────────────────────────────────────────────
   const isEditorView = Boolean(project.originalStrings);
   const showProjects = !isEditorView && appState.currentView === 'projects';
+  // The "Рабочее пространство" (StartPage) is the only screen that wants
+  // top-center toasts; everywhere else (editor, game-select, home) uses the
+  // historic top-right spot.
+  const needsGameSelect = !appState.selectedGame || appState.isGameSelectOpen;
+  const isWorkspaceView = showProjects && !needsGameSelect;
 
   const projectDisplayName = useMemo(
     () => resolveProjectDisplayName({
@@ -268,7 +273,7 @@ export default function App() {
           />
         </div>
 
-        <NotifyToastStack />
+        <NotifyToastStack placement={isWorkspaceView ? 'top-center' : 'top-right'} />
 
         <ProjectInitModal
           isOpen={Boolean(project.initModal)}

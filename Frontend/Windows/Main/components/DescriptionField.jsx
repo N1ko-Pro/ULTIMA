@@ -22,7 +22,11 @@ function DescriptionField({ original, value, onChange, isRequiredMissing, packVa
 
   const displayValue = value !== undefined ? value : original;
   const isUnknown = original?.includes('Unknown');
-  const isValidationHighlighted = isRequiredMissing && dismissedValidationAttempt !== packValidationAttempt;
+  // Clear the red highlight as soon as the field actually has a value — e.g.
+  // after auto-translate fills it — not only on focus.
+  const isValidationHighlighted = isRequiredMissing
+    && !(value || '').trim()
+    && dismissedValidationAttempt !== packValidationAttempt;
 
   const canTranslate = canUseAutoTranslate && Boolean((original || '').trim()) && !(value || '').trim();
 
