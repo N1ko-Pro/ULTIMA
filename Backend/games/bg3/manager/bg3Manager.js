@@ -52,7 +52,7 @@ function applyUpdatedStringsToParsedContent(parsedXml, updatedData) {
 class Bg3Manager {
   constructor() {
     this.workspaceDir = path.join(__dirname, "..", "workspace");
-    this.toolsDir = path.join(__dirname, "..", "tools", "BG3");
+    this.toolsDir = path.join(__dirname, "..", "tools", "BG3", "Divine");
     this.divineCliUtils = new DivineCliUtils(path.join(this.toolsDir, "divine.exe"));
     this.cachedData = {
       xmlStructure: null,
@@ -72,11 +72,11 @@ class Bg3Manager {
       this.workspaceDir = path.join(workspaceRoot, 'BG3');
       this._migrateLegacyWorkspace(workspaceRoot, this.workspaceDir);
     }
-    // In packaged builds, tools are unpacked to app.asar.unpacked/tools/BG3
+    // In packaged builds, tools are unpacked to app.asar.unpacked/tools/BG3/Divine
     if (appPath && typeof appPath === 'string') {
       // Replace app.asar with app.asar.unpacked for unpacked files
       const unpackedPath = appPath.replace(/app\.asar$/, 'app.asar.unpacked');
-      this.toolsDir = path.join(unpackedPath, 'tools', 'BG3');
+      this.toolsDir = path.join(unpackedPath, 'tools', 'BG3', 'Divine');
       this.divineCliUtils = new DivineCliUtils(path.join(this.toolsDir, "divine.exe"));
     }
   }

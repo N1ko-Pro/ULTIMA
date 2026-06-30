@@ -1,5 +1,10 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { animate as runAnimation } from '@Core/Animations/animationsEngine';
+
+// Run before paint in the browser; fall back to a passive effect during SSR
+// (no `window`) to avoid the React layout-effect warning.
+const useIsomorphicLayoutEffect =
+  typeof window !== 'undefined' ? useLayoutEffect : useEffect;
 
 // ─── useTransition ──────────────────────────────────────────────────────────
 // Mount/unmount with enter-and-exit animations. Wrap a route/page in this
@@ -29,7 +34,15 @@ export function useTransition(active, enterPreset, exitPreset) {
   const isMounted = active || isExiting;
 
   // Enter: play the enter animation each time `active` flips true.
-  useEffect(() => {
+  //
+  // This MUST run before the browser paints. The freshly-mounted element would
+  // otherwise paint one frame at its natural CSS state (e.g. a modal overlay's
+  // dark gradient + backdrop-blur at full opacity) before the enter preset —
+  // whose first keyframe is `opacity: 0` — takes hold, producing a one-frame
+  // flash artifact. `fill: 'both'` on the presets means creating the animation
+  // immediately applies that hidden start state, so a layout effect kills the
+  // flash entirely.
+  useIsomorphicLayoutEffect(() => {
     if (!active || !ref.current) return undefined;
     const handle = runAnimation(ref.current, enterPreset);
     return () => handle.cancel();

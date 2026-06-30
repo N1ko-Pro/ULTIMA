@@ -13,6 +13,7 @@ import { ProjectsSeparator } from './components/ProjectsSeparator';
 import { LoadingState } from './components/LoadingState';
 import { EmptyState } from './components/EmptyState';
 import { ProjectCard } from './components/ProjectCard';
+import { useSmoothRowScroll } from './utils/useSmoothRowScroll';
 import { Footer } from './components/Footer';
 import { StartProfilePanel } from './components/StartProfilePanel';
 import { StartLauncherRail } from './components/StartLauncherRail';
@@ -236,6 +237,13 @@ export default function StartPage({
     return gameProjects;
   }, [gameProjects, exampleProject]);
 
+  // Smooth, row-paged wheel scrolling for the projects grid (row = 220px card
+  // + 24px gap). Callback ref → binds exactly when the container mounts.
+  // SCROLL_RESISTANCE = wheel resistance: notches per row. 1 = one notch → one
+  // row; >1 heavier (more notches per row); <1 lighter (jumps several rows).
+  const SCROLL_RESISTANCE = 1;
+  const projectsScrollRef = useSmoothRowScroll(244, { resistance: SCROLL_RESISTANCE });
+
   const exampleId = EXAMPLE_PROJECT.id;
   const cardHandlers = {
     onLoad:   (project) => (project.id === exampleId ? undefined : onLoadProject(project)),
@@ -284,7 +292,7 @@ export default function StartPage({
       </div>
 
       <div ref={scrollRef} onScroll={handleScroll} className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden">
-        <div className="flex flex-col items-center px-10 pt-16 pb-20 w-full max-w-[1100px] mx-auto">
+        <div className="flex flex-col items-center px-10 pt-16 pb-0 w-full max-w-[1100px] mx-auto">
           <HeroSection />
           <div data-tutorial="dropzone">
             <DropZone onClickOpen={onSelectFile} onFileDrop={onFileDrop} formats={activeGame?.fileTypes} />
@@ -299,17 +307,23 @@ export default function StartPage({
               ) : displayProjects.length === 0 ? (
                 <EmptyState />
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-[220px]">
-                  {displayProjects.map((project, index) => (
-                    <ProjectCard
-                      key={project.id}
-                      project={project}
-                      index={index}
-                      onLoad={cardHandlers.onLoad}
-                      onDelete={cardHandlers.onDelete}
-                      onEdit={cardHandlers.onEdit}
-                    />
-                  ))}
+                <div
+                  ref={projectsScrollRef}
+                  className="overflow-y-auto overflow-x-hidden max-h-[492px] px-5 py-3.5"
+                  style={{ scrollbarGutter: 'stable' }}
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-[220px]">
+                    {displayProjects.map((project, index) => (
+                      <ProjectCard
+                        key={project.id}
+                        project={project}
+                        index={index}
+                        onLoad={cardHandlers.onLoad}
+                        onDelete={cardHandlers.onDelete}
+                        onEdit={cardHandlers.onEdit}
+                      />
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

@@ -99,6 +99,32 @@ test("accepts an array of ids as well as a Set", () => {
   assert.deepEqual(table.entries, { uAAAA: "ok" });
 });
 
+section("buildTranslationTable — format templates");
+
+test("emits templates for placeholder sources, skips too-generic ones", () => {
+  const okId = makeStringId("{0} achievements remaining.");
+  const bareId = makeStringId("{0}");
+  const table = buildTranslationTable(
+    { [okId]: "{0} достижений осталось.", [bareId]: "ПЕРЕВОД {0}" },
+    new Set([okId, bareId]),
+    { language: "ru" },
+    { [okId]: "{0} achievements remaining.", [bareId]: "{0}" },
+  );
+  assert.equal(table.templates["{0} achievements remaining."], "{0} достижений осталось.");
+  assert.ok(!("{0}" in table.templates), "bare-placeholder template must be skipped");
+});
+
+test("no templates section content when sources have no placeholders", () => {
+  const id = makeStringId("Plain label");
+  const table = buildTranslationTable(
+    { [id]: "Обычная подпись" },
+    new Set([id]),
+    {},
+    { [id]: "Plain label" },
+  );
+  assert.deepEqual(table.templates, {});
+});
+
 // ─── Property 2 (randomised) ─────────────────────────────────────────────────
 
 section("buildTranslationTable — Property 2 (randomised)");

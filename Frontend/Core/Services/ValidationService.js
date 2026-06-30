@@ -40,21 +40,37 @@ export function validatePackRequirements({ originalStrings, translations, modInf
   // set and isn't thrown off by hidden/technical/foreign rows.
   const techOverride = (safeTranslations._techOverride && typeof safeTranslations._techOverride === 'object') ? safeTranslations._techOverride : {};
   const hiddenRows = (safeTranslations._hidden && typeof safeTranslations._hidden === 'object') ? safeTranslations._hidden : {};
+  const bookmarks = (safeTranslations._bookmarks && typeof safeTranslations._bookmarks === 'object') ? safeTranslations._bookmarks : {};
   const showForeign = Boolean(safeTranslations._view?.showForeign);
+  const showTechnical = Boolean(safeTranslations._view?.showTechnical);
+  // Active editor filter (persisted in `_view.filter`). The pre-pack check is
+  // scoped to it so the warning matches both what the user is working on and
+  // the filter-scoped progress bar: under "Избранные" only bookmarked rows are
+  // required, under "Скрытые" only the manually-hidden ones, "Все" = whole mod.
+  // NOTE: strings OUTSIDE the active filter still ship with their ORIGINAL text
+  // — scoping only changes what we warn about, not what actually gets packed.
+  const rawFilter = safeTranslations._view?.filter;
+  const activeFilter = rawFilter === 'favorites' || rawFilter === 'hidden' ? rawFilter : 'all';
+
+  const isTechnical = (row) => {
+    const override = techOverride[row.id];
+    if (override) return override === 'technical';
+    const auto = row.category || 'text';
+    if (auto === 'technical') return true;
+    if (!showForeign && row.foreign) return true;
+    return false;
+  };
 
   const isRequiredRow = (row) => {
+    // "Скрытые" works exclusively on the manually-hidden rows (mirrors the
+    // editor view, which shows them regardless of the technical toggle).
+    if (activeFilter === 'hidden') return Boolean(hiddenRows[row.id]);
+    // All / favorites never include hidden rows; technical/foreign rows are
+    // excluded unless the "Технические" toggle reveals them (mirrors progress).
     if (hiddenRows[row.id]) return false;
-    const override = techOverride[row.id];
-    let category;
-    if (override) {
-      category = override;
-    } else {
-      const auto = row.category || 'text';
-      if (auto === 'technical') category = 'technical';
-      else if (!showForeign && row.foreign) category = 'technical';
-      else category = auto;
-    }
-    return category !== 'technical';
+    if (!showTechnical && isTechnical(row)) return false;
+    if (activeFilter === 'favorites') return Boolean(bookmarks[row.id]);
+    return true;
   };
 
   const missingMainTableRowIds = rows

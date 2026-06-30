@@ -52,8 +52,24 @@ function buildTranslationTable(updatedData, originalIds, meta = {}, sourceTextBy
     : (sourceTextById ? new Map(Object.entries(sourceTextById)) : null);
 
   const entries = {};
+  const templates = {};
   const setIfAbsent = (id, value) => {
     if (!Object.prototype.hasOwnProperty.call(entries, id)) entries[id] = value;
+  };
+
+  // A source that contains .NET composite-format placeholders ({0}, {1:F2}, …)
+  // is shipped ALSO as a template (source → translation), so the runtime patcher
+  // can reverse-match a fully-formatted string it sees on screen (e.g.
+  // "77 achievements remaining.") back to the template and re-emit the
+  // translation. Guarded so a near-empty template (e.g. just "{0}") can't match
+  // everything: require some real literal text around the placeholders.
+  const PLACEHOLDER_RE = /\{\d+(?::[^}]*)?\}/;
+  const addTemplateIfApplicable = (source, value) => {
+    if (typeof source !== 'string' || !source) return;
+    if (!PLACEHOLDER_RE.test(source)) return;
+    const literal = source.replace(/\{\d+(?::[^}]*)?\}/g, '').trim();
+    if (literal.length < 3) return; // too generic — would over-match
+    if (!Object.prototype.hasOwnProperty.call(templates, source)) templates[source] = value;
   };
 
   for (const id of Object.keys(cleaned)) {
@@ -73,6 +89,7 @@ function buildTranslationTable(updatedData, originalIds, meta = {}, sourceTextBy
       const lower = src.toLowerCase();
       if (upper !== src) setIfAbsent(makeStringId(upper), value);
       if (lower !== src && lower !== upper) setIfAbsent(makeStringId(lower), value);
+      addTemplateIfApplicable(src, value);
     }
   }
 
@@ -93,6 +110,7 @@ function buildTranslationTable(updatedData, originalIds, meta = {}, sourceTextBy
       const lower = source.toLowerCase();
       if (upper !== source) setIfAbsent(makeStringId(upper), value);
       if (lower !== source && lower !== upper) setIfAbsent(makeStringId(lower), value);
+      addTemplateIfApplicable(source, value);
     }
   }
 
@@ -104,6 +122,7 @@ function buildTranslationTable(updatedData, originalIds, meta = {}, sourceTextBy
     translator: meta.translator || '',
     appVersion: meta.appVersion || '',
     entries,
+    templates,
   };
 }
 

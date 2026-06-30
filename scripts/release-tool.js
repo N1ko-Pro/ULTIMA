@@ -44,7 +44,7 @@ const { spawnSync } = require('child_process');
 const ROOT = path.resolve(__dirname, '..');
 const ENV_PATH = path.join(ROOT, '.env');
 const TOOLCONFIG_PATH = path.join(ROOT, 'Backend', 'games', 'mysummercar', 'toolConfig.js');
-const CLONE_DIR = path.join(ROOT, 'tools_src', 'ULTIMA_TOOLS');
+const CLONE_DIR = path.join(ROOT, '.ultima_tools_clone');
 
 const GH_OWNER = 'N1ko-Pro';
 const GH_REPO = 'ULTIMA_TOOLS';
@@ -58,24 +58,24 @@ const TOOLS = {
     displayName: 'MSCLoc API — патчер перевода (.dll)',
     tagPrefix: 'MSCLoc-API-v',
     assetFile: 'MSCLocAPI.dll',
-    appDir: path.join('tools', 'MSC-Patcher'),
+    appDir: path.join('tools', 'MSC', 'MSCLoc-API'),
     destDir: 'MSCLocAPI',
     // Relative to appDir. Directories are mirrored (stale files removed).
     syncItems: ['src', 'References', 'tests', 'MSCLocAPI.csproj', 'README.md', 'RELEASE.md'],
-    csproj: path.join('tools', 'MSC-Patcher', 'MSCLocAPI.csproj'),
-    csVersionFile: path.join('tools', 'MSC-Patcher', 'src', 'MSCLocAPI.cs'),
+    csproj: path.join('tools', 'MSC', 'MSCLoc-API', 'MSCLocAPI.csproj'),
+    csVersionFile: path.join('tools', 'MSC', 'MSCLoc-API', 'src', 'MSCLocAPI.cs'),
     toolConfigConst: 'MSC_PATCHER',
     // CI workflow synced into the clone so the app's copy is the source of truth.
     workflow: {
-      src: path.join('tools', 'MSC-Patcher', 'ci', 'build-loc-patcher.yml'),
+      src: path.join('tools', 'MSC', 'MSCLoc-API', 'ci', 'build-loc-patcher.yml'),
       dest: path.join('.github', 'workflows', 'build-loc-patcher.yml'),
     },
     // Stale folders in the clone to remove (e.g. after a rename).
     removeDirs: ['UltimaLocPatcher'],
     // Local verification: build net35 + run the pure-core tests.
     build: [
-      { label: 'build (net35)', cmd: 'dotnet', args: ['build', '-c', 'Release', path.join('tools', 'MSC-Patcher', 'MSCLocAPI.csproj')] },
-      { label: 'tests', cmd: 'dotnet', args: ['run', '-c', 'Release', '--project', path.join('tools', 'MSC-Patcher', 'tests', 'MSCLocAPI.Tests.csproj')] },
+      { label: 'build (net35)', cmd: 'dotnet', args: ['build', '-c', 'Release', path.join('tools', 'MSC', 'MSCLoc-API', 'MSCLocAPI.csproj')] },
+      { label: 'tests', cmd: 'dotnet', args: ['run', '-c', 'Release', '--project', path.join('tools', 'MSC', 'MSCLoc-API', 'tests', 'MSCLocAPI.Tests.csproj')] },
     ],
   },
   'msc-tool': {
@@ -83,14 +83,14 @@ const TOOLS = {
     displayName: 'MscLocTool — dnlib extract/inject (.exe)',
     tagPrefix: 'msc-tools-v',
     assetFile: 'MscLocTool.exe',
-    appDir: path.join('tools', 'MSC'),
+    appDir: path.join('tools', 'MSC', 'MSCLoc-Tool'),
     destDir: 'MscLocTool',
     syncItems: ['Program.cs', 'MscLocTool.csproj', 'README.md'],
-    csproj: path.join('tools', 'MSC', 'MscLocTool.csproj'),
+    csproj: path.join('tools', 'MSC', 'MSCLoc-Tool', 'MscLocTool.csproj'),
     csVersionFile: null,
     toolConfigConst: 'MSC_TOOL',
     build: [
-      { label: 'build', cmd: 'dotnet', args: ['build', '-c', 'Release', path.join('tools', 'MSC', 'MscLocTool.csproj')] },
+      { label: 'build', cmd: 'dotnet', args: ['build', '-c', 'Release', path.join('tools', 'MSC', 'MSCLoc-Tool', 'MscLocTool.csproj')] },
     ],
   },
 };

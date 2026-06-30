@@ -1,0 +1,242 @@
+﻿#if !Mini
+using MSCLoader.Commands;
+using System;
+using System.Collections;
+using System.IO;
+using System.Text.RegularExpressions;
+
+namespace MSCLoader;
+
+/// <summary>
+/// MSCLoader console related functions.
+/// </summary>
+public class ModConsole : Mod
+{
+
+    /// <exclude />
+    public override string ID => "MSCLoader_Console";
+    /// <exclude />
+    public override string Name => "[INTERNAL] Console";
+
+    /// <exclude />
+    public override string Version => ModLoader.MSCLoader_Ver;
+
+    /// <exclude />
+    public override string Author => "MSCLoader";
+
+    internal static bool IsOpen;
+    internal static ConsoleView console;
+    internal static SettingsCheckBox typing;
+    internal static SettingsSliderInt ConsoleFontSize;
+    internal static SettingsText versionText, lastCheckText;
+    private GameObject UI;
+    private SettingsKeybind consoleKey;
+
+    /// <exclude />
+    public override void ModSetup()
+    {
+        SetupFunction(Setup.OnMenuLoad, Mod_OnMenuLoad);
+        SetupFunction(Setup.Update, Mod_Update);
+        SetupFunction(Setup.ModSettings, Mod_Settings);
+        SetupFunction(Setup.ModSettingsLoaded, Mod_SettingsLoaded);
+    }
+
+    private void Mod_Settings()
+    {
+        Settings.ModSettings(this);
+        consoleKey = Keybind.Add("Open", "<color=lime>Open console key combination</color>", KeyCode.BackQuote);
+        Settings.AddHeader("Info", Color.black);
+        Settings.AddText($"MSCLoader <color=aqua>v{ModLoader.MSCLoader_Ver}</color> [<color=lime>build {ModLoader.Instance.currentBuild}</color>] for <color=lightblue>{MSCLInfo.TargetGame}</color> ");
+        versionText = Settings.AddText($"[err] new version string", false);
+        lastCheckText = Settings.AddText($"Last checked for mod updates: <color=aqua>Unknown</color>");
+        Settings.AddButton("Check For Mods Updates", delegate
+        {
+            if (!ModLoader.Instance.checkForUpdatesProgress)
+            {
+                ModLoader.Instance.CheckForModsUpd(true);
+                RefreshMainSettingsData();
+            }
+        }, new Color32(0, 64, 128, 255), Color.white, SettingsButton.ButtonIcon.Update);
+        Settings.AddHeader("Console Settings");
+        Settings.AddText("Basic settings for console");
+        typing = Settings.AddCheckBox("MSCLoader_ConsoleTyping", "Start typing when you open console", false);
+        ConsoleFontSize = Settings.AddSlider("MSCLoader_ConsoleFontSize", "Change console font size", 10, 20, 12, ChangeFontSize);
+    }
+
+    private void Mod_SettingsLoaded()
+    {
+        ChangeFontSize();
+    }
+
+    internal static void ChangeFontSize()
+    {
+        console.logTextArea.fontSize = ConsoleFontSize.GetValue();
+    }
+
+    internal static void RefreshMainSettingsData()
+    {
+        if (ModLoader.Instance.newBuild > ModLoader.Instance.currentBuild)
+        {
+            versionText.SetVisibility(true);
+            versionText.SetValue($"New update available: <color=aqua>v{ModLoader.Instance.newVersion}</color> <color=lime>[build {ModLoader.Instance.newBuild}]</color>");
+        }
+        else
+        {
+            versionText.SetVisibility(false);
+        }
+        string sp = Path.Combine(ModLoader.SettingsFolder, Path.Combine("MSCLoader_Settings", "lastCheck"));
+        if (File.Exists(sp))
+        {
+            DateTime lastCheck;
+            string lastCheckS = File.ReadAllText(sp);
+            DateTime.TryParse(lastCheckS, out lastCheck);
+            lastCheckText.SetValue($"Last checked for mod updates: <color=aqua>{lastCheck:dd.MM.yyyy HH:mm:ss}</color>");
+        }
+    }
+
+    void CreateConsoleUI()
+    {
+        AssetBundle ab = LoadAssets.LoadBundle(this, "console.unity3d");
+        GameObject UIp = ab.LoadAsset<GameObject>("MSCLoader Canvas console.prefab");
+        TextAsset assetver = ab.LoadAsset<TextAsset>("version.txt");
+        if (assetver == null || !MSCLInfo.BuildType.StartsWith(assetver.text.Split('|')[0]) || !MSCLInfo.consoleAssetVersion.Equals(assetver.text.Split('|')[1]))
+        {
+            throw new Exception($"Invalid MSCLoader asset file version (<color=aqua>console.unity3d</color>), do not replace random MSCLoader files with other versions.{Environment.NewLine}");
+        }
+        UI = GameObject.Instantiate(UIp);
+        console = UI.GetComponentInChildren<ConsoleView>();
+        GameObject.DontDestroyOnLoad(UI);
+        GameObject.Destroy(UIp);
+        ab.Unload(false);
+    }
+
+    void Mod_Update()
+    {
+        if (consoleKey.GetKeybindDown())
+        {
+            console.ToggleVisibility();
+        }
+    }
+
+    void Mod_OnMenuLoad()
+    {
+        try
+        {
+            CreateConsoleUI();
+        }
+        catch (Exception e)
+        {
+            ModUI.ShowMessage($"Fatal error:{Environment.NewLine}<color=orange>{e.Message}</color>{Environment.NewLine}Please reinstall MSCLoader to fix this issue", "Fatal Error");
+        }
+        ConsoleCommand.cc = console.controller;
+        console.SetVisibility(false);
+        console.viewContainer.transform.GetChild(5).gameObject.GetComponent<ConsoleUIResizer>().LoadConsoleSize(this);
+
+        //Add Console Commands
+        ConsoleCommand.Add(new CommandVersion());
+        ConsoleCommand.Add(new CommandLogAll());
+        ConsoleCommand.Add(new MetadataCommand());
+        ConsoleCommand.Add(new EarlyAccessCommand());
+        ConsoleCommand.Add(new SaveDbgCommand());
+    }
+    internal static void PrintSplit(string str, bool start)
+    {
+        console.controller.pauseDequeue = start;
+        Print(str);
+    }
+    /// <summary>
+    /// Print a message to console.
+    /// </summary>
+    /// <param name="str">Text to print to console.</param>
+    public static void Print(string str)
+    {
+        string assemblyName = System.Reflection.Assembly.GetCallingAssembly().GetName().Name;
+        if (console != null)
+            console.controller.AppendLogLine(str);
+        Console.WriteLine($"{assemblyName}: {Regex.Replace(str, "<.*?>", string.Empty)}");
+    }
+    /// <summary>
+    /// Prints anything to console.
+    /// </summary>
+    /// <param name="obj">Text or object to print to console.</param>
+    public static void Print(object obj)
+    {
+        Print(obj.ToString());
+    }
+
+    /// <summary>
+    /// Print an error to the console.
+    /// </summary>
+    /// <param name="str">Text to print to error log.</param>
+    public static void Error(string str)
+    {
+        string assemblyName = $"{System.Reflection.Assembly.GetCallingAssembly().GetName().Name} ";
+        if (assemblyName.StartsWith("MSCLoader")) assemblyName = "";
+        if (console != null)
+        {
+            console.SetVisibility(true);
+            console.controller.AppendLogLine($"<color=red><b>{assemblyName}Error: </b>{str}</color>");
+        }
+        System.Console.WriteLine($"{assemblyName} ERROR: {Regex.Replace(str, "<.*?>", string.Empty)}");
+    }
+
+    /// <summary>
+    /// Print an warning to the console.
+    /// </summary>
+    /// <param name="str">Text to print to error log.</param>
+    public static void Warning(string str)
+    {
+        string assemblyName = $"{System.Reflection.Assembly.GetCallingAssembly().GetName().Name} ";
+        if (assemblyName.StartsWith("MSCLoader")) assemblyName = "";
+        if (console != null)
+        {
+            console.SetVisibility(true);
+            console.controller.AppendLogLine($"<color=yellow><b>{assemblyName}Warning: </b>{str}</color>");
+        }
+        System.Console.WriteLine($"{assemblyName} WARNING: {Regex.Replace(str, "<.*?>", string.Empty)}");
+    }
+
+    //compatibility layer with pro
+
+    /// <summary>
+    /// Same as ModConsole.Print(string);
+    /// </summary>
+    /// <param name="text">Text to print to console.</param>
+    public static void Log(string text) => Print(text);
+
+    /// <summary>
+    /// Same as ModConsole.Print(obj);
+    /// </summary>
+    /// <param name="obj">object to print to console.</param>
+    public static void Log(object obj) => Print(obj);
+
+    /// <summary>
+    /// Same as ModConsole.Error(string);
+    /// </summary>
+    /// <param name="text">Error to print to console.</param>
+    public static void LogError(string text) => Error(text);
+
+    /// <summary>
+    /// Same as ModConsole.Warning(string);
+    /// </summary>
+    /// <param name="text">Warning to print to console.</param>
+    public static void LogWarning(string text) => Warning(text);
+
+    /// <summary>
+    /// Logs a list (and optionally its elements) to the ModConsole and output_log.txt
+    /// </summary>
+    /// <param name="list">List to print.</param>
+    /// <param name="printAllElements">(Optional) Should it log all elements of the list/array or should it only log the list/array itself. (default: true)</param>
+    public static void Log(IList list, bool printAllElements = true)
+    {
+        // Check if it should print the elements or the list itself.
+        if (printAllElements)
+        {
+            Log(list.ToString());
+            for (int i = 0; i < list.Count; i++) Log(list[i]);
+        }
+        else Log(list.ToString());
+    }
+}
+
+#endif

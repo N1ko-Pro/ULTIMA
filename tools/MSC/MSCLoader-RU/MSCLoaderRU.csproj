@@ -1,0 +1,71 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    MSCLoader RU — a standalone MSCLoader mod that translates the MSCLoader UI
+    itself into Russian at runtime. It REUSES the UltimaLoc translation engine
+    (the same source files as the MSCLoc API patcher), but ships its own
+    embedded source→translation table targeting the "MSCLoader" assembly, and
+    has its own Mod entry point (MSCLoaderRU.cs). The patcher's entry point
+    (MSCLocAPI.cs) is intentionally NOT linked so this DLL exposes exactly one
+    Mod class.
+
+    net35 to load in MSC's Unity (Mono) runtime. No game files needed to build —
+    only the redistributable MSCLoader + Harmony 1.2 references.
+
+    Build: dotnet build -c Release  (output: bin/Release/MSCLoaderRU.dll)
+  -->
+
+  <PropertyGroup>
+    <TargetFramework>net35</TargetFramework>
+    <AssemblyName>MSCLoaderRU</AssemblyName>
+    <RootNamespace>UltimaLoc</RootNamespace>
+    <LangVersion>7.3</LangVersion>
+    <Version>1.0.0</Version>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <AutomaticBindingRedirects>false</AutomaticBindingRedirects>
+    <Deterministic>true</Deterministic>
+    <EnableDefaultItems>false</EnableDefaultItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Shared translation engine, linked from the patcher project (NOT copied)
+         so both mods stay byte-for-byte in sync. MSCLocAPI.cs (the patcher's own
+         Mod entry) is deliberately excluded. -->
+    <Compile Include="..\MSCLoc-API\src\LocStore.cs"    Link="engine\LocStore.cs" />
+    <Compile Include="..\MSCLoc-API\src\LocStore.Io.cs" Link="engine\LocStore.Io.cs" />
+    <Compile Include="..\MSCLoc-API\src\LocId.cs"       Link="engine\LocId.cs" />
+    <Compile Include="..\MSCLoc-API\src\LocText.cs"     Link="engine\LocText.cs" />
+    <Compile Include="..\MSCLoc-API\src\LocConsole.cs"  Link="engine\LocConsole.cs" />
+    <Compile Include="..\MSCLoc-API\src\LocLayout.cs"   Link="engine\LocLayout.cs" />
+    <Compile Include="..\MSCLoc-API\src\LocSettings.cs" Link="engine\LocSettings.cs" />
+    <Compile Include="..\MSCLoc-API\src\MiniJson.cs"    Link="engine\MiniJson.cs" />
+    <Compile Include="src\MSCLoaderRU.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Translation table, baked into the DLL — no external file to ship.
+         WithCulture=false: the filename must NOT be treated as a culture-specific
+         resource (an earlier ".ru." infix was misread as the 'ru' culture and the
+         table ended up in a satellite assembly instead of the main DLL). -->
+    <EmbeddedResource Include="data\mscloader-ru.json" WithCulture="false" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies.net35" Version="1.0.3">
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="MSCLoader">
+      <HintPath>..\MSCLoc-API\References\MSCLoader.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+    <Reference Include="0Harmony">
+      <HintPath>..\MSCLoc-API\References\0Harmony.dll</HintPath>
+      <Private>false</Private>
+    </Reference>
+  </ItemGroup>
+
+</Project>

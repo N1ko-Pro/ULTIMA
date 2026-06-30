@@ -44,7 +44,7 @@ export function ProjectCard({ project, index, onLoad, onDelete, onEdit }) {
 
   return (
     <div
-      className={`${reduceMotion ? '' : 'start-card-appear'} relative h-full hover:z-20 focus-within:z-20`}
+      className={`${reduceMotion ? '' : 'start-card-appear'} relative z-0 h-full hover:z-20 focus-within:z-20`}
       style={reduceMotion ? undefined : { animationDelay: `${delay}ms` }}
     >
       <div
@@ -53,8 +53,15 @@ export function ProjectCard({ project, index, onLoad, onDelete, onEdit }) {
         className="group relative cursor-pointer h-full select-none"
         style={reduceMotion ? undefined : { willChange: 'transform' }}
       >
-        <div className="absolute -inset-2 rounded-[24px] blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-700 z-0 bg-white/[0.03]" />
-        <div className="absolute inset-0 z-0 rounded-[20px] bg-white/[0.04] backdrop-blur-2xl border border-white/[0.1] shadow-[0_2px_16px_rgba(0,0,0,0.2)] transition-all duration-500 group-hover:bg-white/[0.06] group-hover:border-white/[0.14] group-hover:shadow-[0_8px_32px_rgba(0,0,0,0.3)]" />
+        {/* Glass surface — SOLID background, no backdrop-filter. This mirrors the
+            launcher-rail icon buttons (StartIconButton), where dropping
+            `backdrop-blur` is what fixed this exact "stuck ghost" artifact: a
+            `backdrop-filter` layer leaves a stale GPU raster on the first repaint
+            after the hover state has settled (i.e. the click). A semi-transparent
+            solid fill never rasterises a backdrop region, so it can't ghost.
+            Hover lightening is a plain opacity overlay (also rail-style). */}
+        <div className="absolute inset-0 z-0 rounded-[20px] bg-surface-2/85 border border-white/[0.1] shadow-[0_2px_16px_rgba(0,0,0,0.25)] transition-[border-color,box-shadow] duration-500 group-hover:border-white/[0.14] group-hover:shadow-[0_8px_32px_rgba(0,0,0,0.35)]" />
+        <div className="absolute inset-0 z-0 rounded-[20px] bg-white/[0.03] opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
         <div
           className="absolute inset-0 rounded-[20px] opacity-0 group-hover:opacity-100 transition-opacity duration-300 z-[1] pointer-events-none"
           style={{ background: 'radial-gradient(circle 200px at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(255,255,255,0.04), transparent)' }}

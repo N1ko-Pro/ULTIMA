@@ -1,0 +1,26 @@
+﻿<Page x:Class="MSCLInstaller.SelectGame"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+      xmlns:local="clr-namespace:MSCLInstaller"
+      mc:Ignorable="d" 
+      d:DesignHeight="300" d:DesignWidth="600"
+      Title="SelectGame">
+
+    <Grid>
+        <Grid Margin="10" TextElement.Foreground="#f0f0f0" HorizontalAlignment="Stretch">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button Margin="2" Grid.Column="0" Name="MSC" Click="MSC_Click">
+                <Image Name="MSCLogo" Source="/Images/msc.png"/>
+            </Button>
+            
+            <Button Margin="2" Grid.Column="1" Name="MWC" Click="MWC_Click">
+                <Image Name="MWCLogo" Source="/Images/mwc.png"/>
+            </Button>
+        </Grid>
+    </Grid>
+</Page>

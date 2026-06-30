@@ -1,0 +1,1878 @@
+﻿global using UnityEngine;
+
+#if !Mini
+using HutongGames.PlayMaker.Actions;
+using HutongGames.PlayMaker;
+using System;
+using Newtonsoft.Json;
+using System.Collections;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Reflection;
+using System.Text;
+using UnityEngine.UI;
+
+namespace MSCLoader;
+
+/// <summary>
+/// This is main Mod Loader class.
+/// </summary>
+public partial class ModLoader : MonoBehaviour
+{
+    /// <summary>
+    /// A list of all loaded mods.
+    /// </summary>
+    public static List<Mod> LoadedMods { get; internal set; }
+
+    /// <summary>
+    /// The current version of the ModLoader.
+    /// </summary>
+    public static readonly string MSCLoader_Ver = MSCLInfo.Version;
+
+    /// <summary>
+    /// Is this version of ModLoader experimental (this is NOT game experimental branch)
+    /// </summary>
+    /// <exclude />  
+#if Debug
+    public static readonly bool experimental = true;
+#else
+    public static readonly bool experimental = false;
+#endif
+
+    private MSCLoaderCanvasLoading canvLoading;
+    private bool isMonoDebugger = false;
+    private string monoDebugIP = "127.0.0.1:10000"; //default if not changed in launch command
+
+    internal static void Init_NP(string cfg)
+    {
+        currentGame = Application.productName == "My Summer Car" ? Game.MySummerCar : Game.MyWinterCar;
+        switch (cfg)
+        {
+            case "GF":
+                Init_GF();
+                break;
+            case "MD":
+                Init_MD();
+                break;
+            case "AD":
+                Init_AD();
+                break;
+            default:
+                Init_GF();
+                break;
+        }
+    }
+
+    internal static void Init_MD()
+    {
+        if (unloader) return;
+#if MSC
+        ModsFolder = Path.GetFullPath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), Path.Combine("MySummerCar", "Mods")));
+#elif MWC
+        ModsFolder = Path.GetFullPath(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), Path.Combine("My Winter Car", "Mods")));
+#endif
+        PrepareModLoader();
+    }
+
+    internal static void Init_GF()
+    {
+        if (unloader) return;
+        ModsFolder = Path.GetFullPath(Path.Combine("Mods", ""));
+        PrepareModLoader();
+    }
+
+    internal static void Init_AD()
+    {
+        if (unloader) return;
+        ModsFolder = Path.GetFullPath(Path.Combine(Application.persistentDataPath, "Mods"));
+        PrepareModLoader();
+    }
+
+    private static void PrepareModLoader()
+    {
+        if (!loaderPrepared)
+        {
+            loaderPrepared = true;
+            GameObject go = new("MSCLoader", typeof(ModLoader));
+            Instance = go.GetComponent<ModLoader>();
+            DontDestroyOnLoad(go);
+        }
+        if (Application.loadedLevelName == "MainMenu" && !initCalled)
+        {
+            initCalled = true;
+            Instance.Init();
+            return;
+        }
+        if (Application.loadedLevelName == "SplashScreen")
+        {
+            GameObject d = GameObject.Find("Logic").GetPlayMaker("FSM").GetState("State 3").GetAction<ActivateGameObject>(1).gameObject.GameObject.Value;
+            if (d != null)
+            {
+                Wait w = new Wait();
+                w.time = 0.5f;
+                d.transform.Find("Button").GetPlayMaker("Button").FsmInject("State 1", () => { d.transform.GetChild(0).GetComponent<TextMesh>().text = "PREPARING MSCLOADER........."; }, false, 0);
+                d.transform.Find("Button").GetPlayMaker("Button").GetState("State 1").InsertAction(1, w);
+            }
+        }
+    }
+    bool vse = false;
+    private void OnLevelWasLoaded(int level)
+    {
+        switch (Application.loadedLevelName)
+        {
+            case "MainMenu":
+                PrepareModLoader();
+                currentScene = CurrentScene.MainMenu;
+                if (GameObject.Find("Music"))
+                    GameObject.Find("Music").GetComponent<AudioSource>().Play();
+                if (QualitySettings.vSyncCount != 0)
+                    vse = true;
+                if (ModMenu.forceMenuVsync.GetValue() && !vse)
+                    QualitySettings.vSyncCount = 1; //vsync in menu
+                if (GameObject.Find("MSCLoader Info") == null)
+                {
+                    MainMenuInfo();
+                }
+                if (allModsLoaded)
+                {
+                    loaderPrepared = false;
+                    mscUnloader.MSCLoaderReset();
+                    unloader = true;
+                    return;
+                }
+#if MWC
+                //OnNewGame() temporary MWC point until intro exist
+                GameObject ngm = GameObject.Find("Interface/Buttons/ButtonNewgame").GetPlayMaker("SetSize").GetState("State 1").GetAction<ActivateGameObject>(1).gameObject.GameObject.Value;
+                ngm.transform.Find("Buttons/ButtonBegin").GetPlayMaker("SetSize").FsmInject("Load", ModNewGameReset, false, 0);
+#endif
+                if (IsReferencePresent("MSCCoreLibrary"))
+                    TimeSchedulerCalls("stop");
+
+                break;
+            case "Intro":
+                currentScene = CurrentScene.NewGameIntro;
+#if MSC
+                ModNewGameReset();
+#endif
+                break;
+            case "GAME":
+                currentScene = CurrentScene.Game;
+                if (ModMenu.forceMenuVsync.GetValue() && !vse)
+                    QualitySettings.vSyncCount = 0;
+
+                menuInfoAnim.Play("fade_out");
+                if (IsReferencePresent("MSCCoreLibrary"))
+                    TimeSchedulerCalls("start");
+                StartLoadingMods();
+                ModMenu.ModMenuHandle();
+                break;
+            case "Ending":
+                currentScene = CurrentScene.Ending;
+                if (IsReferencePresent("MSCCoreLibrary"))
+                    TimeSchedulerCalls("stop");
+                break;
+            default:
+                break;
+
+        }
+    }
+
+    private void ModNewGameReset()
+    {
+        if (!IsModsResetting)
+        {
+            IsModsResetting = true;
+            StartCoroutine(NewGameMods());
+        }
+    }
+
+    private void TimeSchedulerCalls(string call)
+    {
+        switch (call)
+        {
+            case "start":
+                MSCCoreLibrary.TimeScheduler.StartScheduler();
+                break;
+            case "stop":
+                MSCCoreLibrary.TimeScheduler.StopScheduler();
+                break;
+            case "load":
+                MSCCoreLibrary.TimeScheduler.LoadScheduler();
+                break;
+            case "save":
+                MSCCoreLibrary.TimeScheduler.SaveScheduler();
+                break;
+            default:
+                ModConsole.Error($"Invalid TimeScheduler call: {call}");
+                break;
+        }
+    }
+    private void StartLoadingMods()
+    {
+        if (!allModsLoaded && !IsModsLoading)
+        {
+            IsModsLoading = true;
+            StartCoroutine(LoadMods());
+        }
+    }
+
+    private void Init()
+    {
+        Console.WriteLine($"{Environment.NewLine}[MSCLoader Init]");
+        Console.WriteLine($"Detected game: {currentGame}");
+        Console.WriteLine($"MSCLoader version: {MSCLInfo.Version} build {MSCLInfo.Build}");
+        Console.WriteLine($"MSCLoader target game: {MSCLInfo.TargetGame}");
+        string[] launchArgs = Environment.GetCommandLineArgs();
+        Console.WriteLine("Launch arguments:");
+        Console.WriteLine(string.Join(" ", launchArgs));
+        for (int i = 0; i < launchArgs.Length; i++)
+        {
+            if (launchArgs[i] == "--doorstop-mono-debug-enabled")
+            {
+                if (i + 1 < launchArgs.Length)
+                {
+                    isMonoDebugger = launchArgs[i + 1] == "true";
+                }
+                continue;
+            }
+            if (launchArgs[i] == "--doorstop-mono-debug-address")
+            {
+                if (i + 1 < launchArgs.Length)
+                {
+                    monoDebugIP = launchArgs[i + 1];
+                }
+                continue;
+            }
+        }
+        if (launchArgs.Contains("-mscloader-devmode")) devMode = true;
+        //Set config and Assets folder in selected mods folder
+        ConfigFolder = Path.Combine(ModsFolder, "Config");
+        SettingsFolder = Path.Combine(ConfigFolder, "Mod Settings");
+        AssetsFolder = Path.Combine(ModsFolder, "Assets");
+
+        //Move from old to new location if updated from before 1.1
+        if (!Directory.Exists(SettingsFolder) && Directory.Exists(ConfigFolder))
+        {
+            Directory.CreateDirectory(SettingsFolder);
+            foreach (string dir in Directory.GetDirectories(ConfigFolder))
+            {
+                if (new DirectoryInfo(dir).Name != "Mod Settings")
+                {
+                    try
+                    {
+                        Directory.Move(dir, Path.Combine(SettingsFolder, new DirectoryInfo(dir).Name));
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"{ex.Message} (Failed to update folder structure)");
+                    }
+                }
+            }
+        }
+        MetadataFolder = Path.Combine(ConfigFolder, "Mod Metadata");
+
+        if (GameObject.Find("MSCUnloader") == null)
+        {
+            GameObject go = new GameObject("MSCUnloader", typeof(MSCUnloader));
+            mscUnloader = go.GetComponent<MSCUnloader>();
+            DontDestroyOnLoad(go);
+        }
+        else
+        {
+            mscUnloader = GameObject.Find("MSCUnloader").GetComponent<MSCUnloader>();
+        }
+        allModsLoaded = false;
+        LoadedMods = new List<Mod>();
+        InvalidMods = new List<InvalidMods>();
+        mscUnloader.reset = false;
+        if (!Directory.Exists(ModsFolder))
+            Directory.CreateDirectory(ModsFolder);
+        if (!Directory.Exists(Path.Combine(ModsFolder, "References")))
+            Directory.CreateDirectory(Path.Combine(ModsFolder, "References"));
+        if (!Directory.Exists("Updates"))
+            Directory.CreateDirectory("Updates");
+        if (!Directory.Exists(Path.Combine("Updates", "Mods")))
+            Directory.CreateDirectory(Path.Combine("Updates", "Mods"));
+        if (!Directory.Exists(Path.Combine("Updates", "References")))
+            Directory.CreateDirectory(Path.Combine("Updates", "References"));
+        if (!Directory.Exists(Path.Combine("Updates", "Core")))
+            Directory.CreateDirectory(Path.Combine("Updates", "Core"));
+
+        if (!Directory.Exists(ConfigFolder))
+        {
+            Directory.CreateDirectory(ConfigFolder);
+            Directory.CreateDirectory(SettingsFolder);
+            Directory.CreateDirectory(MetadataFolder);
+            Directory.CreateDirectory(Path.Combine(MetadataFolder, "Mod Icons"));
+        }
+        if (!Directory.Exists(MetadataFolder))
+        {
+            Directory.CreateDirectory(MetadataFolder);
+            Directory.CreateDirectory(Path.Combine(MetadataFolder, "Mod Icons"));
+
+        }
+        if (!Directory.Exists(AssetsFolder))
+            Directory.CreateDirectory(AssetsFolder);
+
+        LoadCoreAssets();
+        if (CheckVortexBS())
+        {
+            ModUI.ShowMessage($"<b><color=orange>DON'T use Vortex</color></b> to update MSCLoader, or to install tools or mods.{Environment.NewLine}<b><color=orange>Vortex isn't supported by MSCLoader</color></b>, because it's implementation breaks Mods folder by putting wrong files into it.{Environment.NewLine}{Environment.NewLine}MSCLoader will try to fix your mods folder now, <b><color=orange>please restart your game.</color></b>{Environment.NewLine}If this message shows again after restart, rebuild your Mods folder from scratch.", "Fatal Error");
+            return;
+        }
+        if (!CheckCorrectGame())
+        {
+            ModUI.ShowMessage($"Installed MSCLoader is for <color=aqua>{MSCLInfo.TargetGame}</color> game only, but you are trying to use it for <color=yellow>{Application.productName}</color>.{Environment.NewLine}Please install correct MSCLoader for your game.", "Fatal Error");
+            return;
+        }
+
+        LoadMod(new ModConsole(), MSCLoader_Ver);
+        LoadedMods[0].A_ModSettings.Invoke();
+        PreloaderUpdate();
+        LoadMod(new ModMenu(), MSCLoader_Ver);
+        LoadedMods[1].A_ModSettings.Invoke();
+        ModMenu.LoadSettings();
+        if (experimental)
+            ModConsole.Print($"<color=lime>MSCLoader <b><color=aqua>v{MSCLoader_Ver}</color></b> for {MSCLInfo.TargetGame}</color> [<color=magenta>Experimental</color> <color=lime>build {currentBuild}</color>]");
+        else
+            ModConsole.Print($"<color=lime>MSCLoader <b><color=aqua>v{MSCLoader_Ver}</color></b> for {MSCLInfo.TargetGame}</color>");
+        MainMenuInfo();
+        ModsUpdateDir = Directory.GetFiles(Path.Combine("Updates", "Mods"), "*.zip");
+        RefsUpdateDir = Directory.GetFiles(Path.Combine("Updates", "References"), "*.zip");
+        string[] failUpdateClean = Directory.GetFiles(ModsFolder, "*.PendingOverwrite");
+        string[] failUpdateCleanRefs = Directory.GetFiles(Path.Combine(ModsFolder, "References"), "*.PendingOverwrite");
+        if (failUpdateClean.Length > 0 || failUpdateCleanRefs.Length > 0)
+        {
+            if (failUpdateClean.Length > 0)
+            {
+                for (int i = 0; i < failUpdateClean.Length; i++)
+                {
+                    File.Delete(failUpdateClean[i]);
+                }
+            }
+            if (failUpdateCleanRefs.Length > 0)
+            {
+                for (int i = 0; i < failUpdateCleanRefs.Length; i++)
+                {
+                    File.Delete(failUpdateCleanRefs[i]);
+                }
+            }
+        }
+        if (!returnToMainMenu)
+        {
+            if (ModsUpdateDir.Length == 0 && RefsUpdateDir.Length == 0)
+            {
+                ContinueInit();
+            }
+            else
+            {
+                UnpackUpdates();
+            }
+        }
+        else
+        {
+            ContinueInit();
+        }
+        if (launchArgs.Contains("-mscloader-disable")) ModUI.ShowMessage("To use <color=yellow>-mscloader-disable</color> launch option, you need to update the core module of MSCLoader, download latest version and launch <color=aqua>MSCLInstaller.exe</color> to update", "Outdated module");
+    }
+    void ContinueInit()
+    {
+        LoadReferences();
+        try
+        {
+            if (File.Exists(Path.GetFullPath(Path.Combine("LAUNCHER.exe", ""))) || File.Exists(Path.GetFullPath(Path.Combine("SmartSteamEmu64.dll", ""))) || File.Exists(Path.GetFullPath(Path.Combine("SmartSteamEmu.dll", ""))))
+            {
+                ModConsole.Print($"<b><color=orange>Hello <color=lime>{"SmartSteamEmu!"}</color>!</color></b>");
+                throw new Exception("[EMULATOR] Do What You Want, Cause A Pirate Is Free... You Are A Pirate!");
+            }
+            if (File.Exists(Path.GetFullPath(Path.Combine("steam_api.ini", ""))) || File.Exists(Path.GetFullPath(Path.Combine("steam_32.dll", ""))) || File.Exists(Path.GetFullPath(Path.Combine("steam_64.dll", ""))) || File.Exists(Path.GetFullPath(Path.Combine("steamclient.dll", ""))) || File.Exists(Path.GetFullPath(Path.Combine("steamclient64.dll", ""))))
+            {
+                ModConsole.Print($"<b><color=orange>Hello <color=lime>{"kidsrowCracked!"}</color>!</color></b>");
+                throw new Exception("[EMULATOR] Do What You Want, Cause A Pirate Is Free... You Are A Pirate!");
+            }
+            if (File.Exists(Path.GetFullPath(Path.Combine("OnlineFix64.dll", ""))) || File.Exists(Path.GetFullPath(Path.Combine("winmm.dll", ""))) || File.Exists(Path.GetFullPath(Path.Combine("SteamOverlay64.dll", ""))) || File.Exists(Path.GetFullPath(Path.Combine("OnlineFix.ini", ""))) || File.Exists(Path.GetFullPath(Path.Combine("SteamFix64.dll", ""))))
+            {
+                ModConsole.Print($"<b><color=orange>Hello <color=lime>{"OnlineFixCracked!"}</color>!</color></b>");
+                throw new Exception("[EMULATOR] Do What You Want, Cause A Pirate Is Free... You Are A Pirate!");
+            }
+            if (File.Exists(Path.GetFullPath(Path.Combine("", "steam_api.dll"))))
+            {
+                if (ModMetadata.CalculateFileChecksum(Path.Combine("", "steam_api.dll")) != "7B857C897BC69313E4936DC3DCCE5193")
+                {
+                    ModConsole.Print($"<b><color=orange>Hello <color=lime>{"Emulator!"}</color>!</color></b>");
+                    throw new Exception("[EMULATOR] Do What You Want, Cause A Pirate Is Free... You Are A Pirate!");
+                }
+            }
+            if (File.Exists(Path.GetFullPath(Path.Combine("steam_api64.dll", ""))))
+            {
+                if (ModMetadata.CalculateFileChecksum(Path.Combine("", "steam_api64.dll")) != "6C23EAB28F1CD1BFD128934B08288DD8")
+                {
+                    ModConsole.Print($"<b><color=orange>Hello <color=lime>{"Emulator!"}</color>!</color></b>");
+                    throw new Exception("[EMULATOR] Do What You Want, Cause A Pirate Is Free... You Are A Pirate!");
+                }
+            }
+
+            Steamworks.SteamAPI.Init();
+            steamID = Steamworks.SteamUser.GetSteamID().ToString();
+            ModConsole.Print($"<b><color=orange>Hello <color=lime>{Steamworks.SteamFriends.GetPersonaName()}</color>!</color></b>");
+            using (WebClient webClient = new WebClient())
+            {
+                webClient.Headers.Add("user-agent", $"MSCLoader/{MSCLoader_Ver} ({SystemInfoFix()}) [{MSCLInfo.BuildType}]");
+                webClient.DownloadStringCompleted += SAuthCheckCompleted;
+                webClient.DownloadStringAsync(new Uri($"{serverURL}/sauth.php?sid={steamID}"));
+            }
+            if (LoadedMods.Count >= 100)
+                Steamworks.SteamFriends.SetRichPresence("status", $"This madman is playing with {actualModList.Length} mods.");
+            else if (LoadedMods.Count >= 50)
+                Steamworks.SteamFriends.SetRichPresence("status", $"Playing with {actualModList.Length} mods. Crazy!");
+            else
+                Steamworks.SteamFriends.SetRichPresence("status", $"Playing with {actualModList.Length} mods.");
+        }
+        catch (Exception e)
+        {
+            steamID = null;
+            ModConsole.Error("Steam client doesn't exists.");
+            if (devMode)
+                ModConsole.Error(e.ToString());
+            Console.WriteLine(e);
+            if (CheckSteam())
+            {
+                Console.WriteLine(new AccessViolationException().Message);
+                Environment.Exit(0);
+            }
+        }
+        SaveLoad.LoadModsSaveData();
+#if MWC
+        if (ModMenu.ignoreCompatibility.GetValue())
+        {
+            Console.WriteLine("=========================");
+            Console.WriteLine("Compatibility is ignored.");
+            Console.WriteLine("=========================");
+        }
+
+#endif
+        PreLoadMods();
+        if (InvalidMods.Count > 0)
+            ModConsole.Print($"<b><color=orange>Loaded <color=aqua>{actualModList.Length}</color> mods (<color=magenta>{InvalidMods.Count}</color> failed to load)!</color></b>{Environment.NewLine}");
+        else
+            ModConsole.Print($"<b><color=orange>Loaded <color=aqua>{actualModList.Length}</color> mods!</color></b>{Environment.NewLine}");
+        MSCLInternal.LoadMSCLDataFile();
+        LoadModsSettings();
+        ModMenu.LoadBinds();
+#if MSC
+        GameObject old_callbacks = new GameObject("BC Callbacks");
+        old_callbacks.transform.SetParent(gameObject.transform, false);
+        if (OnGUImods.Length > 0) old_callbacks.AddComponent<BC_ModOnGUI>().modLoader = this;
+        if (UpdateMods.Length > 0) old_callbacks.AddComponent<BC_ModUpdate>().modLoader = this;
+        if (FixedUpdateMods.Length > 0) old_callbacks.AddComponent<BC_ModFixedUpdate>().modLoader = this;
+#endif
+        GameObject mod_callbacks = new GameObject("MSCLoader Callbacks");
+        mod_callbacks.transform.SetParent(gameObject.transform, false);
+        if (Mod_OnGUI.Length > 0) mod_callbacks.AddComponent<A_ModOnGUI>().modLoader = this;
+        if (Mod_Update.Length > 0) mod_callbacks.AddComponent<A_ModUpdate>().modLoader = this;
+        if (Mod_FixedUpdate.Length > 0) mod_callbacks.AddComponent<A_ModFixedUpdate>().modLoader = this;
+        if (!returnToMainMenu)
+        {
+            CheckForModsUpd();
+        }
+
+        if (devMode)
+            ModConsole.Warning("You are running MSCLoader in <color=red><b>DevMode</b></color>, this mode is <b>only for modders</b> and shouldn't be used in normal gameplay.");
+        System.Console.WriteLine(SystemInfoFix()); //operating system version to output_log.txt
+        if (InvalidMods.Count > 0)
+        {
+            ModConsole.Error("Some files failed to load, scroll up to see more info.");
+        }
+        if (saveErrors != null)
+        {
+            if (saveErrors.Count > 0 && wasSaving)
+            {
+                ModUI.ShowMessage($"Some mods have thrown an error during saving{Environment.NewLine}Check console for more information!");
+                for (int i = 0; i < saveErrors.Count; i++)
+                {
+                    ModConsole.Error(saveErrors[i]);
+                }
+            }
+            wasSaving = false;
+        }
+
+    }
+    internal static void HandleCanv(GameObject go)
+    {
+        Instance.HandleCCanv(go);
+    }
+    void HandleCCanv(GameObject go)
+    {
+        StartCoroutine(HandleCanvC(go));
+    }
+    IEnumerator HandleCanvC(GameObject go)
+    {
+        yield return null;
+        go.SetActive(true);
+    }
+    internal void CheckForModsUpd(bool force = false)
+    {
+        string sp = Path.Combine(SettingsFolder, Path.Combine("MSCLoader_Settings", "lastCheck"));
+        if (force || ModMenu.cfmu_set == 0 || !File.Exists(sp))
+        {
+            DownloadUpdateData();
+            File.WriteAllText(sp, DateTime.Now.ToString());
+            return;
+        }
+        DateTime lastCheck;
+        DateTime.TryParse(File.ReadAllText(sp), out lastCheck);
+        if ((DateTime.Now - lastCheck).TotalDays >= ModMenu.cfmu_set || (DateTime.Now - lastCheck).TotalDays < 0)
+        {
+            DownloadUpdateData();
+            File.WriteAllText(sp, DateTime.Now.ToString());
+        }
+        else
+        {
+            if (File.Exists(Path.Combine(SettingsFolder, Path.Combine("MSCLoader_Settings", "updateInfo.json"))))
+            {
+                string s = File.ReadAllText(Path.Combine(SettingsFolder, Path.Combine("MSCLoader_Settings", "updateInfo.json")));
+                ModVersions v = JsonConvert.DeserializeObject<ModVersions>(s);
+                ModMetadata.ReadUpdateInfo(v);
+                if (File.Exists(Path.Combine(SettingsFolder, Path.Combine("MSCLoader_Settings", "ref_updateInfo.json"))))
+                {
+                    string s2 = File.ReadAllText(Path.Combine(SettingsFolder, Path.Combine("MSCLoader_Settings", "ref_updateInfo.json")));
+                    RefVersions v2 = JsonConvert.DeserializeObject<RefVersions>(s2);
+                    ModMetadata.ReadRefUpdateInfo(v2);
+                }
+                else
+                {
+                    ModMetadata.ReadRefUpdateInfo(null);
+                }
+            }
+            else
+            {
+                DownloadUpdateData();
+                File.WriteAllText(sp, DateTime.Now.ToString());
+            }
+
+        }
+
+    }
+    internal bool updChecked = false;
+    private void DownloadUpdateData()
+    {
+        StartCoroutine(CheckForRefModUpdates());
+        updChecked = true;
+    }
+
+    [Serializable]
+    class SaveOtk
+    {
+        public string k1;
+        public string k2;
+    }
+
+    private void SAuthCheckCompleted(object sender, DownloadStringCompletedEventArgs e)
+    {
+        try
+        {
+            if (e.Error != null)
+            {
+                ModConsole.Error(e.Error.Message);
+                Console.WriteLine(e.Error);
+                return;
+            }
+
+            string result = e.Result;
+
+            if (result != string.Empty)
+            {
+                string[] ed = result.Split('|');
+                if (ed[0] == "error")
+                {
+                    switch (ed[1])
+                    {
+                        case "0":
+                            throw new Exception("Getting steamID failed.");
+                        case "1":
+                            throw new Exception("steamID rejected.");
+                        default:
+                            throw new Exception("Unknown error.");
+                    }
+                }
+                else if (ed[0] == "ok")
+                {
+                    SaveOtk s = new SaveOtk
+                    {
+                        k1 = ed[1],
+                        k2 = ed[2]
+                    };
+                    System.Runtime.Serialization.Formatters.Binary.BinaryFormatter f = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+                    string sp = Path.Combine(SettingsFolder, Path.Combine("MSCLoader_Settings", "otk.bin"));
+                    FileStream st = new FileStream(sp, FileMode.Create);
+                    f.Serialize(st, s);
+                    st.Close();
+                }
+                else
+                {
+                    Console.WriteLine("Unknown: " + ed[0]);
+                    throw new Exception("Unknown server response.");
+                }
+            }
+            bool ret = Steamworks.SteamApps.GetCurrentBetaName(out string Name, 128);
+            if (ret && ModMenu.expWarning.GetValue())
+            {
+                if (!Name.StartsWith("default_")) //default is NOT experimental branch
+                    ModUI.ShowMessage($"<color=orange><b>Warning:</b></color>{Environment.NewLine}You are using beta build: <color=orange><b>{Name}</b></color>{Environment.NewLine}{Environment.NewLine}Remember that some mods may not work correctly on beta branches.", "Experimental build warning");
+            }
+            Console.WriteLine($"MSC buildID: <b>{Steamworks.SteamApps.GetAppBuildId()}</b>");
+            if (Steamworks.SteamApps.GetAppBuildId() < 10000)
+                throw new DivideByZeroException();
+        }
+        catch (Exception ex)
+        {
+            string sp = Path.Combine(SettingsFolder, Path.Combine("MSCLoader_Settings", "otk.bin"));
+            if (e.Error != null)
+            {
+                if (File.Exists(sp))
+                {
+                    System.Runtime.Serialization.Formatters.Binary.BinaryFormatter f = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
+                    FileStream st = new FileStream(sp, FileMode.Open);
+                    SaveOtk s = f.Deserialize(st) as SaveOtk;
+                    st.Close();
+                    string otk = "otk_" + SidChecksumCalculator($"{steamID}{s.k1}");
+                    if (s.k2.CompareTo(otk) != 0)
+                    {
+                        File.Delete(sp);
+                        steamID = null;
+                        ModConsole.Error("SteamAPI failed with error: " + ex.Message);
+                        if (CheckSteam())
+                        {
+                            Console.WriteLine(new AccessViolationException().Message);
+                            Environment.Exit(0);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("offline");
+                    }
+                }
+                else
+                {
+                    steamID = null;
+                    ModConsole.Error("SteamAPI failed with error: " + ex.Message);
+                    if (CheckSteam())
+                    {
+                        Console.WriteLine(new AccessViolationException().Message);
+                        Environment.Exit(0);
+                    }
+                }
+            }
+            else
+            {
+                if (File.Exists(sp))
+                    File.Delete(sp);
+                steamID = null;
+                ModConsole.Error("SteamAPI failed with error: " + ex.Message);
+                if (devMode)
+                    ModConsole.Error(ex.ToString());
+                if (CheckSteam())
+                {
+                    Console.WriteLine(new AccessViolationException().Message);
+                    Environment.Exit(0);
+                }
+            }
+            Console.WriteLine(ex);
+        }
+    }
+
+    private void LoadReferences()
+    {
+        string[] files = Directory.GetFiles(Path.Combine(ModsFolder, "References"), "*.dll");
+        string[] alreadyIncluded = Directory.GetFiles(ManagedPath, "*.dll").Select(Path.GetFileName).ToArray();
+        string[] unusedFiles = [];
+
+        if (File.Exists(Path.Combine(Path.Combine(ModsFolder, "References"), "unused.txt")))
+        {
+            unusedFiles = File.ReadAllLines(Path.Combine(Path.Combine(ModsFolder, "References"), "unused.txt"));
+        }
+        for (int i = 0; i < files.Length; i++)
+        {
+            if (Path.GetFileName(files[i]) == "0Harmony12.dll" || Path.GetFileName(files[i]) == "0Harmony-1.2.dll" || Path.GetFileName(files[i]) == "Ionic.Zip.dll" || alreadyIncluded.Contains(Path.GetFileName(files[i])))
+            {
+                ModConsole.Warning($"<b>{Path.GetFileName(files[i])}</b> already exist in <b>{Path.GetFullPath(ManagedPath)}</b> - skipping");
+                File.Delete(files[i]);
+                continue;
+            }
+            if (unusedFiles.Contains(Path.GetFileName(files[i])))
+            {
+                ModConsole.Print($"<b>{Path.GetFileName(files[i])}</b> is marked as no longer needed after update - deleting");
+                File.Delete(files[i]);
+                continue;
+            }
+            try
+            {
+                Assembly asm = Assembly.LoadFrom(files[i]);
+                LoadReferencesMeta(asm, files[i]);
+            }
+            catch (Exception e)
+            {
+                ModConsole.Error($"<b>References/{Path.GetFileName(files[i])}</b> - Failed to load.");
+                Console.WriteLine(e);
+                References reference = new References()
+                {
+                    FileName = Path.GetFileName(files[i]),
+                    Invalid = true,
+                    ExMessage = e.GetFullMessage()
+                };
+                ReferencesList.Add(reference);
+            }
+        }
+        if (File.Exists(Path.Combine(Path.Combine(ModsFolder, "References"), "unused.txt")))
+        {
+            File.Delete(Path.Combine(Path.Combine(ModsFolder, "References"), "unused.txt"));
+        }
+    }
+    private void LoadReferencesMeta(Assembly ass, string fn)
+    {
+        References reference = new References()
+        {
+            AssemblyID = ass.GetName().Name,
+            FileName = fn
+        };
+        if (Attribute.IsDefined(ass, typeof(AssemblyTitleAttribute)))
+            reference.AssemblyTitle = ((AssemblyTitleAttribute)Attribute.GetCustomAttribute(ass, typeof(AssemblyTitleAttribute))).Title;
+        if (Attribute.IsDefined(ass, typeof(AssemblyCompanyAttribute)))
+            reference.AssemblyAuthor = ((AssemblyCompanyAttribute)Attribute.GetCustomAttribute(ass, typeof(AssemblyCompanyAttribute))).Company;
+        if (Attribute.IsDefined(ass, typeof(AssemblyDescriptionAttribute)))
+            reference.AssemblyDescription = ((AssemblyDescriptionAttribute)Attribute.GetCustomAttribute(ass, typeof(AssemblyDescriptionAttribute))).Description;
+        if (Attribute.IsDefined(ass, typeof(AssemblyFileVersionAttribute)))
+            reference.AssemblyFileVersion = ((AssemblyFileVersionAttribute)Attribute.GetCustomAttribute(ass, typeof(AssemblyFileVersionAttribute))).Version;
+        if (Attribute.IsDefined(ass, typeof(System.Runtime.InteropServices.GuidAttribute)))
+            reference.Guid = ((System.Runtime.InteropServices.GuidAttribute)Attribute.GetCustomAttribute(ass, typeof(System.Runtime.InteropServices.GuidAttribute))).Value;
+        ReferencesList.Add(reference);
+        Console.WriteLine($"GUID: {reference.Guid}");
+        Console.WriteLine($"ReferenceID: {reference.AssemblyID} (v{reference.AssemblyFileVersion}) [{reference.AssemblyAuthor}]");
+    }
+    private void LoadCoreAssets()
+    {
+        ModConsole.Print("Loading core assets...");
+        AssetBundle ab = LoadAssets.LoadBundle(MSCLInfo.coreAssetsPath);
+        guiskin = ab.LoadAsset<GUISkin>("MSCLoader.guiskin");
+        ModUI.canvasPrefab = ab.LoadAsset<GameObject>("CanvasPrefab.prefab");
+        mainMenuInfo = ab.LoadAsset<GameObject>("MSCLoader Info.prefab");
+        GameObject loadingP = ab.LoadAsset<GameObject>("MSCLoader Canvas loading.prefab");
+        GameObject mbP = ab.LoadAsset<GameObject>("MSCLoader Canvas msgbox.prefab");
+        MSCLInternal.PublicKey = ab.LoadAsset<TextAsset>("public.txt").text;
+
+        ModUI.PrepareDefaultCanvas();
+        GameObject mb = GameObject.Instantiate(mbP);
+        ModUI.messageBoxCv = mb.GetComponent<MessageBoxesCanvas>();
+        DontDestroyOnLoad(mb);
+
+        GameObject loading = GameObject.Instantiate(loadingP);
+        canvLoading = loading.GetComponent<MSCLoaderCanvasLoading>();
+        ModUI.loadingCanvas = canvLoading;
+        canvLoading.lHeader.text = $"MSCLOADER <color=green>{MSCLoader_Ver}</color>";
+        DontDestroyOnLoad(loading);
+
+        GameObject.Destroy(loadingP);
+        GameObject.Destroy(mbP);
+        ModConsole.Print("Loading core assets completed!");
+        ab.Unload(false);
+    }
+
+    private bool CheckVortexBS()
+    {
+        if (File.Exists(Path.Combine(ModsFolder, "MSCLoader.dll")))
+        {
+            File.Delete(Path.Combine(ModsFolder, "MSCLoader.dll"));
+            return true;
+        }
+        return false;
+    }
+
+    private bool CheckCorrectGame()
+    {
+        if (currentGame == Game.MySummerCar && !MSCLInfo.BuildType.StartsWith("MSC"))
+        {
+            return false;
+        }
+        if (currentGame == Game.MyWinterCar && !MSCLInfo.BuildType.StartsWith("MWC"))
+        {
+            return false;
+        }
+        return true;
+    }
+    /// <summary>
+    /// Toggle main menu path via settings
+    /// </summary>
+    internal static void MainMenuPath()
+    {
+        Instance.mainMenuInfo.transform.GetChild(1).gameObject.SetActive(ModMenu.modPath.GetValue());
+    }
+
+    private void MainMenuInfo()
+    {
+        Text info, mf, extra;
+        mainMenuInfo = Instantiate(mainMenuInfo);
+        mainMenuInfo.name = "MSCLoader Info";
+        menuInfoAnim = mainMenuInfo.GetComponent<Animation>();
+        menuInfoAnim.Play("fade_in");
+        info = mainMenuInfo.transform.GetChild(0).gameObject.GetComponent<Text>();
+        mf = mainMenuInfo.transform.GetChild(1).gameObject.GetComponent<Text>();
+        extra = mainMenuInfo.transform.GetChild(2).gameObject.GetComponent<Text>();
+        info.text = $"Mod Loader MSCLoader <color=cyan>v{MSCLoader_Ver}</color> is ready! (<color=orange>Checking for updates...</color>)";
+        CheckMSCLoaderVersion();
+        mf.text = $"<color=orange>Mods folder:</color> {ModsFolder}";
+        MainMenuPath();
+        if (serverURL.Contains("localhost") || serverURL.Contains("127.0.0.1"))
+        {
+            extra.text = $"<color=aqua>!!! LOCALHOST VERSION !!!</color> ";
+        }
+        if (isMonoDebugger)
+        {
+            extra.text += $"<color=magenta>Debugging Enabled</color> (<color=lime>{monoDebugIP}</color>)";
+        }
+        mainMenuInfo.transform.SetParent(ModUI.GetCanvas(0).transform, false);
+    }
+
+    private void CheckMSCLoaderVersion()
+    {
+        using (WebClient client = new WebClient())
+        {
+            client.Headers.Add("user-agent", $"MSCLoader/{MSCLoader_Ver} ({SystemInfoFix()}) [{MSCLInfo.BuildType}]");
+            client.DownloadStringCompleted += VersionCheckCompleted;
+            client.DownloadStringAsync(new Uri($"{serverURL}/mscl_corever.php?core={MSCLInfo.BuildType}"));
+        }
+    }
+
+    private void VersionCheckCompleted(object sender, DownloadStringCompletedEventArgs e)
+    {
+        Text info = mainMenuInfo.transform.GetChild(0).gameObject.GetComponent<Text>();
+        try
+        {
+            if (e.Error != null)
+            {
+                throw new Exception(e.Error.Message);
+            }
+
+            string[] result = e.Result.Split('|');
+            switch (result[0])
+            {
+                case "error":
+                    throw new Exception(result[1]);
+                case "ok":
+                    try
+                    {
+                        newBuild = int.Parse(result[2]);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine(ex);
+                        throw new Exception("Failed to parse build number");
+                    }
+
+                    if (newBuild > currentBuild)
+                    {
+                        newVersion = result[1];
+                        info.text = $"MSCLoader <color=cyan>v{MSCLoader_Ver}</color> {(experimental ? $" [<color=magenta>Experimental</color> <color=lime>build {currentBuild}</color>]" : "")} (<color=aqua>Update is available</color>)";
+                        ModloaderUpdateMessage = true;
+                        MsgBoxBtn[] btn1 = { ModUI.CreateMessageBoxBtn("YES", DownloadModloaderUpdate), ModUI.CreateMessageBoxBtn("NO") };
+                        MsgBoxBtn[] btn2 = { ModUI.CreateMessageBoxBtn("Show Changelog", ShowChangelog, new Color32(0, 0, 80, 255), Color.white, true) };
+                        ModUI.ShowCustomMessage($"New MSCLoader version is available{Environment.NewLine}<color=yellow>{MSCLoader_Ver} build {currentBuild}</color> => <color=lime>{newVersion} build {newBuild}</color>{Environment.NewLine}{Environment.NewLine}Do you want to download it now?", "MSCLoader update", btn1, btn2);
+                    }
+                    else
+                    {
+                        info.text = $"MSCLoader <color=cyan>v{MSCLoader_Ver}</color> {(experimental ? $" [<color=magenta>Experimental</color> <color=lime>build {currentBuild}</color>]" : "")} (<color=lime>Up to date</color>)";
+                    }
+                    break;
+                default:
+                    Console.WriteLine("Unknown: " + result[0]);
+                    throw new Exception("Unknown result");
+            }
+        }
+        catch (Exception ex)
+        {
+            ModConsole.Error($"Check for new version failed with error: {ex.Message}");
+            if (devMode)
+                ModConsole.Error(ex.ToString());
+            Console.WriteLine(ex);
+            info.text = $"MSCLoader <color=cyan>v{MSCLoader_Ver}</color> {(experimental ? $" [<color=magenta>Experimental</color> <color=lime>build {currentBuild}</color>]" : "")}";
+        }
+        if (devMode)
+            info.text += " [<color=red><b>Dev Mode!</b></color>]";
+    }
+    internal void ShowChangelog()
+    {
+        string dwl = string.Empty;
+        WebClient getdwl = new WebClient();
+        getdwl.Headers.Add("user-agent", $"MSCLoader/{MSCLoader_Ver} ({SystemInfoFix()}) [{MSCLInfo.BuildType}]");
+        try
+        {
+            dwl = getdwl.DownloadString($"{serverURL}/changelog.php?kameh={MSCLInfo.namePrefix}&mods=MSCLoader&vers={newVersion}&names=MSCLoader");
+        }
+        catch (Exception e)
+        {
+            dwl = "<color=red>Failed to download changelog...</color>";
+            Console.WriteLine(e);
+        }
+        ModUI.ShowChangelogWindow(dwl);
+    }
+    internal static void ModException(Exception e, Mod mod, bool save = false)
+    {
+        string errorDetails = $"{Environment.NewLine}<b>Details: </b>{e.Message} in <b>{new StackTrace(e, true).GetFrame(0).GetMethod()}</b>";
+        if (save)
+            saveErrors.Add($"Mod <b>{mod.ID}</b> has thrown an error!{errorDetails}");
+        else
+            ModConsole.Error($"Mod <b>{mod.ID}</b> has thrown an error!{errorDetails}");
+        if (devMode)
+        {
+            if (save)
+                saveErrors.Add(e.ToString());
+            else
+                ModConsole.Error(e.ToString());
+        }
+        Console.WriteLine(e);
+    }
+
+    IEnumerator NewGameMods()
+    {
+        ModConsole.Print("<color=aqua>==== Resetting mods ====</color>");
+        SaveLoad.ResetSaveFile();
+#if MSC
+        canvLoading.SetLoading("Resetting mods", 0, BC_ModList.Length + Mod_OnNewGame.Length, "Preparing....");
+#elif MWC
+        canvLoading.SetLoading("Resetting mods", 0, Mod_OnNewGame.Length, "Preparing....");
+#endif
+        for (int i = 0; i < Mod_OnNewGame.Length; i++)
+        {
+            if (!string.IsNullOrEmpty(Mod_OnNewGame[i].OnNewGameStatus))
+                canvLoading.SetLoadingProgress($"[{Mod_OnNewGame[i].ID}] {Mod_OnNewGame[i].OnNewGameStatus}");
+            else
+                canvLoading.SetLoadingProgress(Mod_OnNewGame[i].ID);
+            yield return null;
+            try
+            {
+                Console.WriteLine($"Calling OnNewGame (for mod {Mod_OnNewGame[i].ID})");
+                Mod_OnNewGame[i].A_OnNewGame.Invoke();
+            }
+            catch (Exception e)
+            {
+                ModException(e, Mod_OnNewGame[i]);
+            }
+
+        }
+#if MSC
+        for (int i = 0; i < BC_ModList.Length; i++)
+        {
+            canvLoading.SetLoadingProgress(BC_ModList[i].Name);
+            yield return null;
+            try
+            {
+                Console.WriteLine($"Calling OnNewGame [old] (for mod {BC_ModList[i].ID})");
+                BC_ModList[i].OnNewGame();
+            }
+            catch (Exception e)
+            {
+                ModException(e, BC_ModList[i]);
+            }
+
+        }
+#endif
+        canvLoading.SetLoadingStatus("Resetting Done! You can skip intro now!");
+        yield return new WaitForSeconds(1f);
+        canvLoading.ToggleLoadingUI(false);
+        ModConsole.Print("<color=aqua>==== Resetting mods finished ====</color>");
+        IsModsResetting = false;
+    }
+    void MouseFix()
+    {
+        PlayMakerFSM curFSM = GameObject.Find("PLAYER").GetPlayMaker("Update Cursor");
+        FsmState curLock = curFSM.GetState("Update cursor");
+        FsmState curUnLock = curFSM.GetState("In Menu");
+        curLock.Actions[2] = new SetMouseCursorFix(true);
+        curUnLock.Actions[1] = new SetMouseCursorFix(false);
+    }
+
+    IEnumerator LoadMods()
+    {
+        FsmGameObject playerCam = FsmVariables.GlobalVariables.FindFsmGameObject("POV");
+        ModConsole.PrintSplit("<b></b><color=aqua>==== Loading mods (Phase 1) ====</color><color=#505050ff>", true);
+#if MSC
+        int totalCount = PLoadMods.Length + BC_ModList.Length + SecondPassMods.Length + Mod_PreLoad.Length + Mod_OnLoad.Length + Mod_PostLoad.Length;
+#elif MWC
+        int totalCount = Mod_PreLoad.Length + Mod_OnLoad.Length + Mod_PostLoad.Length;
+#endif
+        canvLoading.SetLoading("Loading mods - Phase 1", 0, totalCount, "Loading mods. Please wait...");
+        yield return null;
+        for (int i = 0; i < Mod_PreLoad.Length; i++)
+        {
+            if (Mod_PreLoad[i].isDisabled) continue;
+            if (!string.IsNullOrEmpty(Mod_PreLoad[i].OnPreLoadStatus))
+                canvLoading.SetLoadingProgress($"[{Mod_PreLoad[i].ID}] {Mod_PreLoad[i].OnPreLoadStatus}");
+            else
+                canvLoading.SetLoadingProgress(Mod_PreLoad[i].ID);
+            yield return null;
+            try
+            {
+                Console.WriteLine($"Calling PreLoad (for mod {Mod_PreLoad[i].ID})");
+                Mod_PreLoad[i].A_PreLoad.Invoke();
+            }
+            catch (Exception e)
+            {
+                ModException(e, Mod_PreLoad[i]);
+            }
+        }
+#if MSC
+        for (int i = 0; i < PLoadMods.Length; i++)
+        {
+            canvLoading.SetLoadingProgress(PLoadMods[i].ID);
+            if (PLoadMods[i].isDisabled) continue;
+            yield return null;
+            try
+            {
+                Console.WriteLine($"Calling PreLoad [old] (for mod {PLoadMods[i].ID})");
+                PLoadMods[i].PreLoad();
+            }
+            catch (Exception e)
+            {
+                ModException(e, PLoadMods[i]);
+            }
+        }
+#endif
+        canvLoading.SetLoadingTitle("Waiting...");
+        canvLoading.SetLoadingStatus("Waiting for game to finish load...");
+        while (playerCam.Value == null)
+            yield return null;
+        MouseFix();
+        playerCam.Value.AddComponent<UnifiedRaycast>();
+        yield return null;
+        canvLoading.SetLoadingTitle("Loading mods - Phase 2");
+        canvLoading.SetLoadingStatus("Loading mods. Please wait...");
+        ModConsole.Print("<i></i></color>");
+        ModConsole.Print("<b></b><color=aqua>==== Loading mods (Phase 2) ====</color><color=#505050ff>");
+        yield return null;
+        for (int i = 0; i < Mod_OnLoad.Length; i++)
+        {
+            if (Mod_OnLoad[i].isDisabled) continue;
+            if (!string.IsNullOrEmpty(Mod_OnLoad[i].OnLoadStatus))
+                canvLoading.SetLoadingProgress($"[{Mod_OnLoad[i].ID}] {Mod_OnLoad[i].OnLoadStatus}");
+            else
+                canvLoading.SetLoadingProgress(Mod_OnLoad[i].ID);
+            yield return null;
+            try
+            {
+                Console.WriteLine($"Calling OnLoad (for mod {Mod_OnLoad[i].ID})");
+                Mod_OnLoad[i].A_OnLoad.Invoke();
+            }
+            catch (Exception e)
+            {
+                ModException(e, Mod_OnLoad[i]);
+            }
+        }
+#if MSC
+        for (int i = 0; i < BC_ModList.Length; i++)
+        {
+            canvLoading.SetLoadingProgress(BC_ModList[i].ID);
+            if (BC_ModList[i].isDisabled) continue;
+            yield return null;
+            try
+            {
+                Console.WriteLine($"Calling OnLoad [old] (for mod {BC_ModList[i].ID})");
+                BC_ModList[i].OnLoad();
+            }
+            catch (Exception e)
+            {
+                ModException(e, BC_ModList[i]);
+            }
+        }
+#endif
+        ModMenu.LoadBinds();
+        canvLoading.SetLoadingTitle("Loading mods - Phase 3");
+        canvLoading.SetLoadingStatus("Loading mods. Please wait...");
+        ModConsole.Print("<i></i></color>");
+        ModConsole.Print("<b></b><color=aqua>==== Loading mods (Phase 3) ====</color><color=#505050ff>");
+        yield return null;
+        for (int i = 0; i < Mod_PostLoad.Length; i++)
+        {
+            if (Mod_PostLoad[i].isDisabled) continue;
+            if (!string.IsNullOrEmpty(Mod_PostLoad[i].OnPostLoadStatus))
+                canvLoading.SetLoadingProgress($"[{Mod_PostLoad[i].ID}] {Mod_PostLoad[i].OnPostLoadStatus}");
+            else
+                canvLoading.SetLoadingProgress(Mod_PostLoad[i].ID);
+            yield return null;
+            try
+            {
+                Console.WriteLine($"Calling PostLoad (for mod {Mod_PostLoad[i].ID})");
+                Mod_PostLoad[i].A_PostLoad.Invoke();
+            }
+            catch (Exception e)
+            {
+                ModException(e, Mod_PostLoad[i]);
+            }
+        }
+#if MSC
+        for (int i = 0; i < SecondPassMods.Length; i++)
+        {
+            canvLoading.SetLoadingProgress(SecondPassMods[i].ID);
+            if (SecondPassMods[i].isDisabled) continue;
+            yield return null;
+            try
+            {
+                Console.WriteLine($"Calling SecondPassOnLoad (for mod {SecondPassMods[i].ID})");
+                SecondPassMods[i].SecondPassOnLoad();
+            }
+            catch (Exception e)
+            {
+                ModException(e, SecondPassMods[i]);
+            }
+        }
+#endif
+        canvLoading.SetLoadingProgress((int)canvLoading.lProgress.maxValue, (int)canvLoading.lProgress.maxValue);
+        canvLoading.SetLoadingStatus("Finishing touches...");
+        yield return null;
+#if MSC
+        GameObject.Find("ITEMS").GetComponent<PlayMakerFSM>().FsmInject("Save game", SaveMods);
+#elif MWC
+        GameObject.Find("Database/PlayerDatabase").GetPlayMaker("Simulation").FsmInject("Save data", SaveMods); //TODO: test
+#endif
+        ModConsole.PrintSplit("<i></i></color>", false);
+
+        if (IsReferencePresent("MSCCoreLibrary")) TimeSchedulerCalls("load");
+
+        yield return null;
+        allModsLoaded = true;
+        canvLoading.ToggleLoadingUI(false);
+    }
+
+    private static bool wasSaving = false;
+    private void SaveMods()
+    {
+        saveErrors = new List<string>();
+        wasSaving = true;
+        for (int i = 0; i < Mod_OnSave.Length; i++)
+        {
+            if (Mod_OnSave[i].isDisabled) continue;
+            try
+            {
+                Console.WriteLine($"Calling OnSave (for mod {Mod_OnSave[i].ID})");
+                Mod_OnSave[i].A_OnSave.Invoke();
+            }
+            catch (Exception e)
+            {
+                ModException(e, Mod_OnSave[i], true);
+            }
+        }
+#if MSC
+        for (int i = 0; i < OnSaveMods.Length; i++)
+        {
+            if (OnSaveMods[i].isDisabled) continue;
+            try
+            {
+                Console.WriteLine($"Calling OnSave [old] (for mod {OnSaveMods[i].ID})");
+                OnSaveMods[i].OnSave();
+            }
+            catch (Exception e)
+            {
+                ModException(e, OnSaveMods[i], true);
+            }
+        }
+#endif
+
+        if (IsReferencePresent("MSCCoreLibrary")) TimeSchedulerCalls("save");
+    }
+
+#if MSC
+    internal static bool CheckEmptyMethod(Mod mod, string methodName)
+    {
+        //TO TRASH
+        MethodInfo method = mod.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+        return (method.IsVirtual && method.DeclaringType == mod.GetType() && method.GetMethodBody().GetILAsByteArray().Length > 2);
+    }
+#endif
+
+    private void LoadEADll(string file, bool repeated = false)
+    {
+        if (!CheckSteam())
+        {
+            ModConsole.Error($"<b>{Path.GetFileName(file)}</b> - To use this mod, valid steam client is required! (if issue persists, try restarting your steam client)");
+            return;
+        }
+        string response = string.Empty;
+        response = MSCLInternal.MSCLDataRequest("mscl_ea.php", new Dictionary<string, string> { { "steamID", steamID }, { "uid", SystemInfo.deviceUniqueIdentifier }, { "file", Path.GetFileNameWithoutExtension(file) } }, true);
+        string[] result = response.Split('|');
+        switch (result[0])
+        {
+            case "error":
+                ModConsole.Error($"<b>{Path.GetFileName(file)}</b> - {result[1]}");
+                ModUI.ShowMessage($"Loading early access file <b><color=aqua>{Path.GetFileName(file)}</color></b> failed with error:{Environment.NewLine} <color=orange>{result[1]}</color>!", "Error");
+                break;
+            case "verify":
+                if (repeated)
+                {
+                    ModConsole.Error($"<b>{Path.GetFileName(file)}</b> - Failed to verify steam client to load this mod. Please restart your steam client and try again.");
+                    return;
+                }
+                LoadEADllSteam(file);
+                break;
+            case "ok":
+                byte[] input;
+                using (BinaryReader reader = new BinaryReader(File.OpenRead(file)))
+                {
+                    reader.BaseStream.Seek(4, SeekOrigin.Begin);
+                    input = new byte[reader.BaseStream.Length - 4];
+                    reader.Read(input, 0, input.Length);
+                }
+                byte[] key = Encoding.ASCII.GetBytes(result[1]);
+                byte[] output;
+                try
+                {
+                    output = input.DecByteArray(key);
+                }
+                catch (Exception)
+                {
+                    output = [0x45, 0x41, 0x4D];
+                }
+                LoadDLL($"{Path.GetFileNameWithoutExtension(file)}.dll", output);
+                break;
+            default:
+                Console.WriteLine(result);
+                break;
+        }
+    }
+    private void LoadEADllSteam(string file)
+    {
+        byte[] pTicket = new byte[1024];
+        Steamworks.HAuthTicket hticket = Steamworks.SteamUser.GetAuthSessionTicket(pTicket, 1024, out uint _);
+        string ticket = BitConverter.ToString(pTicket).Replace("-", string.Empty).TrimEnd('0', ' ');
+        string response = string.Empty;
+        response = MSCLInternal.MSCLDataRequest("mscl_eaverify.php", new Dictionary<string, string> { { "kameh", MSCLInfo.namePrefix }, { "steamID", steamID }, { "SteamTicket", ticket }, { "uid", SystemInfo.deviceUniqueIdentifier }, { "file", Path.GetFileNameWithoutExtension(file) } });
+        string[] result = response.Split('|');
+        switch (result[0])
+        {
+            case "error":
+                Steamworks.SteamUser.CancelAuthTicket(hticket);
+                ModConsole.Error($"<b>{Path.GetFileName(file)}</b> - {result[1]}");
+                break;
+            case "ok":
+                Steamworks.SteamUser.CancelAuthTicket(hticket);
+                LoadEADll(file, true);
+                break;
+            default:
+                Steamworks.SteamUser.CancelAuthTicket(hticket);
+                Console.WriteLine(result);
+                break;
+        }
+    }
+
+
+
+    private void PreLoadMods()
+    {
+        // Load .dll files
+        string[] files = Directory.GetFiles(ModsFolder, "*.dll");
+        string[] unusedFiles = new string[0];
+        if (File.Exists(Path.Combine(ModsFolder, "unused.txt")))
+        {
+            unusedFiles = File.ReadAllLines(Path.Combine(ModsFolder, "unused.txt"));
+        }
+
+        List<string> eaQueue = new List<string>();
+
+        for (int i = 0; i < files.Length; i++)
+        {
+            if (unusedFiles.Contains(Path.GetFileName(files[i])))
+            {
+                ModConsole.Print($"<b>{Path.GetFileName(files[i])}</b>: has been marked as no longer needed after update - deleting");
+                File.Delete(files[i]);
+                continue;
+            }
+            //File duplicates
+            string[] alreadyIncluded = [.. Directory.GetFiles(ManagedPath, "*.dll").Select(Path.GetFileName)];
+            string[] refFiles = [.. Directory.GetFiles(Path.Combine(ModsFolder, "References"), "*.dll").Select(Path.GetFileName)];
+            if (Path.GetFileName(files[i]) == "0Harmony12.dll" || Path.GetFileName(files[i]) == "0Harmony-1.2.dll" || Path.GetFileName(files[i]) == "Ionic.Zip.dll" || Path.GetFileName(files[i]) == "winhttp.dll" || alreadyIncluded.Contains(Path.GetFileName(files[i])))
+            {
+                ModConsole.Warning($"<b>{Path.GetFileName(files[i])}</b> already exist in <b>{Path.GetFullPath(ManagedPath)}</b> - skipping");
+                File.Delete(files[i]);
+                continue;
+            }
+            if (refFiles.Contains(Path.GetFileName(files[i])))
+            {
+                ModConsole.Warning($"<b>{Path.GetFileName(files[i])}</b> already exist in <b>{Path.GetFullPath(Path.Combine(ModsFolder, "References"))}</b> - skipping");
+                File.Delete(files[i]);
+                continue;
+            }
+            if (MSCLInternal.IsEAFile(files[i]))
+            {
+                eaQueue.Add(files[i]);
+            }
+            else
+            {
+                LoadDLL(files[i]);
+            }
+        }
+        for (int i = 0; i < eaQueue.Count; i++)
+        {
+            LoadEADll(eaQueue[i]);
+        }
+        if (File.Exists(Path.Combine(ModsFolder, "unused.txt")))
+        {
+            File.Delete(Path.Combine(ModsFolder, "unused.txt"));
+        }
+        actualModList = [.. LoadedMods.Where(x => !x.ID.StartsWith("MSCLoader_"))];
+#if MSC
+        BC_ModList = [.. actualModList.Where(x => !x.newFormat)];
+
+        PLoadMods = [.. BC_ModList.Where(x => CheckEmptyMethod(x, "PreLoad"))];
+        SecondPassMods = [.. BC_ModList.Where(x => CheckEmptyMethod(x, "PostLoad") || CheckEmptyMethod(x, "SecondPassOnLoad"))];
+        OnGUImods = [.. BC_ModList.Where(x => CheckEmptyMethod(x, "OnGUI"))];
+        UpdateMods = [.. BC_ModList.Where(x => CheckEmptyMethod(x, "Update"))];
+        FixedUpdateMods = [.. BC_ModList.Where(x => CheckEmptyMethod(x, "FixedUpdate"))];
+        OnSaveMods = [.. BC_ModList.Where(x => CheckEmptyMethod(x, "OnSave"))];
+#endif
+        Mod_OnNewGame = [.. actualModList.Where(x => x.newFormat && x.A_OnNewGame != null)];
+        Mod_PreLoad = [.. actualModList.Where(x => x.newFormat && x.A_PreLoad != null)];
+        Mod_OnLoad = [.. actualModList.Where(x => x.newFormat && x.A_OnLoad != null)];
+        Mod_PostLoad = [.. actualModList.Where(x => x.newFormat && x.A_PostLoad != null)];
+        Mod_OnSave = [.. actualModList.Where(x => x.newFormat && x.A_OnSave != null)];
+        Mod_OnGUI = [.. actualModList.Where(x => x.newFormat && x.A_OnGUI != null)];
+        Mod_Update = [.. LoadedMods.Where(x => x.newFormat && x.A_Update != null)];
+        Mod_FixedUpdate = [.. actualModList.Where(x => x.newFormat && x.A_FixedUpdate != null)];
+        GetRequiredFilesData();
+        //cleanup files if not in dev mode
+        if (!devMode)
+        {
+            string cleanupLast = Path.Combine(SettingsFolder, Path.Combine("MSCLoader_Settings", "lastCleanupCheck"));
+            if (File.Exists(cleanupLast))
+            {
+                string lastCheckS = File.ReadAllText(cleanupLast);
+                DateTime.TryParse(lastCheckS, out DateTime lastCheck);
+                if ((DateTime.Now - lastCheck).TotalDays >= 14 || (DateTime.Now - lastCheck).TotalDays < 0)
+                {
+                    bool found = false;
+                    List<string> cleanupList = new List<string>();
+                    foreach (string dir in Directory.GetDirectories(AssetsFolder))
+                    {
+                        if (!LoadedMods.Exists(x => x.ID == new DirectoryInfo(dir).Name))
+                        {
+                            found = true;
+                            cleanupList.Add(new DirectoryInfo(dir).Name);
+                        }
+                    }
+                    if (found)
+                        ModUI.ShowYesNoMessage($"There are unused mod files/assets that can be cleaned up.{Environment.NewLine}{Environment.NewLine}List of unused mod files:{Environment.NewLine}<color=aqua>{string.Join(", ", cleanupList.ToArray())}</color>{Environment.NewLine}Do you want to clean them up?", "Unused files found", CleanupFolders);
+                    File.WriteAllText(cleanupLast, DateTime.Now.ToString());
+                }
+            }
+            else
+            {
+                File.WriteAllText(cleanupLast, DateTime.Now.ToString());
+            }
+
+        }
+
+    }
+    void GetRequiredFilesData()
+    {
+        //  modIDsReferences = new List<string>();
+        if (modIDsReferences.Count == 0 && crashedGuids.Count == 0)
+            return;
+        List<string> missingModIDsReferences = new List<string>();
+        for (int i = 0; i < modIDsReferences.Count; i++)
+        {
+            if (!ReferencesArePresent(GetModByID(modIDsReferences[i]).AdditionalReferences))
+            {
+                missingModIDsReferences.Add(modIDsReferences[i]);
+            }
+        }
+        if (missingModIDsReferences.Count == 0 && crashedGuids.Count == 0)
+            return;
+        string response = MSCLInternal.MSCLDataRequest("mscl_required.php", new Dictionary<string, List<string>> { { "kameh", new List<string> { MSCLInfo.namePrefix } }, { "ModIDs", missingModIDsReferences }, { "guids", crashedGuids } });
+        //RequiredList
+        if (response.StartsWith("error"))
+        {
+            string[] result = response.Split('|');
+            if (result.Length > 1)
+                ModConsole.Error(result[1]);
+        }
+        else if (response.StartsWith("{"))
+        {
+            RequiredList list = JsonConvert.DeserializeObject<RequiredList>(response);
+            List<string> refsToDwl = new List<string>();
+            List<string> modsToDwl = new List<string>();
+            for (int i = 0; i < list.references.Count; i++)
+            {
+                if (!IsReferencePresent(list.references[i]))
+                    refsToDwl.Add(list.references[i]);
+            }
+            for (int i = 0; i < list.mods.Count; i++)
+            {
+                if (!IsModPresent(list.mods[i], true))
+                    modsToDwl.Add(list.mods[i]);
+            }
+            DownloadRequiredFiles(refsToDwl, modsToDwl);
+        }
+        else
+        {
+            Console.WriteLine(response);
+        }
+    }
+
+    void CleanupFolders()
+    {
+        string[] setFold = Directory.GetDirectories(SettingsFolder);
+        for (int i = 0; i < setFold.Length; i++)
+        {
+            if (!LoadedMods.Exists(x => x.ID == new DirectoryInfo(setFold[i]).Name))
+            {
+                try
+                {
+                    Directory.Delete(setFold[i], true);
+                }
+                catch (Exception ex)
+                {
+                    ModConsole.Error($"{ex.Message} (corrupted file?)");
+                }
+            }
+        }
+        string[] assFold = Directory.GetDirectories(AssetsFolder);
+        for (int i = 0; i < assFold.Length; i++)
+        {
+            if (!LoadedMods.Exists(x => x.ID == new DirectoryInfo(assFold[i]).Name))
+            {
+                try
+                {
+                    Directory.Delete(assFold[i], true);
+                }
+                catch (Exception ex)
+                {
+                    ModConsole.Error($"{ex.Message} (corrupted file?)");
+                }
+            }
+        }
+    }
+    private void LoadModsSettings()
+    {
+        for (int i = 0; i < LoadedMods.Count; i++)
+        {
+            if (LoadedMods[i].ID.StartsWith("MSCLoader_"))
+                continue;
+            ModMetadata.ReadMetadata(LoadedMods[i]);
+            try
+            {
+                Settings.ModSettings(LoadedMods[i]);
+                if (LoadedMods[i].newSettingsFormat)
+                {
+                    if (LoadedMods[i].A_ModSettings != null)
+                    {
+                        LoadedMods[i].A_ModSettings.Invoke();
+                    }
+                }
+#if MSC
+                else
+                    LoadedMods[i].ModSettings();
+#endif
+                //Load disabled flag first
+                string path = Path.Combine(ModLoader.GetModSettingsFolder(ModLoader.LoadedMods[i]), "settings.json");
+                if (!File.Exists(path))
+                    continue;
+                SettingsList settings = JsonConvert.DeserializeObject<SettingsList>(File.ReadAllText(path));
+                LoadedMods[i].isDisabled = settings.isDisabled;
+            }
+            catch (Exception e)
+            {
+#if MSC
+                if (LoadedMods[i].proSettings) System.Console.WriteLine(e); // No need to spam console with pro settings errors.
+                else
+#endif
+                {
+                    ModConsole.Error($"Settings error for mod <b>{LoadedMods[i].ID}</b>{Environment.NewLine}<b>Details:</b> {e.Message}");
+                    if (devMode)
+                        ModConsole.Error(e.ToString());
+                    System.Console.WriteLine(e);
+                }
+            }
+        }
+        ModMenu.LoadSettings(); //Maybe put that in same loop as load so we don't need do another loop.
+    }
+
+    private void LoadDLL(string file, byte[] byteFile = null)
+    {
+        bool mscl = false;
+        HashSet<string> addRef = new HashSet<string>();
+        string asmGuid = "unknown";
+        bool isEA = false;
+        try
+        {
+            Assembly asm = null;
+            if (byteFile == null)
+            {
+                asm = Assembly.LoadFrom(file);
+            }
+            else
+            {
+                asm = Assembly.Load(byteFile);
+                isEA = true;
+            }
+            string[] res = asm.GetManifestResourceNames();
+            for (int i = 0; i < res.Length; i++)
+            {
+                Stream resourceStream = asm.GetManifestResourceStream(res[i]);
+                if (resourceStream != null)
+                {
+                    BinaryReader resourceReader = new BinaryReader(resourceStream);
+                    byte[] resourceBytes = resourceReader.ReadBytes((int)resourceStream.Length);
+                    if (resourceBytes[0] == 0x4D && resourceBytes[1] == 0x5A && resourceBytes[2] == 0x90 && resourceBytes[3] == 0x00)
+                    {
+                        throw new Exception($"{Path.GetFileName(file)} - Executable files in resources are no longer allowed. Move them outside of the assembly.");
+                    }
+                    if (resourceBytes[0] == 0x50 && resourceBytes[1] == 0x4B && resourceBytes[2] == 0x03 && resourceBytes[3] == 0x04)
+                    {
+                        throw new Exception($"{Path.GetFileName(file)} - zip files in resources are no longer allowed. Move them outside of the assembly.");
+                    }
+                }
+            }
+
+            bool isMod = false;
+            AssemblyName[] list = asm.GetReferencedAssemblies();
+            if (Attribute.IsDefined(asm, typeof(System.Runtime.InteropServices.GuidAttribute)))
+                asmGuid = ((System.Runtime.InteropServices.GuidAttribute)Attribute.GetCustomAttribute(asm, typeof(System.Runtime.InteropServices.GuidAttribute))).Value;
+            Console.WriteLine($"GUID: {asmGuid}");
+            string msVer = null;
+            for (int i = 0; i < list.Length; i++)
+            {
+                if (!stdRef.Contains(list[i].Name))
+                {
+                    addRef.Add(list[i].Name);
+                }
+                if (list[i].Name == "LightspeedModLoader" || list[i].Name == "MWCLoader" || list[i].Name == "MelonLoader" || list[i].Name == "BepInEx")
+                {
+                    File.Move(file, Path.Combine(ModsFolder, Path.GetFileName(file) + ".PendingOverwrite"));
+                    throw new Exception("This mod is not designed for MSCLoader and will be removed.");
+                }
+                if (list[i].Name == "MSCLoader")
+                {
+                    mscl = true;
+                    string[] verparse = list[i].Version.ToString().Split('.');
+                    if (list[i].Version.ToString() == "1.0.0.0")
+                        msVer = "0.1";
+                    else
+                    {
+                        if (verparse[2] == "0")
+                            msVer = $"{verparse[0]}.{verparse[1]}";
+                        else
+                            msVer = $"{verparse[0]}.{verparse[1]}.{verparse[2]}";
+                    }
+                }
+            }
+
+            //Warn about wrong .net target, source of some mod crashes.
+            if (!asm.ImageRuntimeVersion.Equals(Assembly.GetExecutingAssembly().ImageRuntimeVersion))
+                ModConsole.Warning($"File <b>{Path.GetFileName(file)}</b> is targeting runtime version <b>{asm.ImageRuntimeVersion}</b> which is different than current running version <b>{Assembly.GetExecutingAssembly().ImageRuntimeVersion}</b>. This may cause unexpected behaviours, check your target assembly.");
+
+            // Look through all public classes
+            Type[] asmTypes = asm.GetTypes();
+
+            for (int j = 0; j < asmTypes.Length; j++)
+            {
+                if (asmTypes[j] == null) continue;
+
+                // Console.WriteLine($"{file} - {asmTypes[j].Name}"); //dbg
+
+                if (asmTypes[j].IsSubclassOf(typeof(Mod)))
+                {
+                    Mod m = (Mod)Activator.CreateInstance(asmTypes[j]);
+                    if (m.ID.StartsWith("MSCLoader_")) continue;
+                    if ((m.SupportedGames & currentGame) == 0)
+                    {
+#if MWC
+                        if (ModMenu.ignoreCompatibility.GetValue())
+                        {
+                            ModConsole.Warning($"Mod <b><color=orange>{Path.GetFileName(file)}</color></b> is not set as compatible with current game! This mod was made for: <b><color=yellow>{m.SupportedGames}</color></b>.");
+                            m.isIncompatible = true;
+                        }
+                        else
+                        {
+#endif
+                        ModConsole.Error($"Mod <b><color=orange>{Path.GetFileName(file)}</color></b> is not set as compatible with current game! This mod was made for: <b><color=yellow>{m.SupportedGames}</color></b>.");
+                        IncompatibleMods.Add(m);
+                        InvalidMods.Add(new InvalidMods(Path.GetFileName(file), true, $"This mod is not marked as compatible with current game. Compatible games: <color=aqua>{m.SupportedGames}</color>", new List<string>(), ""));
+                        return;
+#if MWC
+                        }
+#endif
+                    }
+                    if (string.IsNullOrEmpty(m.ID.Trim()))
+                    {
+                        //Do not allow null/empty/whitespace modID.
+                        Console.Write("Empty mod ID");
+                        return;
+                    }
+                    m.asmGuid = asmGuid;
+                    isMod = true;
+                    if (addRef.Count > 0)
+                        LoadMod(m, msVer, file, [.. addRef], isEA);
+                    else
+                        LoadMod(m, msVer, file, null, isEA);
+                    break;
+                }
+                else
+                {
+                    isMod = false;
+                }
+            }
+            if (!isMod)
+            {
+                crashedGuids.Add(asmGuid);
+                ModConsole.Error($"<b>{Path.GetFileName(file)}</b> - doesn't look like a mod or missing Mod subclass!{Environment.NewLine}<b>Details:</b> File loaded correctly, but failed to find Mod methods.{Environment.NewLine}If this is a reference put this file into \"<b>References</b>\" folder.{Environment.NewLine}");
+                InvalidMods.Add(new InvalidMods(Path.GetFileName(file), true, "File loaded correctly, but failed to find Mod methods.", addRef.ToList(), asmGuid));
+            }
+        }
+        catch (Exception e)
+        {
+            if (mscl)
+            {
+                crashedGuids.Add(asmGuid);
+                ModConsole.Error($"<b>{Path.GetFileName(file)}</b> - crashed during load.<b>Details:</b> {e.GetFullMessage()}");
+                InvalidMods.Add(new InvalidMods(Path.GetFileName(file), true, e.GetFullMessage(), addRef.ToList(), asmGuid));
+
+                if (addRef.Count > 0)
+                {
+                    List<string> filteredRef = new List<string>();
+                    foreach (string s in addRef)
+                    {
+                        if (!AppDomain.CurrentDomain.GetAssemblies().Any(a => a.GetName().Name == s))
+                        {
+                            filteredRef.Add(s);
+                        }
+                    }
+                    if (filteredRef.Count > 0)
+                        ModConsole.Print($"<color=red>Potential missing files: </color><color=aqua>{string.Join(", ", filteredRef.ToArray())}</color>{Environment.NewLine}");
+                }
+            }
+            else
+            {
+                if (byteFile != null)
+                {
+                    ModUI.ShowMessage($"Loading early access file <b><color=aqua>{Path.GetFileName(file)}</color></b> failed with error:{Environment.NewLine} <color=orange>{e.GetType().Name}</color>{Environment.NewLine}{Environment.NewLine}Most likely there is new updated file available outside MSCLoader!", "Error");
+                    ModConsole.Error($"<b>{Path.GetFileName(file)}</b> - failed to load this as valid early access file. Most likely there is new updated file available!{Environment.NewLine}<b>Details:</b> {e.GetType().Name}{Environment.NewLine}");
+                    InvalidMods.Add(new InvalidMods(Path.GetFileName(file), false, "failed to load this as valid early access file. Most likely there is new updated file available!"));
+                }
+                else
+                {
+                    if (string.IsNullOrEmpty(e.Message))
+                        ModConsole.Error($"<b>{Path.GetFileName(file)}</b> - doesn't look like a mod, remove this file from mods folder!{Environment.NewLine}<b>Details:</b> {e.GetType().Name}{Environment.NewLine}");
+                    else
+                        ModConsole.Error($"<b>{Path.GetFileName(file)}</b> - doesn't look like a mod, remove this file from mods folder!{Environment.NewLine}<b>Details:</b> {e.GetFullMessage()}{Environment.NewLine}");
+                    InvalidMods.Add(new InvalidMods(Path.GetFileName(file), false, e.GetFullMessage()));
+                }
+            }
+            if (devMode)
+                ModConsole.Error(e.ToString());
+            Console.WriteLine(e);
+            //InvalidMods.Add(Path.GetFileName(file));
+        }
+
+    }
+    private bool ReferencesArePresent(string[] refs)
+    {
+        int count = 0;
+        Assembly[] LoadedAsms = AppDomain.CurrentDomain.GetAssemblies();
+        for (int i = 0; i < LoadedAsms.Length; i++)
+        {
+            if (refs.Contains(LoadedAsms[i].GetName().Name))
+            {
+                count++;
+                if (count == refs.Length)
+                    return true;
+            }
+        }
+        return false;
+    }
+    private void LoadMod(Mod mod, string msver, string fname = null, string[] additionalRef = null, bool isEA = false)
+    {
+        string pm = string.Empty;
+        // Check if mod already exists
+        if (!LoadedMods.Contains(mod) && !LoadedMods.Select(x => x.ID).Contains(mod.ID))
+        {
+            LoadedMods.Add(mod);
+            mod.isEA = isEA;
+            if (mod.Description != null) pm = mod.Description.Contains(MSCLInternal.ProLoaderMagic()) ? "*" : "";
+            Console.WriteLine($"Detected As: {mod.Name} (ID: {mod.ID}) v{mod.Version} (by {mod.Author}) {pm}");
+            // Create config folder
+            if (!Directory.Exists(Path.Combine(SettingsFolder, mod.ID)))
+            {
+                Directory.CreateDirectory(Path.Combine(SettingsFolder, mod.ID));
+            }
+            mod.compiledVersion = msver;
+            mod.fileName = fname;
+            mod.AdditionalReferences = additionalRef;
+            if (mod.AdditionalReferences != null)
+            {
+                modIDsReferences.Add(mod.ID);
+            }
+            try
+            {
+                Console.WriteLine($"Calling ModSetup (for mod {mod.ID})");
+                mod.ModSetup();
+                if (mod.newFormat && mod.fileName == null)
+                {
+                    if (mod.A_OnMenuLoad != null)
+                    {
+                        Console.WriteLine($"Calling OnMenuLoad (for mod {mod.ID})");
+                        mod.A_OnMenuLoad?.Invoke();
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                ModException(e, mod);
+            }
+        }
+        else
+        {
+            ModConsole.Error($"Mod already loaded (or duplicated ID): <b>{mod.ID}</b>");
+        }
+    }
+
+    internal void A_OnGUI()
+    {
+        GUI.skin = guiskin;
+        for (int i = 0; i < Mod_OnGUI.Length; i++)
+        {
+            if (Mod_OnGUI[i].isDisabled)
+                continue;
+            try
+            {
+                if (allModsLoaded || Mod_OnGUI[i].menuCallbacks)
+                    Mod_OnGUI[i].A_OnGUI.Invoke();
+            }
+            catch (Exception e)
+            {
+                ModExceptionHandler(e, Mod_OnGUI[i]);
+            }
+        }
+    }
+    internal void A_Update()
+    {
+        for (int i = 0; i < Mod_Update.Length; i++)
+        {
+            if (Mod_Update[i].isDisabled)
+                continue;
+            try
+            {
+                if (allModsLoaded || Mod_Update[i].menuCallbacks)
+                    Mod_Update[i].A_Update.Invoke();
+            }
+            catch (Exception e)
+            {
+                ModExceptionHandler(e, Mod_Update[i]);
+            }
+        }
+    }
+    internal void A_FixedUpdate()
+    {
+        for (int i = 0; i < Mod_FixedUpdate.Length; i++)
+        {
+            if (Mod_FixedUpdate[i].isDisabled)
+                continue;
+            try
+            {
+                if (allModsLoaded || Mod_FixedUpdate[i].menuCallbacks)
+                    Mod_FixedUpdate[i].A_FixedUpdate.Invoke();
+            }
+            catch (Exception e)
+            {
+                ModExceptionHandler(e, Mod_FixedUpdate[i]);
+            }
+        }
+    }
+#if MSC
+    internal void BC_OnGUI()
+    {
+        GUI.skin = guiskin;
+        for (int i = 0; i < OnGUImods.Length; i++)
+        {
+            if (OnGUImods[i].isDisabled)
+                continue;
+            try
+            {
+                if (allModsLoaded || OnGUImods[i].LoadInMenu)
+                    OnGUImods[i].OnGUI();
+            }
+            catch (Exception e)
+            {
+                ModExceptionHandler(e, OnGUImods[i]);
+            }
+        }
+    }
+
+
+    internal void BC_Update()
+    {
+        for (int i = 0; i < UpdateMods.Length; i++)
+        {
+            if (UpdateMods[i].isDisabled)
+                continue;
+            try
+            {
+                if (allModsLoaded || UpdateMods[i].LoadInMenu)
+                    UpdateMods[i].Update();
+            }
+            catch (Exception e)
+            {
+                ModExceptionHandler(e, UpdateMods[i]);
+            }
+        }
+    }
+
+    internal void BC_FixedUpdate()
+    {
+        for (int i = 0; i < FixedUpdateMods.Length; i++)
+        {
+            if (FixedUpdateMods[i].isDisabled)
+                continue;
+            try
+            {
+                if (allModsLoaded || FixedUpdateMods[i].LoadInMenu)
+                    FixedUpdateMods[i].FixedUpdate();
+            }
+            catch (Exception e)
+            {
+                ModExceptionHandler(e, FixedUpdateMods[i]);
+            }
+        }
+    }
+#endif
+    void ModExceptionHandler(Exception e, Mod mod)
+    {
+        if (LogAllErrors)
+        {
+            ModException(e, mod);
+        }
+        if (allModsLoaded)
+            mod.modClassErrors++;
+        if (devMode)
+        {
+            if (mod.modClassErrors >= 60)
+            {
+                mod.isDisabled = true;
+                ModConsole.Error($"Mod <b>{mod.ID}</b> spams <b>too many errors each frame</b>! Last error: ");
+                ModConsole.Error(e.ToString());
+                ModConsole.Warning($"[DevMode] This is performance issue if it happens also outside od Mod class!");
+            }
+        }
+        else
+        {
+            if (mod.modClassErrors >= 30)
+            {
+                mod.isDisabled = true;
+                ModConsole.Error($"Mod <b>{mod.ID}</b> has been <b>disabled!</b> Because it spams too many errors each frame!{Environment.NewLine}Report this problem to mod author.{Environment.NewLine}Last error message:");
+                ModConsole.Error(e.GetFullMessage());
+            }
+        }
+        Console.WriteLine(e);
+    }
+
+
+}
+#endif

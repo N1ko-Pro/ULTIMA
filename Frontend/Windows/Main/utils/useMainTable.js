@@ -120,31 +120,6 @@ export default function useMainTable({
     [originalStrings],
   );
 
-  // Whether a row counts toward translation progress. The view toggles ADD
-  // their rows to the workload: technical rows count once "Технические" is on,
-  // and other-language rows count once "Другой язык" is on. A manual per-row
-  // override always wins ('text' → counts, 'technical' → only when shown).
-  const isCountableRow = useCallback((id) => {
-    const override = techOverride[id];
-    if (override === 'text') return true;
-    if (override === 'technical') return Boolean(showTechnical);
-    const auto = autoCategoryById[id] || 'text';
-    if (auto === 'technical') return Boolean(showTechnical);
-    if (foreignById[id]) return Boolean(showForeign);
-    return true;
-  }, [techOverride, autoCategoryById, foreignById, showTechnical, showForeign]);
-
-  const countableStrings = useMemo(
-    () => (originalStrings || []).filter((row) => isCountableRow(row.id)),
-    [originalStrings, isCountableRow],
-  );
-  const totalCount = countableStrings.length;
-  const translatedCount = useMemo(
-    () => countableStrings.filter((row) => translations[row.id]?.trim()).length,
-    [countableStrings, translations],
-  );
-
-  const progress = totalCount > 0 ? Math.round((translatedCount / totalCount) * 100) : 0;
   const missingRowIdSet = useMemo(
     () => new Set(packValidation?.missingMainTableRowIds || []),
     [packValidation],
@@ -200,6 +175,38 @@ export default function useMainTable({
     () => customRows.filter((r) => r.translation && r.translation.trim()).length,
     [customRows],
   );
+
+  // ── Translation progress — scoped to the ACTIVE filter ────────────────────
+  // The denominator equals the number of rows the current filter shows, so e.g.
+  // under "Избранные" progress reads X / <favorites>, under "Скрытые" X /
+  // <hidden>, under custom X / <custom>. Membership mirrors `displayedStrings`
+  // (favorites/hidden + technical/foreign visibility) but deliberately ignores
+  // the search box and the row-limit pagination — neither changes how much of
+  // the filter is actually translated.
+  const { totalCount, translatedCount } = useMemo(() => {
+    if (bookmarkFilter === 'custom') {
+      return { totalCount: customCount, translatedCount: customTranslatedCount };
+    }
+    const all = originalStrings || [];
+    let rows;
+    if (bookmarkFilter === 'hidden') {
+      rows = all.filter((row) => hiddenRows.has(row.id));
+    } else {
+      rows = all.filter((row) => !hiddenRows.has(row.id));
+      if (bookmarkFilter === 'favorites') rows = rows.filter((row) => bookmarks.has(row.id));
+      if (!showTechnical) rows = rows.filter((row) => effectiveCategoryOf(row.id) !== 'technical');
+    }
+    const translated = rows.reduce(
+      (n, row) => ((translations[row.id] || '').trim() ? n + 1 : n),
+      0,
+    );
+    return { totalCount: rows.length, translatedCount: translated };
+  }, [
+    originalStrings, bookmarkFilter, hiddenRows, bookmarks, showTechnical,
+    effectiveCategoryOf, translations, customCount, customTranslatedCount,
+  ]);
+
+  const progress = totalCount > 0 ? Math.round((translatedCount / totalCount) * 100) : 0;
 
   const handleToggleBookmark = useCallback((rowId) => {
     setTranslations((prev) => {

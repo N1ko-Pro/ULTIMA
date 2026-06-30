@@ -34,25 +34,16 @@ Backend/bin/
 Backend/DllParser/bin/
 Backend/DllParser/obj/
 
-# ── MSC tool (released from the separate N1ko-Pro/ULTIMA_TOOLS repo; the exe is
-#    downloaded at runtime to %APPDATA%/ULTIMA/tools/msc and never bundled).
-#    We edit the tool SOURCE here, so track it but ignore all build output. ────
-tools/MSC/*
-!tools/MSC/*.cs
-!tools/MSC/*.csproj
-!tools/MSC/README.md
-tools_src/
-
-# ── MSC patcher (MSCLoc API). Source (src/, *.csproj, README, tests) is
-#    tracked; build output and the large LOCAL-ONLY reference material (game
-#    DLLs, MSCLoader binaries + source) are ignored. Released from ULTIMA_TOOLS.
-tools/MSC-Patcher/bin/
-tools/MSC-Patcher/obj/
-tools/MSC-Patcher/tests/bin/
-tools/MSC-Patcher/tests/obj/
-tools/MSC-Patcher/Origin Files/
-tools/MSC-Patcher/MSCLoader/
-tools/MSC-Patcher/MSCModLoader-1.4.2/
+# ── Tools ────────────────────────────────────────────────────────────────────
+# Everything under tools/ is tracked in THIS repo (BG3 Divine binaries, the MSC
+# C# tools, and tools/reference research material). The MSC tools are ALSO
+# released to N1ko-Pro/ULTIMA_TOOLS via scripts/release-tool.js. Only build
+# output and the transient release clone are ignored.
+tools/**/bin/
+tools/**/obj/
+tools/**/publish/
+tools/**/win-x64/
+.ultima_tools_clone/
 
 # ── Logs ─────────────────────────────────────────────────────────────────────
 logs/
